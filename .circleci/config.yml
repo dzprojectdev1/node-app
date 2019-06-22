@@ -30,8 +30,8 @@ jobs:
             # - v1-dependencies-
 
       - run:
-        name: install-npm-wee
-        command: npm install
+          name: install-npm
+          command: npm install
 
       - save_cache:
           paths:
