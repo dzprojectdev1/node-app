@@ -31,7 +31,7 @@ jobs:
 
       - run:
         name: install-npm-wee
-        command: yarn install
+        command: npm install
 
       - save_cache:
           paths:
