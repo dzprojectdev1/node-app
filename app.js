@@ -8,14 +8,6 @@ app.use(bodyParser.urlencoded({
     extended: true
 }));
 
-// app.use((req, res, next) => {
-// 	res.header("Access-Control-Allow-Origin", "*");
-// 	res.header(
-// 		"Access-Control-Allow-Headers",
-// 		"Origin, X-Requested-Width, Content-Type, Accept, Authorization"		
-// 	);
-// })
-
 // default route
 app.get('/', function (req, res) {
     return res.send({ error: true, message: 'hello' })
