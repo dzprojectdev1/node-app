@@ -1,0 +1,67 @@
+var express = require("express");
+var videoApi = express.Router();
+var dbConn = require("../config/dbConfig");
+const checkAuth = require('../middleware/check_auth');
+
+// #7 === insert new video after upload to firebase storage
+videoApi.post('/new', checkAuth, function(req,res) {
+    let cdn_id = req.body.cdn_id;
+    let cdn_flitered_id = req.body.cdn_flitered_id;
+    let userId = req.userData.userId;
+  
+    if (!cdn_id || !cdn_flitered_id) {
+        return res.status(400).send({ error:true, message: 'Please provide video url'});
+	}
+
+	dbConn.query('SELECT * FROM tbl_video where user_id=?', userId, function (error, results, fields) {
+        if (error) throw error;
+		if (results.length){
+            return res.status(400).send({ error:true, message: 'user video is already taken.' });
+        }
+		else {
+			var newVideoSql = {
+                user_id: userId,
+                cdn_id: cdn_id,
+                created_date: new Date(),
+                is_reply: 0,
+                is_primary: 1,
+                publish: 1,
+                match_id: null             
+			};
+
+			dbConn.query("INSERT INTO tbl_video SET ? ", newVideoSql, function (error, results, fields) {
+                if (error) throw error;
+                //update this row with filtered cdn id
+                dbConn.query("UPDATE tbl_video SET cdn_filtered_id = ? WHERE user_id = ?", [cdn_flitered_id, userId], function (error, results, fields) {
+                    if (error) throw error;
+                    return res.send({ error: false, data: results, message: "User's video has been created succssfully."});
+                });
+			});
+		}
+    });
+});
+
+//#8 === upload reply video
+videoApi.post('/reply', checkAuth, function(req, res) {
+    let userId = req.userData.userId;
+    dbConn.query('SELECT id FROM tbl_match where other_user_id=? AND status=1 AND status_description="heart_sent"', userId, function (error, results, fields) {
+        if (error) throw error;
+        if (!results.length)
+            return res.status(400).send({ error:true, message: 'Match data cannot be found.'});
+            var newVideoSql = {
+                user_id: userId,
+                created_date: new Date(),
+                is_reply: 1,
+                is_primary: 0,
+                match_id: results[0]             
+            };
+        
+            dbConn.query("INSERT INTO tbl_video SET ? ", newVideoSql, function (error, results, fields) {
+                if (error) throw error;
+                return res.send({ error: false, data: results, message: "User's reply video has been created succssfully."});
+            });
+    });    
+});
+
+
+module.exports = videoApi;
