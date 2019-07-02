@@ -3,7 +3,7 @@ var videoApi = express.Router();
 var dbConn = require("../config/dbConfig");
 const checkAuth = require('../middleware/check_auth');
 
-// #7 === insert new video after upload to firebase storage
+// #8 === insert new video after upload to firebase storage
 videoApi.post('/new', checkAuth, function(req,res) {
     let cdn_id = req.body.cdn_id;
     let cdn_flitered_id = req.body.cdn_flitered_id;
@@ -41,7 +41,7 @@ videoApi.post('/new', checkAuth, function(req,res) {
     });
 });
 
-//#8 === upload reply video
+//#9 === upload reply video
 videoApi.post('/reply', checkAuth, function(req, res) {
     let userId = req.userData.userId;
     dbConn.query('SELECT id FROM tbl_match where other_user_id=? AND status=1 AND status_description="heart_sent"', userId, function (error, results, fields) {
@@ -60,8 +60,17 @@ videoApi.post('/reply', checkAuth, function(req, res) {
                 if (error) throw error;
                 return res.send({ error: false, data: results, message: "User's reply video has been created succssfully."});
             });
-    });    
+    });
 });
+
+//#10 uc 6 list other videos for the users
+videoApi.get('/myvideo', checkAuth),function(req, res) {
+    var user_id = req.userData.userId;
+    dbConn.query('SELECT cdn_filtered_id from tbl_video where user_id= ? and is_reply=0 and publish=1 order by created_date desc', [user_id], function (error, results, fields){
+        if (error) throw error;
+        return res.send({ error: false, data: results, message: "filtered user list."});
+    });
+}
 
 
 module.exports = videoApi;
