@@ -63,14 +63,14 @@ videoApi.post('/reply', checkAuth, function(req, res) {
     });
 });
 
-//#10 uc 6 list other videos for the users
-videoApi.get('/myvideo', checkAuth),function(req, res) {
+//#10 uc 6 other videos for the users
+videoApi.get('/myvideo', checkAuth, function(req, res) {
     var user_id = req.userData.userId;
     dbConn.query('SELECT cdn_filtered_id from tbl_video where user_id= ? and is_reply=0 and publish=1 order by created_date desc', [user_id], function (error, results, fields){
         if (error) throw error;
-        return res.send({ error: false, data: results, message: "filtered user list."});
+        return res.send({ error: false, data: results, message: "list other videos for the user"});
     });
-}
+});
 
 
 module.exports = videoApi;

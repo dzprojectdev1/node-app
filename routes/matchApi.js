@@ -75,13 +75,13 @@ matchApi.post('/dislike', checkAuth, function(req, res) {
 //#14 uc4.3 === user set other user with block
 matchApi.post('/block', checkAuth, function(req, res) {
 
-    if (!req.body.other_user_id) {
+    if (!req.body.otherId) {
 		return res.status(400).send({ error:true, message: 'Please provide other user id' });
     }
 
     var blockData = {
         main_user_id: req.userData.userId,
-        other_user_id: req.body.other_user_id,
+        other_user_id: req.body.otherId,
         status: 8,
         status_description: "block_created",
         publish: 1,
@@ -90,8 +90,8 @@ matchApi.post('/block', checkAuth, function(req, res) {
     };
 
     dbConn.query("INSERT INTO tbl_match SET ? ", blockData, function(error, results, fields) {
-        if (err) throw error;
-        return res.send({error: false, data: results, message: ''})
+        if (error) throw error;
+        return res.send({error: false, data: results, message: 'User block other.'})
     });
 });
 
@@ -123,13 +123,13 @@ matchApi.post('/blockreply', checkAuth, function(req, res) {
 matchApi.get('/myHearts', checkAuth, function(req, res) {
     var userId = req.userData.userId;
 
-    let whereCondition= 'A.status = 2 AND A.main_user_id= ? AND B.is_primary= 0 AND B.is_reply=1 AND B.publish=1';
+    let whereCondition= 'A.status = 2 AND A.main_user_id=? AND B.is_reply=1 AND B.publish=1 AND B.is_primary=0';
     
     dbConn.query('SELECT * FROM tbl_match AS A INNER JOIN tbl_video AS B on A.id = B.match_id WHERE ' + whereCondition, [userId], function(error, results, fields) {
         if (error) throw error;
-        return res.send({error: false, data: results, message: 'get all hearts list'});
+        return res.send({error: false, data: results, message: 'All hearts list'});
     });
-})
+});
 
 //#17 uc7.2 ===  incoming hearts : main user rejects heart from other user
 matchApi.post('/sendHeartReject', checkAuth, function(req, res) {
@@ -138,7 +138,7 @@ matchApi.post('/sendHeartReject', checkAuth, function(req, res) {
 
     if (!otherUserId) {
 		return res.status(400).send({ error:true, message: 'Please provide other user id' });
-    }  
+    } 
 
     var sendRejectData = {
         main_user_id: userId,
@@ -147,7 +147,8 @@ matchApi.post('/sendHeartReject', checkAuth, function(req, res) {
         status_description: 'incoming_heart_rejected',
         created_date: new Date(),
         updated_date: new Date()
-    }
+    };
+    
     dbConn.query('INSERT INTO tbl_match SET ?', sendRejectData, function(error, results, fields) {
         if (error) throw error;
         return res.send({ error: false, data: results, message: 'User reject another someone.' });
@@ -173,7 +174,7 @@ matchApi.post('/receiveHeartReject', checkAuth, function(req, res) {
     }
     dbConn.query('INSERT INTO tbl_match SET ?', receiveRejectData, function(error, results, fields) {
         if (error) throw error;
-        return res.send({ error: false, data: results, message: 'User reject another someone.' });
+        return res.send({ error: false, data: results, message: 'User receive Other`s Heart Reject.' });
     });
 });
 
