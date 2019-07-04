@@ -19,6 +19,7 @@ var matchApi = require('./routes/matchApi');
 var languageApi = require('./routes/languageApi');
 var countryApi = require('./routes/countryApi');
 var ethnicityApi = require('./routes/ethnicityApi');
+var chatApi = require('./routes/chatApi');
 
 app.use('/api/user', userApi);
 app.use('/api/video', videoApi);
@@ -26,5 +27,6 @@ app.use('/api/match', matchApi);
 app.use('/api/language', languageApi);
 app.use('/api/country', countryApi);
 app.use('/api/ethnicity', ethnicityApi);
+app.use('/api/chat', chatApi);
 
 module.exports = app;

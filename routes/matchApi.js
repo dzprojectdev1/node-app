@@ -98,13 +98,13 @@ matchApi.post('/block', checkAuth, function(req, res) {
 //#15 uc4.3 === user block receive event
 matchApi.post('/blockreply', checkAuth, function(req, res) {
 
-    if (!req.body.other_user_id) {
+    if (!req.body.otherId) {
 		return res.status(400).send({ error:true, message: 'Please provide other user id' });
     }  
 
     var blockData = {
         main_user_id: req.userData.userId,
-        other_user_id: req.body.other_user_id,
+        other_user_id: req.body.otherId,
         status: 9,
         status_description: "block_received",
         publish: 1,
@@ -114,13 +114,13 @@ matchApi.post('/blockreply', checkAuth, function(req, res) {
 
     dbConn.query("INSERT INTO tbl_match SET ? ", blockData, function(error, results, fields) {
         if (error) throw error;
-        return res.send({error: false, data: results, message: 'block received successfully.'})
+        return res.send({error: false, data: results, message: 'block received.'})
     });
 });
 
 
 //#16 uc7.1 display incoming hearts
-matchApi.get('/myHearts', checkAuth, function(req, res) {
+matchApi.get('/getReceivedHearts', checkAuth, function(req, res) {
     var userId = req.userData.userId;
 
     let whereCondition= 'A.status = 2 AND A.main_user_id=? AND B.is_reply=1 AND B.publish=1 AND B.is_primary=0';
@@ -148,15 +148,46 @@ matchApi.post('/sendHeartReject', checkAuth, function(req, res) {
         created_date: new Date(),
         updated_date: new Date()
     };
-    
-    dbConn.query('INSERT INTO tbl_match SET ?', sendRejectData, function(error, results, fields) {
-        if (error) throw error;
-        return res.send({ error: false, data: results, message: 'User reject another someone.' });
+
+    dbConn.beginTransaction(function(err){
+        if (err) throw err;
+        dbConn.query('INSERT INTO tbl_match set ? ', [sendRejectData], function(error, sendResult) {
+            if (error) {
+                dbConn.rollback(function(){
+                    throw error;
+                });
+            }
+            var receiveRejectData = {
+                main_user_id: userId,
+                other_user_id: otherUserId,
+                status: 5,
+                status_description: 'sent_heart_rejected',
+                created_date: new Date(),
+                updated_date: new Date()
+            }
+            dbConn.query('INSERT INTO tbl_match set ? ', [receiveRejectData], function(error, receiveResult) {
+                if (error) {
+                    dbConn.rollback(function() {
+                        throw error;
+                    });
+                };
+
+                dbConn.commit(function(error) {
+                    if (error) {
+                        dbConn.rollback(function() {
+                            throw error;
+                        });
+                    };
+
+                    return res.send({ error: false, data: {sendResult, receiveResult}, message: "Match Reject Created."});
+                });
+            });
+        });
     });
 });
 
-//#18 uc7.2 ===  incoming hearts : main user receive heart from other user
-matchApi.post('/receiveHeartReject', checkAuth, function(req, res) {
+//#22 uc 7.3 Incoming Hearts: main user accpets heart from other user
+matchApi.post('/requestMatch', checkAuth, function(req, res) {
     var userId = req.userData.userId;
     var otherUserId = req.body.otherId;
 
@@ -164,17 +195,73 @@ matchApi.post('/receiveHeartReject', checkAuth, function(req, res) {
 		return res.status(400).send({ error:true, message: 'Please provide other user id' });
     }  
 
-    var receiveRejectData = {
+    var heartSendData = {
         main_user_id: userId,
         other_user_id: otherUserId,
-        status: 5,
-        status_description: 'sent_heart_rejected',
+        status: 6,
+        status_description: 'incoming_heart_accepted',
         created_date: new Date(),
         updated_date: new Date()
     }
-    dbConn.query('INSERT INTO tbl_match SET ?', receiveRejectData, function(error, results, fields) {
-        if (error) throw error;
-        return res.send({ error: false, data: results, message: 'User receive Other`s Heart Reject.' });
+
+    dbConn.beginTransaction(function(err){
+        if (err) throw err;
+        dbConn.query('INSERT INTO tbl_match set ? ', [heartSendData], function(error, sendResult) {
+            if (error) {
+                dbConn.rollback(function(){
+                    throw error;
+                });
+            }
+            var heartAccpetData = {
+                main_user_id: otherUserId,
+                other_user_id: userId,
+                status: 7,
+                mutual_match_id: sendResult.insertId,
+                status_description: 'sent_heart_accepted',
+                created_date: new Date(),
+                updated_date: new Date()
+            }
+            dbConn.query('INSERT INTO tbl_match set ? ', [heartAccpetData], function(error, receiveResult) {
+                if (error) {
+                    dbConn.rollback(function() {
+                        throw error;
+                    });
+                };
+
+                dbConn.query("UPDATE tbl_match SET mutual_match_id = ? WHERE main_user_id = ?", [receiveResult.insertId, userId], function (error, results, fields) {
+                    if (error) {
+                        dbConn.rollback(function() {
+                            throw error;
+                        });
+                    };
+                    dbConn.commit(function(error) {
+                        if (error) {
+                            dbConn.rollback(function() {
+                                throw error;
+                            });
+                        };
+
+                        return res.send({ error: false, data: {sendResult, receiveResult}, message: "New Match is Created."});
+                    });
+                });                
+            });
+        });
+    });
+});
+
+//#23 uc 8 Matched Page Display Matched list(matched_id)
+matchApi.get('/matches', checkAuth, function(req, res) {
+    var userId = req.userData.userId;
+    
+    if (!userId) {
+        return res.status(400).send({ error:true, message: 'Please login again!'}); 
+    }
+
+    var whereCondition = 'where a.main_user_id=? and a.status in (6,7) and a.publish=1 and b.account_status=1';
+
+    dbConn.query('SELECT * FROM tbl_match as a inner join tbl_user as b on a.other_user_id=b.id ' + whereCondition, [userId], function(error, results, fields) {
+        if(error) throw error;
+        return res.send({ error: false, data: results, message: 'All match data'}); 
     });
 });
 
