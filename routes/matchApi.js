@@ -26,7 +26,7 @@ matchApi.post('/view', checkAuth, function(req,res) {
     });
 });
 
-// #12 === main user “hearts” other user’s video
+// #12 === main user “hearts” other user’s video === 
 matchApi.post('/like', checkAuth, function(req,res) {
 
     if (!req.body.otherId) {
