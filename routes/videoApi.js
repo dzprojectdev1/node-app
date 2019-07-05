@@ -6,7 +6,7 @@ const checkAuth = require('../middleware/check_auth');
 // #8 === insert new video after upload to firebase storage
 videoApi.post('/new', checkAuth, function(req,res) {
     let cdn_id = req.body.cdn_id;
-    let cdn_flitered_id = req.body.cdn_flitered_id;
+    let cdn_flitered_id = req.body.cdn_filtered_id;
     let userId = req.userData.userId;
   
     if (!cdn_id || !cdn_flitered_id) {
@@ -53,7 +53,7 @@ videoApi.post('/reply', checkAuth, function(req, res) {
                 created_date: new Date(),
                 is_reply: 1,
                 is_primary: 0,
-                match_id: results[0]             
+                match_id: results[0]
             };
         
             dbConn.query("INSERT INTO tbl_video SET ? ", newVideoSql, function (error, results, fields) {

@@ -29,13 +29,13 @@ matchApi.post('/view', checkAuth, function(req,res) {
 // #12 === main user “hearts” other user’s video
 matchApi.post('/like', checkAuth, function(req,res) {
 
-    if (!req.body.other_user_id) {
+    if (!req.body.otherId) {
 		return res.status(400).send({ error:true, message: 'Please provide other user id' });
     }  
 
     var newMatchSql = {
         main_user_id: req.userData.userId,
-        other_user_id: req.body.other_user_id,
+        other_user_id: req.body.otherId,
         status: req.body.status ? req.body.status : 1,
         status_description: req.body.status_description ? req.body.status_description : 'heart_sent',
         publish: 1,
