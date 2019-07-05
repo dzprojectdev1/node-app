@@ -141,6 +141,5 @@ chatApi.post('/reportUser', checkAuth, function(req, res) {
     });
 });
 
-
 module.exports = chatApi;
 

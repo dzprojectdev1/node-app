@@ -202,7 +202,7 @@ matchApi.post('/requestMatch', checkAuth, function(req, res) {
         status_description: 'incoming_heart_accepted',
         created_date: new Date(),
         updated_date: new Date()
-    }
+    };
 
     dbConn.beginTransaction(function(err){
         if (err) throw err;

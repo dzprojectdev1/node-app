@@ -7,8 +7,8 @@ const checkAuth = require('../middleware/check_auth');
 ethnictiyApi.get('/all', checkAuth, function(req, res) {
     var publish = 1;
     dbConn.query('SELECT * FROM tbl_ethnicity where publish=?', publish, function (error, results, fields) {
-        if (error) throw error;
-        
+        console.log(error);
+        if (error) throw error;        
         return res.send({ error: false, data: results, message: "Country list"});
     });
 });
