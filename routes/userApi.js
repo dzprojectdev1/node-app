@@ -138,6 +138,24 @@ userApi.put('/delete', checkAuth, function (req, res) {
         }
         return res.send({ error: false, data: results, message: 'User has been removed successfully.'});
     });
-}); 
+});
+
+//#7 === uc5.2 display filter gender/ location/ age
+userApi.post('/filter', checkAuth, function(req, res) {
+    let gender = req.body.gender;
+    let latGeo = req.body.lat_geo;
+    let longGeo = req.body.long_geo;
+    let age = req.body.age;
+
+    let now  = new Date();
+    let nowYear = now.getFullYear();
+    let birthYear = nowYear - age;
+    let birthDate = new Date(birthYear.toString());
+    
+    dbConn.query('SELECT * FROM tbl_user where gender = ? AND lat_geo = ? AND long_geo = ? AND birth_date <= ?', [gender, latGeo, longGeo, birthDate], function(error, results, fields) {
+        if (error) throw error;
+        return res.send({ error: false, data: results, message: 'Filtered user list'});
+    });
+});
 
 module.exports = userApi;
