@@ -141,5 +141,101 @@ chatApi.post('/reportUser', checkAuth, function(req, res) {
     });
 });
 
+//#33 UC 11 = block user from chat
+chatApi.post('/blockChat', checkAuth, function(req, res) {
+    var userId = req.userData.userId;
+    var otherId = req.body.otherId;
+
+    if (!otherId) {
+		return res.status(400).send({ error:true, message: 'Please provide other user id' });
+    }  
+
+    var userBlockData = {
+        main_user_id: userId,
+        other_user_id: otherId,
+        status: 8,
+        status_description: 'block_chat',
+        created_date: new Date(),
+        updated_date: new Date()
+    };
+
+    dbConn.beginTransaction(function(err){
+        if (err) throw err;
+        dbConn.query('INSERT INTO tbl_match set ? ', [userBlockData], function(error, sendResult) {
+            if (error) {
+                dbConn.rollback(function(){
+                    throw error;
+                });
+            }
+            var blockReplyData = {
+                main_user_id: otherId,
+                other_user_id: userId,
+                status: 8,
+                mutual_match_id: sendResult.insertId,
+                status_description: 'block_chat_receive',
+                created_date: new Date(),
+                updated_date: new Date()
+            }
+            dbConn.query('INSERT INTO tbl_match set ? ', [blockReplyData], function(error, receiveResult) {
+                if (error) {
+                    dbConn.rollback(function() {
+                        throw error;
+                    });
+                };
+                dbConn.query("UPDATE tbl_match SET mutual_match_id = ? WHERE main_user_id = ?", [receiveResult.insertId, userId], function (error, results, fields) {
+                    if (error) {
+                        dbConn.rollback(function() {
+                            throw error;
+                        });
+                    };
+                    dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=?", [userId, otherId, 1], function(error, results, fields) {
+                        if (error) {
+                            dbConn.rollback(function() {
+                                throw error;
+                            });
+                        };
+                        if (!results.length)
+                            return res.status(400).send({ error:true, message: 'Match data cannot be found.'});
+                        var matchId = results[0].id;
+                        dbConn.query("UPDATE tbl_match SET publish=0 WHERE id=?", [matchId], function(error, results, fields) {
+                            if (error) {
+                                dbConn.rollback(function() {
+                                    throw error;
+                                });
+                            }
+                            dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=?", [otherId, userId, 1], function(error, results, fields) {
+                                if (error) {
+                                    dbConn.rollback(function() {
+                                        throw error;
+                                    });
+                                }
+                                if (!results.length)
+                                    return res.status(400).send({ error:true, message: 'Match data cannot be found.'});
+                                var otherMatchId = results[0].id
+                                dbConn.query("UPDATE tbl_match SET publish=0 WHERE id=?", [otherMatchId], function(error, results, fields) {
+                                    if (error) {
+                                        dbConn.rollback(function() {
+                                            throw error;
+                                        });
+                                    }
+                                    dbConn.commit(function(error) {
+                                        if (error) {
+                                            dbConn.rollback(function() {
+                                                throw error;
+                                            });
+                                        };
+                                        return res.send({ error: false, data: {sendResult, receiveResult}, message: "New Block Created"});
+                                    });
+                                });
+                            });
+                        });
+                    });
+                    
+                });                
+            });
+        });
+    });    
+});
+
 module.exports = chatApi;
 
