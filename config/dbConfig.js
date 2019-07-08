@@ -2,9 +2,9 @@ var mysql = require('mysql');
 
 // connection configurations
 var dbConn = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '',
+    host: '138.197.203.178',
+    user: 'node_server',
+    password: 'aIB9HPWq3!gG',
     database: 'dzproject'
 });
   

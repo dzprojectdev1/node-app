@@ -1,5 +1,6 @@
 var express = require('express');
 var app = express();
+const expressip = require('express-ip');
 var bodyParser = require('body-parser');
 require('dotenv').config();
 
@@ -7,6 +8,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({
     extended: true
 }));
+app.use(expressip().getIpInfoMiddleware);
 
 // default route
 app.get('/', function (req, res) {

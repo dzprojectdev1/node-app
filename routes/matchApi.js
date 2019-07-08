@@ -21,17 +21,17 @@ matchApi.post('/view', checkAuth, function(req,res) {
     };      
 
     dbConn.query("INSERT INTO tbl_match SET ? ", newMatchSql, function (error, results, fields) {
-        if (error) throw error;
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         return res.send({ error: false, data: results.insertId, message: 'New match has been created.' });
     });
 });
 
-// #12 === main user “hearts” other user’s video === ==
+// #12 === main user “hearts” other user’s video ===
 matchApi.post('/like', checkAuth, function(req,res) {
 
     if (!req.body.otherId) {
 		return res.status(400).send({ error:true, message: 'Please provide other user id' });
-    }  
+    }
 
     var newMatchSql = {
         main_user_id: req.userData.userId,
@@ -44,7 +44,7 @@ matchApi.post('/like', checkAuth, function(req,res) {
     };
 
     dbConn.query("INSERT INTO tbl_match SET ? ", newMatchSql, function (error, results, fields) {
-        if (error) throw error;
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         return res.send({ error: false, data: results.insertId, message: 'New match has been created.' });
     });
 });
@@ -67,7 +67,7 @@ matchApi.post('/dislike', checkAuth, function(req, res) {
     };
 
     dbConn.query("INSERT INTO tbl_match SET ? ", notInterestData, function(error, results, fields) {
-        if (error) throw error;
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         return res.send({error: false, data: results, message: ''})
     });
 });
@@ -90,7 +90,7 @@ matchApi.post('/block', checkAuth, function(req, res) {
     };
 
     dbConn.query("INSERT INTO tbl_match SET ? ", blockData, function(error, results, fields) {
-        if (error) throw error;
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         return res.send({error: false, data: results, message: 'User block other.'})
     });
 });
@@ -113,7 +113,7 @@ matchApi.post('/blockreply', checkAuth, function(req, res) {
     };
 
     dbConn.query("INSERT INTO tbl_match SET ? ", blockData, function(error, results, fields) {
-        if (error) throw error;
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         return res.send({error: false, data: results, message: 'block received.'})
     });
 });
@@ -126,7 +126,7 @@ matchApi.get('/getReceivedHearts', checkAuth, function(req, res) {
     let whereCondition= 'A.status = 2 AND A.main_user_id=? AND B.is_reply=1 AND B.publish=1 AND B.is_primary=0';
     
     dbConn.query('SELECT * FROM tbl_match AS A INNER JOIN tbl_video AS B on A.id = B.match_id WHERE ' + whereCondition, [userId], function(error, results, fields) {
-        if (error) throw error;
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         return res.send({error: false, data: results, message: 'All hearts list'});
     });
 });
@@ -150,11 +150,11 @@ matchApi.post('/sendHeartReject', checkAuth, function(req, res) {
     };
 
     dbConn.beginTransaction(function(err){
-        if (err) throw err;
+        if (err) return res.status(400).send({error: true, detail: err.code, message: err.sqlMessage});;
         dbConn.query('INSERT INTO tbl_match set ? ', [sendRejectData], function(error, sendResult) {
             if (error) {
                 dbConn.rollback(function(){
-                    throw error;
+                    return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                 });
             }
             var receiveRejectData = {
@@ -168,14 +168,14 @@ matchApi.post('/sendHeartReject', checkAuth, function(req, res) {
             dbConn.query('INSERT INTO tbl_match set ? ', [receiveRejectData], function(error, receiveResult) {
                 if (error) {
                     dbConn.rollback(function() {
-                        throw error;
+                        return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                     });
                 };
 
                 dbConn.commit(function(error) {
                     if (error) {
                         dbConn.rollback(function() {
-                            throw error;
+                            return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                         });
                     };
 
@@ -209,7 +209,7 @@ matchApi.post('/requestMatch', checkAuth, function(req, res) {
         dbConn.query('INSERT INTO tbl_match set ? ', [heartSendData], function(error, sendResult) {
             if (error) {
                 dbConn.rollback(function(){
-                    throw error;
+                    return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                 });
             }
             var heartAccpetData = {
@@ -224,20 +224,20 @@ matchApi.post('/requestMatch', checkAuth, function(req, res) {
             dbConn.query('INSERT INTO tbl_match set ? ', [heartAccpetData], function(error, receiveResult) {
                 if (error) {
                     dbConn.rollback(function() {
-                        throw error;
+                        return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                     });
                 };
 
                 dbConn.query("UPDATE tbl_match SET mutual_match_id = ? WHERE main_user_id = ?", [receiveResult.insertId, userId], function (error, results, fields) {
                     if (error) {
                         dbConn.rollback(function() {
-                            throw error;
+                            return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                         });
                     };
                     dbConn.commit(function(error) {
                         if (error) {
                             dbConn.rollback(function() {
-                                throw error;
+                                return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                             });
                         };
 
@@ -260,8 +260,48 @@ matchApi.get('/matches', checkAuth, function(req, res) {
     var whereCondition = 'where a.main_user_id=? and a.status in (6,7) and a.publish=1 and b.account_status=1';
 
     dbConn.query('SELECT * FROM tbl_match as a inner join tbl_user as b on a.other_user_id=b.id ' + whereCondition, [userId], function(error, results, fields) {
-        if(error) throw error;
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         return res.send({ error: false, data: results, message: 'All match data'}); 
+    });
+});
+
+// UC4.1 - Browse : display one user
+matchApi.get('/discover', checkAuth, function(req, res) {
+    var userId = req.userData.userId;
+    var distanceQuery = '(3959 * acos (cos(radians(34.1) ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(-118.06)) + sin (radians(34.1) ) * sin( radians( a.lat_geo ) )))';
+    var getOtherMachInfo = 'select other_user_id from tbl_match where main_user_id=?';
+    var whereCondition = 'a.gender=2 and b.is_primary=1 and b.is_reply=0 and a.account_status=1 and b.match_id is null and a.id not in ('+getOtherMachInfo+')';
+    var joinQuery = 'inner join tbl_video b on a.id=b.user_id inner join tbl_country c on a.country_id = c.id inner join tbl_ethnicity d on a.ethnicity_id = d.id inner join tbl_language e on a.language_id = e.id';
+    dbConn.query('SELECT a.id, a.birth_date, a.name, b.cdn_filtered_id, c.country_name, d.ethnicity_name, e.language_name,' + distanceQuery + ' as distance FROM `tbl_user` a '+ joinQuery +' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date asc limit 1', [userId], function(error, results, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if (!results.length)
+            return res.send({ error:false, data: {}, message: 'Not found.'}); 
+        var otherUser = results[0];
+        var otherBirth = otherUser.birth_date;
+        var age = 0;
+        if (otherBirth){
+            var nowDate = new Date();
+            var nowYear = nowDate.getFullYear();
+            var otherDate = new Date(otherBirth);
+            var otherYear = otherDate.getFullYear();
+            var delta = nowYear - otherYear;
+            age = delta;
+        };
+        otherUser.age = age;
+        var newMatchData = {
+            main_user_id: userId,
+            other_user_id: otherUser.id,
+            status: 0,
+            status_description: 'viewed',
+            publish: 1,
+            created_date: new Date(),
+            updated_date: new Date()
+        };
+        dbConn.query('INSERT INTO tbl_match SET ? ', [newMatchData], function(error, newMatch, fields) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+            otherUser.match_id = newMatch.insertId;
+            return res.send({ error: false, data: otherUser, message: "A New Lovely User found."});
+        });
     });
 });
 

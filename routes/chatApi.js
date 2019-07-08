@@ -13,7 +13,7 @@ chatApi.get('/all', checkAuth, function(req, res) {
     var matchJoinQuery = 'inner join tbl_chat b on a.id=b.match_id ';
     var matchQuery = 'SELECT a.id as match_id, max(b.id) as chat_id, a.other_user_id as other_user_id FROM `tbl_match` a '+matchJoinQuery+' where ' +matchWhereCondition;
     dbConn.query('select c.*, d.message_text, e.name, e.gender, e.birth_date from ('+matchQuery+') c ' + joinQuery, [userId], function(error, results, fields){
-        if (error) throw error;
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         return res.send({ error: false, data: results, message: "Get All Chat List"});
     });
 });
@@ -23,7 +23,7 @@ chatApi.get('/getChatWithMatchId/:matchId', checkAuth, function(req,res) {
     var matchId = req.params.matchId;
 
     dbConn.query('Select * from tbl_chat where match_id=? order by created_date desc', [matchId], function(error, results, fields){
-        if (error) throw error;
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         return res.send({ error: false, data: results, message: "Get All Chat List With Match Id: " + matchId});
     });
 });
@@ -39,7 +39,7 @@ chatApi.post('/create', checkAuth, function(req, res) {
     }
 
     dbConn.query('Select mutual_match_id from tbl_match where id=?', [matchId], function(err, matchResults, fields) {
-        if (err) throw err;
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});;
         if (!matchResults.length)
             return res.status(400).send({ error:true, message: 'No Match Found'});
 
@@ -50,12 +50,12 @@ chatApi.post('/create', checkAuth, function(req, res) {
             message_text: messageText,
             created_date: new Date()
         };
-        dbConn.beginTransaction(function(err){
-            if (err) throw err;            
+        dbConn.beginTransaction(function(error){
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});;            
             dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function(error, sendResult) {
                 if (error) {
                     dbConn.rollback(function(){
-                        throw error;
+                        return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                     });
                 }
                 var receiveMsg = {
@@ -67,13 +67,13 @@ chatApi.post('/create', checkAuth, function(req, res) {
                 dbConn.query('INSERT INTO tbl_chat set ? ', [receiveMsg], function(error, receiveResult) {
                     if (error) {
                         dbConn.rollback(function() {
-                            throw error;
+                            return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                         });
                     }
                     dbConn.commit(function(error) {
                         if (error) {
                             dbConn.rollback(function() {
-                                throw error;
+                                return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                             });
                         }
                         return res.send({ error: false, data: {sendResult, receiveResult}, message: "New Message is Created."});
@@ -104,12 +104,12 @@ chatApi.post('/reportUser', checkAuth, function(req, res) {
         created_date: new Date()
     };
 
-    dbConn.beginTransaction(function(err){
-        if (err) throw err;
+    dbConn.beginTransaction(function(error){
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});;
         dbConn.query('INSERT INTO tbl_report set ? ', [sendReportData], function(error, sendResult) {
             if (error) {
                 dbConn.rollback(function(){
-                    throw error;
+                    return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                 });
             }
             var receiveReportData = {
@@ -123,14 +123,14 @@ chatApi.post('/reportUser', checkAuth, function(req, res) {
             dbConn.query('INSERT INTO tbl_report set ? ', [receiveReportData], function(error, receiveResult) {
                 if (error) {
                     dbConn.rollback(function() {
-                        throw error;
+                        return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                     });
                 };
 
                 dbConn.commit(function(error) {
                     if (error) {
                         dbConn.rollback(function() {
-                            throw error;
+                            return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                         });
                     };
 
@@ -159,12 +159,12 @@ chatApi.post('/blockChat', checkAuth, function(req, res) {
         updated_date: new Date()
     };
 
-    dbConn.beginTransaction(function(err){
-        if (err) throw err;
+    dbConn.beginTransaction(function(error){
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});;
         dbConn.query('INSERT INTO tbl_match set ? ', [userBlockData], function(error, sendResult) {
             if (error) {
                 dbConn.rollback(function(){
-                    throw error;
+                    return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                 });
             }
             var blockReplyData = {
@@ -179,19 +179,19 @@ chatApi.post('/blockChat', checkAuth, function(req, res) {
             dbConn.query('INSERT INTO tbl_match set ? ', [blockReplyData], function(error, receiveResult) {
                 if (error) {
                     dbConn.rollback(function() {
-                        throw error;
+                        return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                     });
                 };
                 dbConn.query("UPDATE tbl_match SET mutual_match_id = ? WHERE main_user_id = ?", [receiveResult.insertId, userId], function (error, results, fields) {
                     if (error) {
                         dbConn.rollback(function() {
-                            throw error;
+                            return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                         });
                     };
                     dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=?", [userId, otherId, 1], function(error, results, fields) {
                         if (error) {
                             dbConn.rollback(function() {
-                                throw error;
+                                return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                             });
                         };
                         if (!results.length)
@@ -200,13 +200,13 @@ chatApi.post('/blockChat', checkAuth, function(req, res) {
                         dbConn.query("UPDATE tbl_match SET publish=0 WHERE id=?", [matchId], function(error, results, fields) {
                             if (error) {
                                 dbConn.rollback(function() {
-                                    throw error;
+                                    return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                                 });
                             }
                             dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=?", [otherId, userId, 1], function(error, results, fields) {
                                 if (error) {
                                     dbConn.rollback(function() {
-                                        throw error;
+                                        return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                                     });
                                 }
                                 if (!results.length)
@@ -215,13 +215,13 @@ chatApi.post('/blockChat', checkAuth, function(req, res) {
                                 dbConn.query("UPDATE tbl_match SET publish=0 WHERE id=?", [otherMatchId], function(error, results, fields) {
                                     if (error) {
                                         dbConn.rollback(function() {
-                                            throw error;
+                                            return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                                         });
                                     }
                                     dbConn.commit(function(error) {
                                         if (error) {
                                             dbConn.rollback(function() {
-                                                throw error;
+                                                return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                                             });
                                         };
                                         return res.send({ error: false, data: {sendResult, receiveResult}, message: "New Block Created"});
@@ -229,9 +229,8 @@ chatApi.post('/blockChat', checkAuth, function(req, res) {
                                 });
                             });
                         });
-                    });
-                    
-                });                
+                    });                    
+                });
             });
         });
     });    

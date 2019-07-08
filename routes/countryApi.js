@@ -7,7 +7,7 @@ const checkAuth = require('../middleware/check_auth');
 countryApi.get('/all', checkAuth, function(req, res) {
     var publish = 1;
     dbConn.query('SELECT * FROM tbl_country where publish=?', publish, function (error, results, fields) {
-        if (error) throw error;
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         
         return res.send({ error: false, data: results, message: "Country list"});
     });
