@@ -6,10 +6,10 @@ const checkAuth = require('../middleware/check_auth');
 // #8 === insert new video after upload to firebase storage
 videoApi.post('/new', checkAuth, function(req,res) {
     let cdn_id = req.body.cdn_id;
-    let cdn_flitered_id = req.body.cdn_filtered_id;
+    let cdn_id_filtered = req.body.cdn_id_filtered;
     let userId = req.userData.userId;
   
-    if (!cdn_id || !cdn_flitered_id) {
+    if (!cdn_id || !cdn_id_filtered) {
         return res.status(400).send({ error:true, message: 'Please provide video url'});
 	}
 
@@ -32,7 +32,7 @@ videoApi.post('/new', checkAuth, function(req,res) {
 			dbConn.query("INSERT INTO tbl_video SET ? ", newVideoSql, function (error, results, fields) {
                 if (error) throw error;
                 //update this row with filtered cdn id
-                dbConn.query("UPDATE tbl_video SET cdn_filtered_id = ? WHERE user_id = ?", [cdn_flitered_id, userId], function (error, results, fields) {
+                dbConn.query("UPDATE tbl_video SET cdn_filtered_id = ? WHERE user_id = ?", [cdn_id_filtered, userId], function (error, results, fields) {
                     if (error) throw error;
                     return res.send({ error: false, data: results, message: "User's video has been created succssfully."});
                 });
@@ -126,5 +126,14 @@ videoApi.post('/getVideoForMe', checkAuth, function(req, res) {
     })
 });
 
+
+//#34 UC12.1 - My Video Page - display my videos
+videoApi.get('/getMyAllVideo', checkAuth, function(req, res) {
+    var userId = req.userData.userId;
+    dbConn.query('SELECT * FROM tbl_video WHERE publish=? AND is_reply=? AND user_id=?', [1, 0, userId], function(error, results, fields) {
+        if (error) throw error;
+        return res.send({error: false, data: results, message: 'user non-reply video list'});
+    });
+});
 
 module.exports = videoApi;
