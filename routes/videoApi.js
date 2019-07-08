@@ -4,14 +4,14 @@ var dbConn = require("../config/dbConfig");
 const checkAuth = require('../middleware/check_auth');
 
 // #8 === insert new video after upload to firebase storage
-videoApi.post('/new', checkAuth, function(req,res) {
+videoApi.post('/new', checkAuth, function(req,res,next) {
     let cdn_id = req.body.cdn_id;
     let cdn_id_filtered = req.body.cdn_id_filtered;
     let userId = req.userData.userId;
   
     if (!cdn_id || !cdn_id_filtered) {
         return res.status(400).send({ error:true, message: 'Please provide video url'});
-	}
+    }
 
 	dbConn.query('SELECT * FROM tbl_video where user_id=?', userId, function (error, results, fields) {
         if (error) throw error;
@@ -30,12 +30,18 @@ videoApi.post('/new', checkAuth, function(req,res) {
 			};
 
 			dbConn.query("INSERT INTO tbl_video SET ? ", newVideoSql, function (error, results, fields) {
-                if (error) throw error;
-                //update this row with filtered cdn id
-                dbConn.query("UPDATE tbl_video SET cdn_filtered_id = ? WHERE user_id = ?", [cdn_id_filtered, userId], function (error, results, fields) {
-                    if (error) throw error;
-                    return res.send({ error: false, data: results, message: "User's video has been created succssfully."});
-                });
+                if (error) {
+                    next(error);
+                } else {
+                    //update this row with filtered cdn id
+                    dbConn.query("UPDATE tbl_video SET cdn_filtered_id = ? WHERE user_id = ?", [cdn_id_filtered, userId], function (error, results, fields) {
+                        if (error) {
+                            next(error);
+                        } else {
+                            return res.send({ error: false, data: results, message: "User's video has been created succssfully."});
+                        }
+                    });
+                }
 			});
 		}
     });
