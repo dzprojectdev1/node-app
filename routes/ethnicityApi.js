@@ -8,7 +8,7 @@ ethnictiyApi.get('/all', checkAuth, function(req, res) {
     var publish = 1;
     dbConn.query('SELECT * FROM tbl_ethnicity where publish=?', publish, function (error, results, fields) {
         console.log(error);
-        if (error) throw error;        
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});        
         return res.send({ error: false, data: results, message: "Country list"});
     });
 });
