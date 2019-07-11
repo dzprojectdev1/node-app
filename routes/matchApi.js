@@ -266,16 +266,90 @@ matchApi.get('/matches', checkAuth, function(req, res) {
 });
 
 // UC4.1 - Browse : display one user
-matchApi.get('/discover', checkAuth, function(req, res) {
+// matchApi.get('/discover', checkAuth, function(req, res) {
+//     var userId = req.userData.userId;
+//     var distanceQuery = '(3959 * acos (cos(radians(34.1) ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(-118.06)) + sin (radians(34.1) ) * sin( radians( a.lat_geo ) )))';
+//     var getOtherMatchInfo = 'select other_user_id from tbl_match where main_user_id=?';
+//     var whereCondition = 'a.gender=2 and b.is_primary=1 and b.is_reply=0 and a.account_status=1 and b.match_id is null and a.id not in ('+getOtherMatchInfo+')';
+//     var joinQuery = 'inner join tbl_video b on a.id=b.user_id inner join tbl_country c on a.country_id = c.id inner join tbl_ethnicity d on a.ethnicity_id = d.id inner join tbl_language e on a.language_id = e.id';
+//     dbConn.query('SELECT a.id, a.birth_date, a.name, b.cdn_filtered_id, c.country_name, d.ethnicity_name, e.language_name,' + distanceQuery + ' as distance FROM `tbl_user` a '+ joinQuery +' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date asc limit 1', [userId], function(error, results, fields) {
+//         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+//         if (!results.length)
+//             return res.send({ error:false, data: {}, message: 'Not found.'}); 
+//         var otherUser = results[0];
+//         var otherBirth = otherUser.birth_date;
+//         var age = 0;
+//         if (otherBirth){
+//             var nowDate = new Date();
+//             var nowYear = nowDate.getFullYear();
+//             var otherDate = new Date(otherBirth);
+//             var otherYear = otherDate.getFullYear();
+//             var delta = nowYear - otherYear;
+//             age = delta;
+//         };
+//         otherUser.age = age;
+//         var newMatchData = {
+//             main_user_id: userId,
+//             other_user_id: otherUser.id,
+//             status: 0,
+//             status_description: 'viewed',
+//             publish: 1,
+//             created_date: new Date(),
+//             updated_date: new Date()
+//         };
+//         dbConn.query('INSERT INTO tbl_match SET ? ', [newMatchData], function(error, newMatch, fields) {
+//             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+//             otherUser.match_id = newMatch.insertId;
+//             return res.send({ error: false, data: otherUser, message: "A New Lovely User found."});
+//         });
+//     });
+// });
+
+//updated discover api
+matchApi.post('/discover', checkAuth, function(req, res) {
     var userId = req.userData.userId;
+    //age, gender, ethnicity, country, distance, language
+    var distance = 0;    
+    
+    var getOtherMatchInfo = 'select other_user_id from tbl_match where main_user_id=?';
+
+    var joinQuery = '';
+    if (req.body.ethnicityId) {
+        joinQuery += ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id';
+    }
+    if (req.body.countryId) {
+        joinQuery += ' INNER JOIN tbl_country AS c ON a.country_id=c.id';
+    }
+    if (req.body.langageId) {
+        joinQuery += ' INNER JOIN tbl_language AS d ON a.language_id=d.id';
+    }
+
+    joinQuery += ' INNER JOIN tbl_video as e ON a.id=e.user_id';
+
     var distanceQuery = '(3959 * acos (cos(radians(34.1) ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(-118.06)) + sin (radians(34.1) ) * sin( radians( a.lat_geo ) )))';
-    var getOtherMachInfo = 'select other_user_id from tbl_match where main_user_id=?';
-    var whereCondition = 'a.gender=2 and b.is_primary=1 and b.is_reply=0 and a.account_status=1 and b.match_id is null and a.id not in ('+getOtherMachInfo+')';
-    var joinQuery = 'inner join tbl_video b on a.id=b.user_id inner join tbl_country c on a.country_id = c.id inner join tbl_ethnicity d on a.ethnicity_id = d.id inner join tbl_language e on a.language_id = e.id';
-    dbConn.query('SELECT a.id, a.birth_date, a.name, b.cdn_filtered_id, c.country_name, d.ethnicity_name, e.language_name,' + distanceQuery + ' as distance FROM `tbl_user` a '+ joinQuery +' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date asc limit 1', [userId], function(error, results, fields) {
+    var whereCondition = ' a.account_status=1 AND a.id NOT IN ('+getOtherMatchInfo+') AND e.match_id is null AND e.is_primary=1 AND e.is_reply=0';
+    if (req.body.distance) {
+        distance = req.body.distance;
+        whereCondition += ' AND ('+ distanceQuery+') <' + distance;
+    }
+    if (req.body.gender) {
+        var gender = req.body.gender;
+        whereCondition += ' AND a.gender=' + gender;
+    }
+    if (req.body.age) {
+        var age = req.body.age;
+        var nowDate = new Date();
+        var nowYear = nowDate.getFullYear();
+        var userYear = nowYear - parseInt(age);
+        var userDate = new Date(userYear);
+        whereCondition += ' AND a.birth_date > ' + userDate; 
+    }
+    var query = 'SELECT a.id, a.birth_date, a.name, b.ethnicity_name, c.country_name, d.language_name, '+ distanceQuery + 'as distance FROM tbl_user as a' + joinQuery + 'WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date asc limit 1';
+
+    dbConn.query(query, [userId], function(error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         if (!results.length)
-            return res.send({ error:false, data: {}, message: 'Not found.'}); 
+            return res.send({ error:false, data: {}, message: 'Not found.'});
         var otherUser = results[0];
         var otherBirth = otherUser.birth_date;
         var age = 0;
@@ -304,6 +378,7 @@ matchApi.get('/discover', checkAuth, function(req, res) {
         });
     });
 });
+
 
 module.exports = matchApi;
 
