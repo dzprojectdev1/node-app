@@ -6,36 +6,80 @@ const checkAuth = require('../middleware/check_auth');
 // #8 === insert new video after upload to firebase storage
 videoApi.post('/new', checkAuth, function(req,res,next) {
     let cdn_id = req.body.cdn_id;
-    let cdn_id_filtered = req.body.cdn_id_filtered;
     let userId = req.userData.userId;
   
-    if (!cdn_id || !cdn_id_filtered) {
-        return res.status(400).send({ error:true, message: 'Please provide video url'});
+    if (!cdn_id) {
+        return res.status(400).send({ error:true, message: 'Please provide video id'});
     }
 
 	dbConn.query('SELECT * FROM tbl_video where user_id=?', userId, function (error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-		if (results.length){
+		if (results.length)
             return res.status(400).send({ error:true, message: 'user video is already taken.' });
-        }
-		else {
-			var newVideoSql = {
-                user_id: userId,
-                cdn_id: cdn_id,
-                cdn_filtered_id: cdn_id_filtered,
-                created_date: new Date(),
-                is_reply: 0,
-                is_primary: 1,
-                publish: 1,
-                match_id: null             
-			};
+        		
+        var newVideoSql = {
+            user_id: userId,
+            cdn_id: cdn_id,
+            created_date: new Date(),
+            updated_date: new Date(),
+            is_reply: 0,
+            is_primary: 1,
+            publish: 1,
+            match_id: null             
+        };
+        dbConn.query("INSERT INTO tbl_video SET ? ", newVideoSql, function (error, results, fields) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+            //update this row with filtered cdn id
+            return res.send({ error: false, data: results, message: "User's video has been created succssfully."});               
+        });
+    });
+});
 
-			dbConn.query("INSERT INTO tbl_video SET ? ", newVideoSql, function (error, results, fields) {
-                if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-                //update this row with filtered cdn id
-                return res.send({ error: false, data: results, message: "User's video has been created succssfully."});               
-			});
-		}
+//video update after uploaded
+videoApi.put('/update/:cdn_id', checkAuth, function(req, res) {
+    var userId = req.userData.userId;
+
+    var cdnId = req.params.cdn_id;
+    if (!cdnId)
+        return res.status(400).send({error: true, message: 'Please provide video id'});
+
+    var cdnFilteredId = req.body.cdn_filtered_id;
+    if (!cdnFilteredId) 
+        return res.status(400).send({error: true, message: 'Please provide video filtered Id'});
+    
+    dbConn.query('SELECT * FROM tbl_video WHERE user_id=? AND cdn_id=?', [userId, cdnId], function(error1, cdnResult, fields) {
+        if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+        if (!cdnResult.length) return res.send({error: false, message: 'Video Not Found.'});
+        var videoId = cdnResult[0].id;
+        var updateData = {
+            cdn_filtered_id: cdnFilteredId,
+            updated_date: new Date()
+        };
+        dbConn.beginTransaction(function(err){
+            if (err) return res.status(400).send({error: true, message: err});
+            dbConn.query('UPDATE tbl_video SET ? WHERE id=?', [updateData, videoId], function(error2, updateResult, fields) {
+                if (error2) {
+                    dbConn.rollback(function(){
+                        return res.status(400).send({error: true, detail: error2.code, message: error2.sqlMessage});
+                    });
+                }
+                dbConn.query("SELECT * FROM tbl_video WHERE id=?", videoId, function (error3, filteredResult, fields) {
+                    if (error3) {
+                        dbConn.rollback(function() {
+                            return res.status(400).send({error: true, detail: error3.code, message: error3.sqlMessage});
+                        });
+                    };
+                    dbConn.commit(function(error4) {
+                        if (error4) {
+                            dbConn.rollback(function() {
+                                return res.status(400).send({error: true, detail: error4.code, message: error4.sqlMessage});
+                            });
+                        };
+                        return res.send({ error: false, data: filteredResult, message: "User's Video was updated."});
+                    });
+                });  
+            });             
+        });
     });
 });
 
@@ -72,7 +116,7 @@ videoApi.get('/othervideo/:otherId', checkAuth, function(req, res) {
 });
 
 //#25 uc 8.1 matched page return for video ids === UC A
-videoApi.post('/getMatchedOtherId', checkAuth, function(req, res) {
+videoApi.post('/getMatchedVideo', checkAuth, function(req, res) {
     var userId = req.userData.uesrId;
     var otherId = req.body.otherId;
 
