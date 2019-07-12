@@ -109,6 +109,9 @@ videoApi.post('/reply', checkAuth, function(req, res) {
 //#10 uc 6 other videos for the users
 videoApi.get('/othervideo/:otherId', checkAuth, function(req, res) {
     var user_id = req.params.otherId;
+    if (!user_id)
+        return res.status(400).send({error: true, message: "Please provide other`s Id"});
+    
     dbConn.query('SELECT cdn_filtered_id from tbl_video where user_id= ? and is_reply=0 and publish=1 order by created_date desc', [user_id], function (error, results, fields){
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         return res.send({ error: false, data: results, message: "list other videos for the user"});
@@ -231,8 +234,8 @@ videoApi.post('/removeMyVideo', checkAuth, function(req, res) {
     var userId = req.userData.userId;
     
     dbConn.query('SELECT * FROM tbl_video WHERE user_id=? AND publish=1', userId, function(error1, oldResults) {
-        if (error1) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-        if (!oldResults.length) return res.send({error: false, message: 'Video Not Found.'});
+        if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+        if (!oldResults.length) return res.send({error: true, message: 'Video Not Found.'});
         var videoId = oldResults[0].id;
         dbConn.query('UPDATE tbl_video SET publish=0 WHERE id=? ', videoId, function(error2, newResult) {
             if (error2) return res.status(400).send({error: true, detail: error2.code, message: error2.sqlMessage});

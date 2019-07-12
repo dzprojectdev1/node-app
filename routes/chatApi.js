@@ -8,11 +8,15 @@ const checkAuth = require('../middleware/check_auth');
 chatApi.get('/all', checkAuth, function(req, res) {
     var userId = req.userData.userId;
 
-    var joinQuery = 'inner join tbl_chat d on c.chat_id=d.id inner join tbl_user e on c.other_user_id=e.id';
-    var matchWhereCondition = 'a.main_user_id=? and a.status in (6,7) and a.publish=1 group by a.id';
-    var matchJoinQuery = 'inner join tbl_chat b on a.id=b.match_id ';
+    var limitHour = 1;
+
+    var joinQuery = 'inner join tbl_chat d on c.chat_id=d.id inner join tbl_user e on c.other_user_id=e.id inner join tbl_video g on g.user_id=e.id WHERE d.created_date < DATE_SUB(NOW(), INTERVAL ? HOUR) order by d.created_date asc';
+    var matchWhereCondition = 'a.main_user_id=? and a.status in (6,7) and a.publish=1 and f.publish=1 group by a.id';
+    var matchJoinQuery = 'inner join tbl_chat b on a.id=b.match_id inner join tbl_video f on f.user_id=a.other_user_id ';
     var matchQuery = 'SELECT a.id as match_id, max(b.id) as chat_id, a.other_user_id as other_user_id FROM `tbl_match` a '+matchJoinQuery+' where ' +matchWhereCondition;
-    dbConn.query('select c.*, d.message_text, e.name, e.gender, e.birth_date from ('+matchQuery+') c ' + joinQuery, [userId], function(error, results, fields){
+    var queryString = 'select c.*, d.message_text, e.name, e.gender, e.birth_date, g.cdn_id, g.cdn_filtered_id from ('+matchQuery+') c ' + joinQuery;
+    
+    dbConn.query(queryString, [userId, limitHour], function(error, results, fields){
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         return res.send({ error: false, data: results, message: "Get All Chat List"});
     });
@@ -20,11 +24,25 @@ chatApi.get('/all', checkAuth, function(req, res) {
 
 //30 UC9.2  Display Chat - display chat content for the selected match_id
 chatApi.get('/getChatWithMatchId/:matchId', checkAuth, function(req,res) {
+    var userId = req.userData.userId;
     var matchId = req.params.matchId;
 
-    dbConn.query('Select * from tbl_chat where match_id=? order by created_date desc', [matchId], function(error, results, fields){
+    if (!matchId)
+        return res.send({error: true, message: 'Invalid Match Param.'});
+
+    var whereCondition = 'a.match_id=? and (b.main_user_id=? or b.other_user_id=?)';
+    
+    dbConn.query('Select a.*, b.mutual_match_id from tbl_chat as a inner join tbl_match as b on a.match_id=b.id where '+whereCondition+' order by created_date desc', [matchId, userId, userId], function(error, results, fields){
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-        return res.send({ error: false, data: results, message: "Get All Chat List With Match Id: " + matchId});
+        
+        if (results.length === 0) return res.status(400).send({error: false, message: 'chat content doesn`t exist.'});
+        //get other user detail information from match id
+        dbConn.query('SELECT a.name, a.birth_date, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age from tbl_user as a inner join tbl_match as b on a.id=b.other_user_id where b.id=? and a.account_status=1', [matchId], function(error1, userResults, fields) {
+            if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+            if (userResults.length === 0) return res.status(403).send({error: false, message: 'Matched Other User not found'});
+            var matchedOtherUser = userResults[0];
+            return res.send({ error: false, data: {user: matchedOtherUser, content: results}, message: "Get All Chat List With Match Id: " + matchId});
+        });
     });
 });
 

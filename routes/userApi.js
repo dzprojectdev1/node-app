@@ -78,15 +78,17 @@ userApi.post('/login', function (req, res) {
 	let useremail = req.body.useremail;
 	let userpassword = req.body.userpassword;
 
-	if (!useremail || !userpassword) {
-		return res.status(400).send({ error:true, message: 'Please provide user email and password' });
-	}
+	if (!useremail)
+		return res.status(400).send({ error:true, message: 'Please provide user email' });
+    if (!userpassword)
+        return res.status(400).send({ error:true, message: 'Please provide user password' });
   
 	dbConn.query('SELECT * FROM tbl_user where email_address=?', useremail, function (error, results, fields) {
 		if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-		if (!results.length)
-			res.json({'error': "user not found"});
-		if (!bcrypt.compareSync(userpassword, results[0].password))
+		if (!results.length || !results[0])
+            return res.status(400).send({error: true, message: "Email doesn't exist."});
+
+        if (!bcrypt.compareSync(userpassword, results[0].password))
 			return res.status(400).send({ error:true, message: 'Wrong Password' });
 		else {
             const token = jwt.sign(
