@@ -37,7 +37,7 @@ chatApi.get('/getChatWithMatchId/:matchId', checkAuth, function(req,res) {
         
         if (results.length === 0) return res.status(400).send({error: false, message: 'chat content doesn`t exist.'});
         //get other user detail information from match id
-        dbConn.query('SELECT a.name, a.birth_date, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age from tbl_user as a inner join tbl_match as b on a.id=b.other_user_id where b.id=? and a.account_status=1', [matchId], function(error1, userResults, fields) {
+        dbConn.query('SELECT a.name, a.gender, a.birth_date, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age from tbl_user as a inner join tbl_match as b on a.id=b.other_user_id where b.id=? and a.account_status=1', [matchId], function(error1, userResults, fields) {
             if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
             if (userResults.length === 0) return res.status(403).send({error: false, message: 'Matched Other User not found'});
             var matchedOtherUser = userResults[0];
