@@ -229,7 +229,7 @@ matchApi.post('/requestMatch', checkAuth, function(req, res) {
 		return res.status(400).send({ error:true, message: 'Please provide other user id' });
     }
 
-    dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1', [userId, otherUser], function(error, oldMatchResult, fields) {
+    dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1', [userId, otherUserId], function(error, oldMatchResult, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         if (oldMatchResult.length)
             return res.status(400).send({error: true, message: 'Match data already exist.'});
