@@ -51,14 +51,16 @@ matchApi.post('/like', checkAuth, function(req,res) {
 
 //#13 === user not interest action request
 matchApi.post('/dislike', checkAuth, function(req, res) {
+    var otherId = req.body.otherId;
+    var userId = req.userData.userId;
 
-    if (!req.body.other_user_id) {
+    if (!otherId) {
 		return res.status(400).send({ error:true, message: 'Please provide other user id' });
     }
 
     var notInterestData = {
-        main_user_id: req.userData.userId,
-        other_user_id: req.body.other_user_id,
+        main_user_id: userId,
+        other_user_id: otherId,
         status: 3,
         status_description: "not_interest",
         publish: 1,
