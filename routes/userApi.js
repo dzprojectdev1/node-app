@@ -139,6 +139,9 @@ userApi.put('/updateSetting', checkAuth, function (req, res) {
     if (req.body.countryId) {
         updateData.country_id = req.body.countryId;
     }
+    if (req.body.ethnicityId) {
+        updateData.ethnicity_id = req.body.ethnicityId;
+    }
   
     dbConn.query("UPDATE tbl_user SET ? WHERE id=?", [updateData, userId], function (error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});

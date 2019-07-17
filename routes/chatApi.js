@@ -57,7 +57,7 @@ chatApi.post('/create', checkAuth, function(req, res) {
     }
 
     dbConn.query('Select mutual_match_id from tbl_match where id=?', [matchId], function(err, matchResults, fields) {
-        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});;
+        if (err) return res.status(400).send({error: true, detail: err.code, message: err.sqlMessage});;
         if (!matchResults.length)
             return res.status(400).send({ error:true, message: 'No Match Found'});
 

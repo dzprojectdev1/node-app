@@ -189,7 +189,7 @@ videoApi.put('/setAsPrimary/:videoId', checkAuth, function(req, res) {
     if (!videoId) 
         return res.status(400).send({error: true, message: 'Wrong video id'});
 
-    dbConn.query('SELECT * FROM tbl_video WHERE id=?', [videoId], function(err, oldResults, fields) {
+    dbConn.query('SELECT * FROM tbl_video WHERE id=? AND is_reply=0 AND is_primary=0', [videoId], function(err, oldResults, fields) {
         if (err) return res.status(400).send({error: true, detail: err.code, message: err.sqlMessage});
 
         if (!oldResults.length)
@@ -243,12 +243,13 @@ videoApi.post('/uploadMyVideo', checkAuth, function(req, res) {
 // #37 UC12.3 - My Page - delete my videos
 videoApi.put('/removeMyVideo/:videoId', checkAuth, function(req, res) {
     var videoId = req.params.videoId;
+    var userId = req.userData.userId;
     
     if (!videoId) {
         return res.status(400).send({error: true, message: 'Please provide video Id'});
     }
         
-    dbConn.query('SELECT * FROM tbl_video WHERE id=?', videoId, function(error1, oldResults) {
+    dbConn.query('SELECT * FROM tbl_video WHERE id=? is_reply=0 AND user_id=?', [videoId, userId], function(error1, oldResults) {
         if (error1) 
             return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
 
