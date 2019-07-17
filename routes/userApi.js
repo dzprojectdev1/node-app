@@ -124,18 +124,31 @@ userApi.post('/logout', checkAuth, function(req, res) {
  
  
 // #5 ===  Update user with id
-userApi.put('/update', checkAuth, function (req, res) {
-  
-    let user_id = req.userData.userId;
-    let username = req.body.name;
-  
-    if (!user_id || !user) {
-        return res.status(400).send({ error: username, message: 'Please provide user name'});
+userApi.put('/updateSetting', checkAuth, function (req, res) {
+    var userId = req.userData.userId;
+    var updateData = {
+        updated_date: new Date()
+    };
+
+    if (req.body.name) {
+        updateData.name = req.body.name;
+    }
+    if (req.body.languageId) {
+        updateData.language_id = req.body.languageId;
+    }
+    if (req.body.countryId) {
+        updateData.country_id = req.body.countryId;
     }
   
-    dbConn.query("UPDATE tbl_user SET name=? WHERE id=?", [user, user_id], function (error, results, fields) {
+    dbConn.query("UPDATE tbl_user SET ? WHERE id=?", [updateData, userId], function (error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-        return res.send({ error: false, data: results, message: 'user has been updated successfully.'});
+
+        var joingQuery = 'INNER JOIN tbl_ethnicity b ON a.ethnicity_id=b.id INNER JOIN tbl_language c ON a.language_id=c.id INNER JOIN tbl_country d ON a.country_id=d.id';
+
+        dbConn.query("SELECT a.name, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.birth_date, a.email_address, a.gender, a.lat_geo, a.long_geo, a.last_loggedin_date, a.updated_date, a.created_date, b.ethnicity_name, c.language_name, d.country_name FROM tbl_user a "+joingQuery+" WHERE a.id=?", userId, function(error1, updatedUser, fields) {
+            if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+            return res.send({ error: false, data: updatedUser, message: 'User has been updated successfully.'});        
+        });
     });
 });
  
@@ -177,8 +190,10 @@ userApi.post('/filter', checkAuth, function(req, res) {
 // #8 === My Settings Page - display my settings
 userApi.get('/displayMySetting', checkAuth, function(req, res) {
     var userId = req.userData.userId;
+
+    var joinQuery = 'INNER JOIN tbl_country b ON a.country_id = b.id INNER JOIN tbl_language c ON a.language_id = c.id INNER JOIN tbl_ethnicity d ON a.ethnicity_id=d.id';
     
-    dbConn.query('SELECT a.name, a.gender, a.birth_date, b.country_name, c.language_name FROM tbl_user a INNER JOIN tbl_country b ON a.country_id = b.id INNER JOIN tbl_language c ON a.language_id = c.id WHERE a.id=? ', userId, function(error, results) {
+    dbConn.query('SELECT a.name, a.gender, a.birth_date, b.country_name, c.language_name, d.ethnicity_name FROM tbl_user a '+joinQuery+' WHERE a.id=? ', userId, function(error, results) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         if (!results.length)
             return res.status(403).send({error: true, message: 'user not found'});

@@ -230,13 +230,20 @@ videoApi.post('/uploadMyVideo', checkAuth, function(req, res) {
 });
 
 // #37 UC12.3 - My Page - delete my videos
-videoApi.post('/removeMyVideo', checkAuth, function(req, res) {
-    var userId = req.userData.userId;
+videoApi.put('/removeMyVideo/:videoId', checkAuth, function(req, res) {
+    var videoId = req.params.videoId;
     
-    dbConn.query('SELECT * FROM tbl_video WHERE user_id=? AND publish=1', userId, function(error1, oldResults) {
-        if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
-        if (!oldResults.length) return res.send({error: true, message: 'Video Not Found.'});
-        var videoId = oldResults[0].id;
+    if (!videoId) {
+        return res.status(400).send({error: true, message: 'Please provide video Id'});
+    }
+        
+    dbConn.query('SELECT * FROM tbl_video WHERE id=?', videoId, function(error1, oldResults) {
+        if (error1) 
+            return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+
+        if (!oldResults.length) 
+            return res.send({error: true, message: 'Video Not Found.'});
+
         dbConn.query('UPDATE tbl_video SET publish=0 WHERE id=? ', videoId, function(error2, newResult) {
             if (error2) return res.status(400).send({error: true, detail: error2.code, message: error2.sqlMessage});
             return res.send({error: false, message: 'Video was removed successfully.'});   
