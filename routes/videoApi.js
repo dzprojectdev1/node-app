@@ -183,21 +183,32 @@ videoApi.get('/getMyAllVideo', checkAuth, function(req, res) {
 });
 
 //#35 UC 12.2 - My Video Page - set as primary video
-videoApi.post('/setAsPrimary', checkAuth, function(req, res) {
-    var videoId = req.body.videoId;
+videoApi.put('/setAsPrimary/:videoId', checkAuth, function(req, res) {
+    var videoId = req.params.videoId;
     
     if (!videoId) 
-        return res.status(400).send({error: true, message: 'Wrong video id parameter'});
+        return res.status(400).send({error: true, message: 'Wrong video id'});
 
     dbConn.query('SELECT * FROM tbl_video WHERE id=?', [videoId], function(err, oldResults, fields) {
         if (err) return res.status(400).send({error: true, detail: err.code, message: err.sqlMessage});
+
         if (!oldResults.length)
             return res.status(400).send({error: true, message: 'Video Not Found'});
 
         var whereCondition = 'id=?';
-        dbConn.query('UPDATE tbl_video SET is_primary=1 WHERE ' + whereCondition, [videoId], function(error, results, fields) {
+
+        var updateData = {
+            is_primary: 1,
+            updated_date: new Date()
+        };
+
+        dbConn.query('UPDATE tbl_video SET ? WHERE ' + whereCondition, [updateData, videoId], function(error, results, fields) {
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-            return res.send({error: false, data: results.insertId, message: 'User`s video has been as primary video'}); 
+
+            dbConn.query('SELECT * from tbl_video WHERE id=?', videoId, function(error1, updatedRow, fields) {
+                if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                return res.send({error: false, data: updatedRow, message: 'User`s video has been as primary video'});
+            });
         });
     });
 });

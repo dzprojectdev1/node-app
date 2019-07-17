@@ -194,6 +194,7 @@ matchApi.post('/sendHeartReject', checkAuth, function(req, res) {
         other_user_id: otherUserId,
         status: 4,
         status_description: 'incoming_heart_rejected',
+        publish: 0,
         created_date: new Date(),
         updated_date: new Date()
     };
@@ -211,6 +212,7 @@ matchApi.post('/sendHeartReject', checkAuth, function(req, res) {
                 other_user_id: userId,
                 status: 5,
                 status_description: 'sent_heart_rejected',
+                publish: 0,
                 created_date: new Date(),
                 updated_date: new Date()
             }
@@ -227,7 +229,11 @@ matchApi.post('/sendHeartReject', checkAuth, function(req, res) {
                             return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
                         });
                     };
-                    if (!matchResult.length) return res.send({error: true, message: 'User Video Not Found.'});
+                    if (!matchResult.length) {
+                        dbConn.rollback(function() {
+                            return res.send({error: true, message: 'User Video Not Found.'});
+                        });
+                    };
                     var matchId = matchResult[0].id;
                     dbConn.query('UPDATE tbl_match SET publish=0 WHERE id=?', matchId, function(error2, updateResult, fields){
                         if (error2) {
@@ -268,6 +274,7 @@ matchApi.post('/requestMatch', checkAuth, function(req, res) {
             main_user_id: userId,
             other_user_id: otherUserId,
             status: 6,
+            publish: 0,
             status_description: 'incoming_heart_accepted',
             created_date: new Date(),
             updated_date: new Date()
@@ -285,6 +292,7 @@ matchApi.post('/requestMatch', checkAuth, function(req, res) {
                     main_user_id: otherUserId,
                     other_user_id: userId,
                     status: 7,
+                    publish: 0,
                     mutual_match_id: sendResult.insertId,
                     status_description: 'sent_heart_accepted',
                     created_date: new Date(),
@@ -341,28 +349,16 @@ matchApi.post('/discover', checkAuth, function(req, res) {
     var userId = req.userData.userId;
     //age, gender, ethnicity, country, distance, language
     var distance = 0;
-    var selectQuery = 'a.id, a.birth_date, a.name, e.cdn_filtered_id, ';
+    var selectQuery = 'a.id, a.birth_date, a.name, a.gender, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, e.cdn_filtered_id, b.ethnicity_name, c.country_name, d.language_name, ';
     
     var getOtherMatchInfo = 'select other_user_id from tbl_match where main_user_id=?';
 
-    var joinQuery = '';
-    if (req.body.ethnicityId) {
-        joinQuery += ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id';
-        selectQuery += 'b.ethnicity_name, ';
-    }
-    if (req.body.countryId) {
-        joinQuery += ' INNER JOIN tbl_country AS c ON a.country_id=c.id';
-        selectQuery += 'c.country_name, ';
-    }
-    if (req.body.langageId) {
-        joinQuery += ' INNER JOIN tbl_language AS d ON a.language_id=d.id';
-        selectQuery += 'd.language_name, ';
-    }
-
+    var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
+    
     joinQuery += ' INNER JOIN tbl_video as e ON a.id=e.user_id';
 
     var distanceQuery = '(3959 * acos (cos(radians(34.1) ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(-118.06)) + sin (radians(34.1) ) * sin( radians( a.lat_geo ) )))';
-    var whereCondition = ' a.account_status=1 AND a.id NOT IN ('+getOtherMatchInfo+') AND e.match_id is null AND e.is_primary=1 AND e.is_reply=0';
+    var whereCondition = ' a.account_status=1 AND a.id NOT IN ('+getOtherMatchInfo+') AND a.id!=? AND e.match_id is null AND e.is_primary=1 AND e.is_reply=0';
     if (req.body.distance) {
         distance = req.body.distance;
         whereCondition += ' AND ('+ distanceQuery+') <' + distance;
@@ -371,32 +367,29 @@ matchApi.post('/discover', checkAuth, function(req, res) {
         var gender = req.body.gender;
         whereCondition += ' AND a.gender=' + gender;
     }
+    if (req.body.ethnicityId) {
+        whereCondition += ' AND a.ethnicity_id=' + req.body.ethnicityId;
+    }
+    if (req.body.countryId) {
+        whereCondition += ' AND a.country_id=' + req.body.countryId;
+    }
+    if (req.body.languageId) {
+        whereCondition += ' AND a.language_id=' + req.body.languageId;
+    }
+    if (req.body.lessAge) {
+        whereCondition += ' AND TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) < ' + req.body.lessAge;
+    }
+    if (req.body.greaterAge) {
+        whereCondition += ' AND TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) > ' + req.body.greaterAge;
+    }
 
     var query = 'SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a' + joinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date asc limit 1';
     
-    dbConn.query(query, [userId], function(error, results, fields) {
+    dbConn.query(query, [userId, userId], function(error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         if (!results.length)
             return res.send({ error:false, data: {}, message: 'Not found.'});
         var otherUser = results[0];
-        var otherBirth = otherUser.birth_date;
-        var age = 0;
-        if (req.body.age) {
-            var reqAge = req.body.age;
-            if (otherBirth){
-                var nowDate = new Date();
-                var nowYear = nowDate.getFullYear();
-                var otherDate = new Date(otherBirth);
-                var otherYear = otherDate.getFullYear();
-                var delta = nowYear - otherYear;
-                age = delta;
-            };
-            if (reqAge < age) {
-                otherUser.age = age;
-            } else {
-                return res.send({ error:false, data: {}, message: 'Not found.'});
-            }
-        }        
         var newMatchData = {
             main_user_id: userId,
             other_user_id: otherUser.id,
