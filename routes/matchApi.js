@@ -91,14 +91,11 @@ matchApi.post('/like', checkAuth, function(req,res) {
                             };
                             return res.send({ error: false, data: {sentDataId: results.insertId, receiveDataId: receiveResult.insertId}, message: 'New match has been created.' });                    
                         });
-                    });
-                    
+                    });                    
                 });
             });
         });
-    });
-
-    
+    });    
 });
 
 //#13 === user not interest action request
@@ -110,20 +107,28 @@ matchApi.post('/dislike', checkAuth, function(req, res) {
 		return res.status(400).send({ error:true, message: 'Please provide other user id' });
     }
 
-    var notInterestData = {
-        main_user_id: userId,
-        other_user_id: otherId,
-        status: 3,
-        status_description: "not_interest",
-        publish: 1,
-        created_date: new Date(),
-        updated_date: new Date()
-    };
-
-    dbConn.query("INSERT INTO tbl_match SET ? ", notInterestData, function(error, results, fields) {
+    dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=3", [userId, otherId], function(error, oldResults, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-        return res.send({error: false, data: results, message: ''})
-    });
+
+        if (oldResults.length) 
+            return res.status(403).send({error: true, data: oldResults, message: 'Match data is already Taken.'});
+        
+        var notInterestData = {
+            main_user_id: userId,
+            other_user_id: otherId,
+            status: 3,
+            status_description: "not_interest",
+            publish: 1,
+            created_date: new Date(),
+            updated_date: new Date()
+        };
+    
+        dbConn.query("INSERT INTO tbl_match SET ? ", notInterestData, function(error, results, fields) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+            return res.send({error: false, data: results, message: 'Dislike data is created.'});
+        });
+    });    
 });
 
 //#14 uc4.3 === user set other user with block
