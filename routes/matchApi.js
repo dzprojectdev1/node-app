@@ -383,7 +383,7 @@ matchApi.post('/discover', checkAuth, function(req, res) {
     var distance = 0;
     var selectQuery = 'a.id, a.birth_date, a.name, a.gender, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, e.cdn_filtered_id, b.ethnicity_name, c.country_name, d.language_name, ';
     
-    var getOtherMatchInfo = 'select other_user_id from tbl_match where main_user_id=?';
+    var getOtherMatchInfo = 'select other_user_id from tbl_match where main_user_id=? and status != 0';
 
     var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
     
