@@ -187,73 +187,74 @@ matchApi.post('/sendHeartReject', checkAuth, function(req, res) {
 
     if (!otherUserId) {
 		return res.status(400).send({ error:true, message: 'Please provide other user id' });
-    } 
+    }
 
-    var sendRejectData = {
-        main_user_id: userId,
-        other_user_id: otherUserId,
-        status: 4,
-        status_description: 'incoming_heart_rejected',
-        publish: 0,
-        created_date: new Date(),
-        updated_date: new Date()
-    };
+    dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=4', [userId, otherUserId], function(getError, oldResults, fields) {
+        if (getError) return res.status(400).send({error: true, detail: getError.code, message: getError.sqlMessage});
 
-    dbConn.beginTransaction(function(err){
-        if (err) return res.status(400).send({error: true, detail: err.code, message: err.sqlMessage});
-        dbConn.query('INSERT INTO tbl_match set ? ', [sendRejectData], function(error, sendResult) {
-            if (error) {
-                dbConn.rollback(function(){
-                    return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-                });
-            }
-            var receiveRejectData = {
-                main_user_id: otherUserId,
-                other_user_id: userId,
-                status: 5,
-                status_description: 'sent_heart_rejected',
-                publish: 0,
-                created_date: new Date(),
-                updated_date: new Date()
-            }
-            dbConn.query('INSERT INTO tbl_match set ? ', [receiveRejectData], function(error, receiveResult) {
+        if (oldResults.length)
+            return res.status(400).send({error: true, detail: oldResults, message: 'Already Taken.'});
+
+        var sendRejectData = {
+            main_user_id: userId,
+            other_user_id: otherUserId,
+            status: 4,
+            status_description: 'incoming_heart_rejected',
+            publish: 1,
+            created_date: new Date(),
+            updated_date: new Date()
+        };
+    
+        dbConn.beginTransaction(function(err){
+            if (err) return res.status(400).send({error: true, detail: err.code, message: err.sqlMessage});
+            dbConn.query('INSERT INTO tbl_match set ? ', [sendRejectData], function(error, sendResult, fields) {
                 if (error) {
-                    dbConn.rollback(function() {
+                    dbConn.rollback(function(){
                         return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                     });
-                };
-                var oldMatchWhereCondition = 'a.status=2 and a.main_user_id=? and b.is_primary=0 and b.is_reply=1 and b.publish=1';
-                dbConn.query('SELECT * FROM `tbl_match` a inner join tbl_video b on a.id=b.match_id where ' + oldMatchWhereCondition, userId, function(error1, matchResult, fields){
-                    if (error1) {
+                }
+                var receiveRejectData = {
+                    main_user_id: otherUserId,
+                    other_user_id: userId,
+                    status: 5,
+                    status_description: 'sent_heart_rejected',
+                    mutual_match_id: sendResult.insertId,
+                    publish: 1,
+                    created_date: new Date(),
+                    updated_date: new Date()
+                }
+                dbConn.query('INSERT INTO tbl_match set ? ', [receiveRejectData], function(error, receiveResult) {
+                    if (error) {
                         dbConn.rollback(function() {
-                            return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                            return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                         });
                     };
-                    if (!matchResult.length) {
-                        dbConn.rollback(function() {
-                            return res.send({error: true, message: 'User Video Not Found.'});
-                        });
-                    };
-                    var matchId = matchResult[0].id;
-                    dbConn.query('UPDATE tbl_match SET publish=0 WHERE id=?', matchId, function(error2, updateResult, fields){
-                        if (error2) {
+                    dbConn.query("UPDATE tbl_match SET mutual_match_id = ? WHERE main_user_id = ?", [receiveResult.insertId, userId], function (error, results, fields) {
+                        if (error) {
                             dbConn.rollback(function() {
-                                return res.status(400).send({error: true, detail: error2.code, message: error2.sqlMessage});
+                                return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                             });
-                        }
-                        dbConn.commit(function(error) {
-                            if (error) {
+                        };
+                        dbConn.query('UPDATE tbl_match SET publish=0 WHERE status=2 AND main_user_id=? AND other_user_id=?', [userId, otherUserId], function(error2, updateResult, fields){
+                            if (error2) {
                                 dbConn.rollback(function() {
-                                    return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                                    return res.status(400).send({error: true, detail: error2.code, message: error2.sqlMessage});
                                 });
-                            };
-                            return res.send({error: false, message: 'Rejected.'});        
+                            }
+                            dbConn.commit(function(error) {
+                                if (error) {
+                                    dbConn.rollback(function() {
+                                        return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                                    });
+                                };
+                                return res.send({error: false, message: 'Rejected.'});        
+                            });
                         });
-                    });                    
-                });               
+                    });                         
+                });
             });
         });
-    });
+    });    
 });
 
 //#22 uc 7.3 Incoming Hearts: main user accpets heart from other user
@@ -265,8 +266,9 @@ matchApi.post('/requestMatch', checkAuth, function(req, res) {
 		return res.status(400).send({ error:true, message: 'Please provide other user id' });
     }
 
-    dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1', [userId, otherUserId], function(error, oldMatchResult, fields) {
+    dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status=6', [userId, otherUserId], function(error, oldMatchResult, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        
         if (oldMatchResult.length)
             return res.status(400).send({error: true, message: 'Match data already exist.'});
         
@@ -274,7 +276,7 @@ matchApi.post('/requestMatch', checkAuth, function(req, res) {
             main_user_id: userId,
             other_user_id: otherUserId,
             status: 6,
-            publish: 0,
+            publish: 1,
             status_description: 'incoming_heart_accepted',
             created_date: new Date(),
             updated_date: new Date()
@@ -292,7 +294,7 @@ matchApi.post('/requestMatch', checkAuth, function(req, res) {
                     main_user_id: otherUserId,
                     other_user_id: userId,
                     status: 7,
-                    publish: 0,
+                    publish: 1,
                     mutual_match_id: sendResult.insertId,
                     status_description: 'sent_heart_accepted',
                     created_date: new Date(),
@@ -311,14 +313,21 @@ matchApi.post('/requestMatch', checkAuth, function(req, res) {
                                 return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                             });
                         };
-                        dbConn.commit(function(error) {
+                        dbConn.query('UPDATE tbl_match SET publish=0 WHERE status=2 AND main_user_id=? AND other_user_id=?', [userId, otherUserId], function(error, results, fields) {
                             if (error) {
                                 dbConn.rollback(function() {
                                     return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                                 });
-                            };
-                            return res.send({ error: false, data: {sendResult, receiveResult}, message: "New Match is Created."});
-                        });
+                            }
+                            dbConn.commit(function(error) {
+                                if (error) {
+                                    dbConn.rollback(function() {
+                                        return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                                    });
+                                };
+                                return res.send({ error: false, data: {sendResult, receiveResult}, message: "New Match is Created."});
+                            });
+                        });                        
                     });                
                 });
             });
