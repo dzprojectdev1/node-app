@@ -35,52 +35,70 @@ matchApi.post('/like', checkAuth, function(req,res) {
 		return res.status(400).send({ error:true, message: 'Please provide other user id' });
     }
 
-    var newMatchSql = {
-        main_user_id: userId,
-        other_user_id: otherId,
-        status: 1,
-        status_description: 'heart_sent',
-        publish: 1,
-        created_date: new Date(),
-        updated_date: new Date()
-    };
+    dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=1', [userId, otherId], function(getError, getResults, getFields) {
+        if (getError) return res.status(400).send({error: true, detail: getError.code, message: getError.sqlMessage});
+        if (getResults.length) 
+            return res.status(400).send({error: true, data: getResults, message: 'Match data is already taken.'});
 
-    dbConn.beginTransaction(function(err){
-        if (err) return res.status(400).send({error: true, detail: err.code, message: err.sqlMessage});
-        dbConn.query("INSERT INTO tbl_match SET ? ", newMatchSql, function (error, results, fields) {
-            if (error) {
-                dbConn.rollback(function(){
-                    return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-                });
-            }
-
-            var heartReceiveData = {
-                main_user_id: otherId,
-                other_user_id: userId,
-                status: 2,
-                status_description: 'heart_received',
-                publish: 1,
-                created_date: new Date(),
-                updated_date: new Date()
-            }
-
-            dbConn.query('INSERT INTO tbl_match SET ? ', heartReceiveData, function(error1, receiveResult, fields) {
-                if (error1) {
-                    dbConn.rollback(function() {
-                        return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+        var newMatchSql = {
+            main_user_id: userId,
+            other_user_id: otherId,
+            status: 1,
+            status_description: 'heart_sent',
+            publish: 1,
+            created_date: new Date(),
+            updated_date: new Date()
+        };
+    
+        dbConn.beginTransaction(function(err){
+            if (err) return res.status(400).send({error: true, detail: err.code, message: err.sqlMessage});
+            dbConn.query("INSERT INTO tbl_match SET ? ", newMatchSql, function (error, results, fields) {
+                if (error) {
+                    dbConn.rollback(function(){
+                        return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                     });
                 }
-                dbConn.commit(function(error) {
-                    if (error) {
+    
+                var heartReceiveData = {
+                    main_user_id: otherId,
+                    other_user_id: userId,
+                    status: 2,
+                    status_description: 'heart_received',
+                    mutual_match_id: results.insertId,
+                    publish: 1,
+                    created_date: new Date(),
+                    updated_date: new Date()
+                }
+    
+                dbConn.query('INSERT INTO tbl_match SET ? ', heartReceiveData, function(error1, receiveResult, fields) {
+                    if (error1) {
                         dbConn.rollback(function() {
-                            return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                            return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
                         });
-                    };
-                    return res.send({ error: false, data: {sentDataId: results.insertId, receiveDataId: receiveResult.insertId}, message: 'New match has been created.' });                    
+                    }
+                    dbConn.query("UPDATE tbl_match SET mutual_match_id=? WHERE id=?", [receiveResult.insertId, results.insertId], function(error, results, fields) {
+                        if (error) {
+                            dbConn.rollback(function() {
+                                return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                            });
+                        }
+    
+                        dbConn.commit(function(error) {
+                            if (error) {
+                                dbConn.rollback(function() {
+                                    return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                                });
+                            };
+                            return res.send({ error: false, data: {sentDataId: results.insertId, receiveDataId: receiveResult.insertId}, message: 'New match has been created.' });                    
+                        });
+                    });
+                    
                 });
             });
         });
     });
+
+    
 });
 
 //#13 === user not interest action request
