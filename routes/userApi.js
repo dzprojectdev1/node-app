@@ -271,7 +271,7 @@ userApi.post('/sendConfirmEmail', checkAuth, function(req, res) {
             return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
         if (!emailResults.length)
-            return res.status(403).send({error: true, data: emailResult, message: 'User not found.'});
+            return res.status(403).send({error: true, data: emailResults, message: 'User not found.'});
 
         async.parallel(
             [
