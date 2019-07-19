@@ -4,6 +4,11 @@ var bcrypt = require("bcrypt");
 var dbConn = require("../config/dbConfig");
 var jwt = require('jsonwebtoken');
 const checkAuth = require('../middleware/check_auth');
+const sgMail = require('@sendgrid/mail');
+const async = require('async');
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+const fromEmail = process.env.SERVER_EMAIL_ADDRESS;
 
 // #1 === Retrieve all users 
 userApi.get('/all', checkAuth, function (req, res) {
@@ -48,7 +53,7 @@ userApi.post('/signup', function (req, res) {
 	dbConn.query('SELECT * FROM tbl_user where email_address=?', useremail, function (error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 		if (results.length)
-            return res.status(400).send({ error:true, message: 'User is already taken.'});
+            return res.status(400).send({ error:true, message: 'Email is already taken.'});
 		else {
 			var newUserSql = {
 				email_address: useremail,
@@ -94,7 +99,8 @@ userApi.post('/login', function (req, res) {
             const token = jwt.sign(
                 {
                     email: results[0].email_address,
-                    userId: results[0].id
+                    userId: results[0].id,
+                    name: results[0].name
                 }, process.env.JWT_KEY,
                 {
                     expiresIn: '1h'
@@ -212,4 +218,234 @@ userApi.get('/displayMySetting', checkAuth, function(req, res) {
     });
 });
 
+/*  sendgrid email sending */
+
+function sendEmail(
+    parentCallback,
+    fromEmail,
+    toEmails,
+    subject,
+    textContent,
+    htmlContent
+  ) {
+    const errorEmails = [];
+    const successfulEmails = [];
+    
+    async.parallel([
+      function(callback) {
+        // Add to emails
+        const msg = {
+            to: toEmails,
+            from: fromEmail,
+            subject: subject,
+            text: textContent,
+            html: htmlContent,
+        };
+        sgMail.send(msg);
+        // return
+        callback(null, true);
+      }
+    ], function(err, results) {
+      console.log('Done');
+    });
+    parentCallback(null,
+      {
+        successfulEmails: successfulEmails,
+        errorEmails: errorEmails,
+      }
+    );
+}
+
+var random, host, toEmail, link;
+
+userApi.post('/sendConfirmEmail', checkAuth, function(req, res) {
+    const userId = req.userData.userId;
+    toEmail = req.userData.email;    
+
+    random = Math.floor((Math.random() * 100) + 54);
+    host=req.get('host');
+    link="http://"+req.get('host')+"/api/user/emailVerify?id="+random;
+
+    dbConn.query('SELECT email_address FROM tbl_user WHERE id=? AND email_status=0 AND account_status=0', userId, function(error, emailResults, fields) {
+        if (error) 
+            return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+        if (!emailResults.length)
+            return res.status(403).send({error: true, data: emailResult, message: 'User not found.'});
+
+        async.parallel(
+            [
+                function (callback) {
+                    sendEmail(
+                        callback,
+                        fromEmail,
+                        toEmail,
+                        'Email Confirmation',
+                        'Dear',
+                        "Hello,<br> Please Click on the link to verify your email.<br><a href="+link+">Click here to verify</a>" 
+                    );
+                }
+            ], function(err, results) {
+            if (err) res.status(403).send({error: true, detail: err, message: 'Sending Email Faild'});
+            var userUpdateData = {
+                updated_date: new Date(),
+                email_status: 2
+            };
+            dbConn.query('UPDATE tbl_user SET ? WHERE id=? AND email_status=0 AND account_status=0', [userUpdateData, userId], function(error1, updateResult, fields) {
+                if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                res.send({
+                    error: false,
+                    message: 'Emails sent'
+                });
+            });           
+        });    
+    });      
+});
+
+// user email verification api
+userApi.get('/emailVerify', function(req, res) {
+    if((req.protocol+"://"+req.get('host'))==("http://"+host)) {
+        if(req.query.id == random) {
+            //email is verified
+            if (!toEmail) return res.status(403).send({error: true, message: 'Invalid User. Try to log in again.'});
+                        
+            dbConn.query('SELECT * from tbl_user WHERE email_address=? AND account_status=0 AND email_status=2', [toEmail], function(error, getResult, fields) {
+                if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                if (!getResult.length) return res.status(403).send({error: true, message: 'Invalid User'});
+                var updateData = {
+                    updated_date: new Date(),
+                    email_status: 1,
+                    account_status: 1
+                };
+                var userId = getResult[0].id;
+                dbConn.query('UPDATE tbl_user SET ? WHERE id=?', [updateData, userId], function(error1, updateResult, updateFields) {
+                    if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                    res.send({error: false, email: toEmail, message: 'Email has been successfully verified.'});
+                });
+            });
+        } else {
+            res.send({error: true, email: toEmail, message: 'Email is not verified.'});
+        }
+    } else {
+        res.send({error: true, message: 'Verify Link is invalid.'});
+    }
+});
+
+var resettingRand, resettingLink, resetEmail, userEmail;
+
+// user reset password
+userApi.post('/requestResetPassword', function(req,res) {
+    
+    userEmail = req.body.userEmail;
+    if (!userEmail) return res.send({error: true, message: 'Please provide user email.'});
+
+    resetEmail = req.body.resetEmail;
+    if (!resetEmail) return res.send({error: true, message: 'Please provide confirm email.'});    
+
+    dbConn.query('SELECT * FROM tbl_user WHERE email_address=?', [userEmail], function(error, getResult, getFields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+        if (!getResult.length) return res.status(403).send({error: true, message: 'Invalid Email Address'});
+
+        const loggedUserData = getResult[0];
+
+        if (parseInt(loggedUserData.email_status) !== 1) return res.send({error: true, message: 'User`s email is not verified.'});
+
+        if (parseInt(loggedUserData.account_status) !== 1) return res.send({error: true, message: 'User is not approved.'});
+
+        userName = loggedUserData.name;
+
+        resettingRand = Math.floor((Math.random() * 100) + 55);
+        host=req.get('host');
+        resettingLink="http://"+req.get('host')+"/api/user/receiveResetPassword?id="+resettingRand;
+
+        async.parallel(
+            [
+                function (callback) {
+                    sendEmail(
+                        callback,
+                        fromEmail,
+                        resetEmail,
+                        'Resetting Password',
+                        'Do you want to change your passsword?',
+                        "Hello,<br> Please Click on the link to reset your password.<br><a href="+resettingLink+">Click here to reset your password</a>" 
+                    );
+                }
+            ], function(err, results) {
+            if (err) res.status(403).send({error: true, detail: err, message: 'Sending Email Faild'});
+            
+            res.send({
+                error: false,
+                message: 'Emails sent'
+            });
+        });
+    });
+});
+
+userApi.get('/receiveResetPassword', function(req, res) {
+    if((req.protocol+"://"+req.get('host'))==("http://"+host)) {
+        if(req.query.id == resettingRand) {
+            if (!resetEmail) return res.status(403).send({error: true, message: ''});
+            //email is verified = redirect to change password api
+            res.send({error: false, email: resetEmail, message: 'User can change password, redirect to changeUserPassword'});
+        } else {
+            res.send({error: true, email: resetEmail, message: 'Invalid Email.'});
+        }
+    } else {
+        res.send({error: true, message: 'Verify Link is invalid.'});
+    }
+});
+
+// change password
+userApi.post('/resetPassword', function(req, res) {
+    const checkName = req.body.username;
+    if (!checkName) return res.status(403).send({error: true, message: 'please provide user name.'});
+
+    const newPassword = req.body.newPassword;
+    if (!newPassword) return res.status(403).send({error: true, message: 'please provide new password'});
+
+    if (!userEmail) return res.status(403).send({error: true, message: 'User request was expired, Try again.'});
+
+    dbConn.query('SELECT id, name FROM tbl_user WHERE email_address=?', userEmail, function(error, getResults, getFields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        
+        if (!getResults.length || !getResults[0]) return res.status(403).send({error: true, message: 'Invalid User. Try to log in again.'});
+
+        const result = getResults[0];
+        const oldName = result.name;
+        const oldId = result.id;
+        
+        if (oldName === checkName) {
+            // valid user == can change password
+            var updateData = {
+                password: bcrypt.hashSync(newPassword, 10, (err, hash) => {
+					return hash;
+                }),
+                updated_date: new Date()
+            };
+            dbConn.query('UPDATE tbl_user SET ? WHERE id=?', [updateData, oldId], function(error1, updateResult, updateFeidls) {
+                if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                async.parallel(
+                    [
+                        function (callback) {
+                            sendEmail(
+                                callback,
+                                fromEmail,
+                                userEmail,
+                                'Resetting Password',
+                                'Do you want to change your passsword?',
+                                "<p><b> Hello "+oldName+", Your Password was recently changed</b></p><p>This email confirms that you recently changed the password for user account "+oldName+". No further action is required.</p><br>" 
+                            );
+                        }
+                    ], function(err, results) {
+                    if (err) res.status(403).send({error: true, detail: err, message: 'Sending Email Faild'});
+                    
+                    res.send({error: false, message: 'User password has been successfully changed. Try to log in.'});
+                });
+            });
+        } else {
+            return res.status(403).send({error: true, message: 'Invalid User. Try to log in again.'});
+        }
+    }); 
+}); 
 module.exports = userApi;
