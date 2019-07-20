@@ -30,9 +30,13 @@ userApi.get('/one/:id', checkAuth, function (req, res) {
     dbConn.query('SELECT * FROM tbl_user where id=?', user_id, function (error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         return res.send({ error: false, data: results[0], message: 'users list.' });
-    });
-  
+    }); 
 });
+
+//getting random number 
+function getRndInteger(min, max) {
+    return Math.floor(Math.random() * (max - min)) + min;
+}
 
 // #3 === login user
 userApi.post('/signup', function (req, res) {
@@ -65,7 +69,8 @@ userApi.post('/signup', function (req, res) {
 				language_id: userlanguage,
 				country_id: country,
 				ethnicity_id: ethnicity,
-				birth_date: userBirthData,
+                birth_date: userBirthData,
+                confirmation_code: getRndInteger(100000, 999999),
 				created_date: new Date()
 			};
 
@@ -163,7 +168,7 @@ userApi.put('/updateSetting', checkAuth, function (req, res) {
  
  
 // #6 ===  Delete user
-userApi.post('/removeAccount', checkAuth, function (req, res) {  
+userApi.post('/removeAccount', checkAuth, function (req, res) {
     let user_id = req.userData.userId;
 
     dbConn.query('SELECT * FROM tbl_user WHERE id=?', [user_id], function(error1, oldResults, fields) {
@@ -175,7 +180,7 @@ userApi.post('/removeAccount', checkAuth, function (req, res) {
             if (error2) return res.status(400).send({error: true, detail: error2.code, message: error2.sqlMessage});
             return res.send({ error: false, data: results, message: 'User has been removed successfully.'});
         });
-    });    
+    });
 });
 
 //#7 === uc5.2 display filter gender/ location/ age
@@ -256,22 +261,21 @@ function sendEmail(
     );
 }
 
-var random, host, toEmail, link;
-
 userApi.post('/sendConfirmEmail', checkAuth, function(req, res) {
-    const userId = req.userData.userId;
-    toEmail = req.userData.email;    
+    var userId = req.userData.userId;
+    var toEmail = req.userData.email;
+    var name = req.userData.name;
 
-    random = Math.floor((Math.random() * 100) + 54);
-    host=req.get('host');
-    link="http://"+req.get('host')+"/api/user/emailVerify?id="+random;
-
-    dbConn.query('SELECT email_address FROM tbl_user WHERE id=? AND email_status=0 AND account_status=0', userId, function(error, emailResults, fields) {
+    dbConn.query('SELECT * FROM tbl_user WHERE id=? AND email_status=0 AND account_status=0', userId, function(error, emailResults, fields) {
         if (error) 
             return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
         if (!emailResults.length)
             return res.status(403).send({error: true, data: emailResults, message: 'User not found.'});
+
+        var confirmationCode = emailResults[0].confirmation_code;
+       
+        if (!confirmationCode) return res.status(403).send({error: false, message: 'Confirmation Code not found.'});
 
         async.parallel(
             [
@@ -280,9 +284,9 @@ userApi.post('/sendConfirmEmail', checkAuth, function(req, res) {
                         callback,
                         fromEmail,
                         toEmail,
-                        'Email Confirmation',
-                        'Dear',
-                        "Hello,<br> Please Click on the link to verify your email.<br><a href="+link+">Click here to verify</a>" 
+                        'confirmation code : '+confirmationCode+' DazzledDate.com',
+                        'Please verify your email address',
+                        "<p><b>Hi, "+name+" </b></p> <p> This is your confirmation code : <strong style='font-size: 25px;'>"+ confirmationCode +"</strong></p>" 
                     );
                 }
             ], function(err, results) {
@@ -303,32 +307,35 @@ userApi.post('/sendConfirmEmail', checkAuth, function(req, res) {
 });
 
 // user email verification api
-userApi.get('/emailVerify', function(req, res) {
-    if((req.protocol+"://"+req.get('host'))==("http://"+host)) {
-        if(req.query.id == random) {
-            //email is verified
-            if (!toEmail) return res.status(403).send({error: true, message: 'Invalid User. Try to log in again.'});
+userApi.post('/emailVerify', checkAuth, function(req, res) {
+    var userId = req.userData.userId;
+    var userEmail = req.userData.email;
+    var confirmCode = req.body.confirmCode;
+
+    if (!confirmCode) return res.status(403).send({error: true, message: 'Confirmation Code Not Found.'});  
                         
-            dbConn.query('SELECT * from tbl_user WHERE email_address=? AND account_status=0 AND email_status=2', [toEmail], function(error, getResult, fields) {
-                if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-                if (!getResult.length) return res.status(403).send({error: true, message: 'Invalid User'});
-                var updateData = {
-                    updated_date: new Date(),
-                    email_status: 1,
-                    account_status: 1
-                };
-                var userId = getResult[0].id;
-                dbConn.query('UPDATE tbl_user SET ? WHERE id=?', [updateData, userId], function(error1, updateResult, updateFields) {
-                    if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
-                    res.send({error: false, email: toEmail, message: 'Email has been successfully verified.'});
-                });
+    dbConn.query('SELECT * from tbl_user WHERE email_address=? AND account_status=0 AND email_status=2', userEmail, function(error, getResult, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+        if (!getResult.length) return res.status(403).send({error: true, message: 'User not found.'});
+        var dbConfirmationCode  = getResult[0].confirmation_code;
+        
+        if (parseInt(confirmCode) === parseInt(dbConfirmationCode)) {
+            var updateData = {
+                updated_date: new Date(),
+                email_status: 1,
+                account_status: 1,
+                confirmation_code: getRndInteger(100000, 999999)
+            };
+
+            dbConn.query('UPDATE tbl_user SET ? WHERE id=?', [updateData, userId], function(error1, updateResult, updateFields) {
+                if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                res.send({error: false, email: userEmail, message: 'Email has been successfully verified.'});
             });
         } else {
-            res.send({error: true, email: toEmail, message: 'Email is not verified.'});
-        }
-    } else {
-        res.send({error: true, message: 'Verify Link is invalid.'});
-    }
+            return res.send({error: false, message: 'Confirmation Code is not correct.'});
+        }        
+    });
 });
 
 var resettingRand, resettingLink, resetEmail, userEmail;
