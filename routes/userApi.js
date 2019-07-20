@@ -261,7 +261,12 @@ function sendEmail(
     );
 }
 
+var sentCount = 0;
+
 userApi.post('/sendConfirmEmail', checkAuth, function(req, res) {
+    if (sentCount === 1)
+        return res.status(403).send({error: true, message: "Email was already sent."});
+    
     var userId = req.userData.userId;
     var toEmail = req.userData.email;
     var name = req.userData.name;
@@ -290,17 +295,21 @@ userApi.post('/sendConfirmEmail', checkAuth, function(req, res) {
                     );
                 }
             ], function(err, results) {
-            if (err) res.status(403).send({error: true, detail: err, message: 'Sending Email Faild'});
+            if (err) {
+                sentCount = 0;
+                res.status(403).send({error: true, detail: err, message: 'Sending Email Faild'});
+            }
             var userUpdateData = {
                 updated_date: new Date(),
                 email_status: 2
             };
             dbConn.query('UPDATE tbl_user SET ? WHERE id=? AND email_status=0 AND account_status=0', [userUpdateData, userId], function(error1, updateResult, fields) {
                 if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                sentCount += 1;
                 res.send({
                     error: false,
                     message: 'Emails sent'
-                });
+                });                
             });           
         });    
     });      
