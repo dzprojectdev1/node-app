@@ -334,11 +334,11 @@ videoApi.put('/removeMyVideo/:videoId', checkAuth, function(req, res) {
 videoApi.get('/getVideosByOtherId/:otherId', checkAuth, function(req,res) {
     var otherId = req.params.otherId;
     var userId = req.userData.userId;
-    dbConn.query('SELECT * FROM tbl_match WHERE status in (6,7) AND (main_user_id=? OR other_user_id=?)', [userId, userId], function(error, oldResults, oldFields) {
+    dbConn.query('SELECT id FROM tbl_match WHERE status in (6,7) AND main_user_id=? AND other_user_id=?', [userId, otherId], function(error, oldResults, oldFields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         if (!oldResults.length) return res.status(403).send({error: true, message: 'User does not have any accepted match data.'});
 
-        dbConn.query('SELECT a.cdn_id, a.created_date, b.name, TIMESTAMPDIFF(YEAR, b.birth_date, CURDATE()) AS age, b.gender FROM tbl_video a INNER JOIN tbl_user b ON a.user_id=b.id WHERE a.user_id=? AND a.publish=1 AND a.is_reply=0', otherId, function(error1, otherResults, otherFields) {
+        dbConn.query('SELECT a.*, b.name, TIMESTAMPDIFF(YEAR, b.birth_date, CURDATE()) AS age, b.gender FROM tbl_video a INNER JOIN tbl_user b ON a.user_id=b.id WHERE a.user_id=? AND a.publish=1 AND a.is_reply=0', otherId, function(error1, otherResults, otherFields) {
             if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
             return res.send({error: false, data: otherResults, message: 'Selected User`s Video List'});
         });

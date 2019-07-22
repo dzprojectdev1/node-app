@@ -400,7 +400,7 @@ matchApi.post('/discover', checkAuth, function(req, res) {
         
         joinQuery += ' INNER JOIN tbl_video as e ON a.id=e.user_id';
 
-        var distanceQuery = '(3959 * acos (cos(radians('+myLat+') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians('+myLong+')) + sin (radians(34.1) ) * sin( radians(a.lat_geo))))';
+        var distanceQuery = '(3959 * acos (cos(radians('+myLat+') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians('+myLong+')) + sin (radians('+myLat+') ) * sin( radians(a.lat_geo))))';
         var whereCondition = ' a.account_status=1 AND a.id NOT IN ('+getOtherMatchInfo+') AND a.id!=? AND e.match_id is null AND e.is_primary=1 AND e.is_reply=0';
         if (req.body.distance) {
             distance = req.body.distance;
