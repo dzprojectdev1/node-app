@@ -119,21 +119,29 @@ videoApi.get('/othervideo/:otherId', checkAuth, function(req, res) {
 });
 
 //#25 uc 8.1 matched page return for video ids === UC A
-videoApi.post('/getMatchedVideo', checkAuth, function(req, res) {
-    var userId = req.userData.uesrId;
-    var otherId = req.body.otherId;
+videoApi.get('/getVideosByMatchId/:matchId', checkAuth, function(req, res) {
+    var userId = req.userData.userId;
+    var matchId = req.params.matchId;
 
-    if (!otherId) {
-        return res.status(400).send({ error:true, message: 'Other User Id not found' }); 
-    }
+    // var getMatchQuery = 'select id from tbl_match where main_user_id=? and other_user_id=? and status=1 and publish=1 limit 1';
 
-    var getMatchQuery = 'select id from tbl_match where main_user_id=? and other_user_id=? and status=1 and publish=1 limit 1';
+    // var whereCondition = 'a.user_id=? And a.is_reply=1 and a.is_primary=0 and a.publish=1 And a.match_id=('+getMatchQuery+')';
+    // dbConn.query('Select a.cdn_id from tbl_video a inner join tbl_match b On a.match_id=b.id where '  + whereCondition, [otherId, userId, otherId], function(error, results, fields) {
+    //     if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+    //     return res.send({ error: false, data: results, message: "Matched others video Id"});
+    // });
 
-    var whereCondition = 'a.user_id=? And a.is_reply=1 and a.is_primary=0 and a.publish=1 And a.match_id=('+getMatchQuery+')';
-    dbConn.query('Select a.cdn_id from tbl_video a inner join tbl_match b On a.match_id=b.id where '  + whereCondition, [otherId, userId, otherId], function(error, results, fields) {
+    dbConn.query('SELECT * FROM tbl_match WHERE id=? AND main_user_id=? OR other_user_id=?', [matchId, userId, userId], function(error, getResults, getFields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-        return res.send({ error: false, data: results, message: "Matched others video Id"});
-    });
+        if (!getResults.length) return res.status(403).send({error: true, message: 'Match Data Not Found.'});
+        
+        dbConn.query('SELECT a.cdn_id, a.created_date, b.name, b.email_address, b.birth_date, b.gender FROM tbl_video a INNER JOIN tbl_user b ON a.user_id=b.id WHERE match_id=? AND is_reply=1 AND publish=1', matchId, function(error1, videoResults, videoFields) {
+            if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+            if (!videoResults.length) return res.send({error: true, message: 'Video Data Not Found'});
+
+            return res.send({error: false, data: videoResults, message: 'Matched Video Data'});
+        });
+    })
 });
 
 //#26 uc 8.1 === UC B
@@ -185,31 +193,57 @@ videoApi.get('/getMyAllVideo', checkAuth, function(req, res) {
 //#35 UC 12.2 - My Video Page - set as primary video
 videoApi.put('/setAsPrimary/:videoId', checkAuth, function(req, res) {
     var videoId = req.params.videoId;
+    var userId = req.userData.userId;
     
     if (!videoId) 
         return res.status(400).send({error: true, message: 'Wrong video id'});
-
-    dbConn.query('SELECT * FROM tbl_video WHERE id=? AND is_reply=0 AND is_primary=0', [videoId], function(err, oldResults, fields) {
+                
+    dbConn.query('SELECT * FROM tbl_video WHERE user_id=? AND is_reply=0 AND is_primary=1', userId, function(err, oldResults, fields) {
         if (err) return res.status(400).send({error: true, detail: err.code, message: err.sqlMessage});
 
-        if (!oldResults.length)
-            return res.status(400).send({error: true, message: 'Video Not Found'});
+        if (!oldResults.length) {
+            var updateData = {
+                is_primary: 1,
+                updated_date: new Date()
+            };
 
-        var whereCondition = 'id=?';
+            dbConn.query('UPDATE tbl_video SET ? WHERE id=?', [updateData, videoId], function(error, results, fields) {
+                if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
-        var updateData = {
-            is_primary: 1,
-            updated_date: new Date()
-        };
-
-        dbConn.query('UPDATE tbl_video SET ? WHERE ' + whereCondition, [updateData, videoId], function(error, results, fields) {
-            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-
-            dbConn.query('SELECT * from tbl_video WHERE id=?', videoId, function(error1, updatedRow, fields) {
-                if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
-                return res.send({error: false, data: updatedRow, message: 'User`s video has been as primary video'});
+                dbConn.query('SELECT * from tbl_video WHERE id=?', videoId, function(error1, updatedRow, fields) {
+                    if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                    return res.send({error: false, data: updatedRow, message: 'User`s video has been as primary video'});
+                });
             });
-        });
+        } else {
+            var oldData = oldResults[0];
+            var oldId = oldData.id;
+            if (videoId == oldId)
+                return res.send({error: false, data: oldData, message: 'This video is already primary video'});
+            
+            var oldUpdateData = {
+                is_primary: 0,
+                updated_date: new Date()
+            };
+    
+            dbConn.query("UPDATE tbl_video SET ? WHERE id=?", [oldUpdateData, oldId], function(error, oldUpdate, oldFields) {
+                if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+    
+                var updateData = {
+                    is_primary: 1,
+                    updated_date: new Date()
+                };
+    
+                dbConn.query('UPDATE tbl_video SET ? WHERE id=?', [updateData, videoId], function(error, results, fields) {
+                    if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+    
+                    dbConn.query('SELECT * from tbl_video WHERE id=?', videoId, function(error1, updatedRow, fields) {
+                        if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                        return res.send({error: false, data: updatedRow, message: 'User`s video has been as primary video'});
+                    });
+                });
+            });
+        }            
     });
 });
 
@@ -249,16 +283,64 @@ videoApi.put('/removeMyVideo/:videoId', checkAuth, function(req, res) {
         return res.status(400).send({error: true, message: 'Please provide video Id'});
     }
         
-    dbConn.query('SELECT * FROM tbl_video WHERE id=? is_reply=0 AND user_id=?', [videoId, userId], function(error1, oldResults) {
+    dbConn.query('SELECT * FROM tbl_video WHERE id=? AND publish=1', [videoId], function(error1, oldResults) {
         if (error1) 
             return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
 
         if (!oldResults.length) 
             return res.send({error: true, message: 'Video Not Found.'});
 
-        dbConn.query('UPDATE tbl_video SET publish=0 WHERE id=? ', videoId, function(error2, newResult) {
-            if (error2) return res.status(400).send({error: true, detail: error2.code, message: error2.sqlMessage});
-            return res.send({error: false, message: 'Video was removed successfully.'});   
+        var videoData = oldResults[0];
+        var primaryStatus = videoData.is_primary;
+        if (primaryStatus == 1) {
+            dbConn.query('SELECT * FROM tbl_video WHERE user_id=? AND id!=? AND publish=1', [userId, videoId], function(error2, otherResults, otherFields) {
+                if (error2) return res.status(400).send({error: true, detail: error2.code, message: error2.sqlMessage});
+                if (!otherResults.length) return res.send({error: true, message: 'Remove Failed! This video is primary video. And User doesn`t have any other video. User must have one primary video, at least'});
+                var findNextVideos = otherResults.filter(video => video.id > videoId);
+                var nextVideo;
+                if (findNextVideos.length > 0) {
+                    nextVideo = findNextVideos[0];
+                } else {
+                    nextVideo = otherResults[0];
+                }
+                var nextVideoId = nextVideo.id;
+                var updateData = {
+                    is_primary: 1,
+                    is_reply: 0,
+                    updated_date: new Date()
+                };
+                dbConn.query('UPDATE tbl_video SET publish=0, is_primary=0 WHERE id=? ', videoId, function(error2, newResult) {
+                    if (error2) return res.status(400).send({error: true, detail: error2.code, message: error2.sqlMessage});
+                    
+                    dbConn.query("UPDATE tbl_video SET ? WHERE id=?", [updateData, nextVideoId], function(error3, newPrimaryResult, newPrimaryFields) {
+                        if (error3) return res.status(403).send({error: true, detail: error3.code, message: error3.sqlMessage});
+                        
+                        dbConn.query('SELECT * FROM tbl_video WHERE id=?', nextVideoId, function(error4, getResult, getFields) {
+                            if (error4) return res.status(403).send({error: true, detail: error4.code, message: error4.sqlMessage});
+                            return res.send({error: false, data: getResult, message: 'Video was removed successfully. And next video was set into primary video.'});
+                        });   
+                    });          
+                });                
+            });
+        } else {
+            dbConn.query('UPDATE tbl_video SET publish=0, is_primary=0 WHERE id=? ', videoId, function(error2, newResult) {
+                if (error2) return res.status(400).send({error: true, detail: error2.code, message: error2.sqlMessage});
+                return res.send({error: false, message: 'Video was removed successfully.'});   
+            });
+        }        
+    });
+});
+
+videoApi.get('/getVideosByOtherId/:otherId', checkAuth, function(req,res) {
+    var otherId = req.params.otherId;
+    var userId = req.userData.userId;
+    dbConn.query('SELECT * FROM tbl_match WHERE status in (6,7) AND (main_user_id=? OR other_user_id=?)', [userId, userId], function(error, oldResults, oldFields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if (!oldResults.length) return res.status(403).send({error: true, message: 'User does not have any accepted match data.'});
+
+        dbConn.query('SELECT a.cdn_id, a.created_date, b.name, TIMESTAMPDIFF(YEAR, b.birth_date, CURDATE()) AS age, b.gender FROM tbl_video a INNER JOIN tbl_user b ON a.user_id=b.id WHERE a.user_id=? AND a.publish=1 AND a.is_reply=0', otherId, function(error1, otherResults, otherFields) {
+            if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+            return res.send({error: false, data: otherResults, message: 'Selected User`s Video List'});
         });
     });
 });

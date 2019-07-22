@@ -3,21 +3,47 @@ var chatApi = express.Router();
 var dbConn = require("../config/dbConfig");
 const checkAuth = require('../middleware/check_auth');
 
+function timeAgo(dateString) {
+    var createdDate = new Date(dateString);
+    var nowDate = new Date();
+
+    var diffSecond = Math.floor((nowDate.getTime() - createdDate.getTime())/1000);
+    if (diffSecond < 5) return 'now';
+    if (diffSecond < 60 ) return(diffSecond + ' sec ago');
+
+    var diffMinute = Math.floor(diffSecond/60);
+    if (diffMinute < 60) return(diffMinute + ' mins ago');
+
+    var diffHours = Math.floor(diffMinute/60);
+    if ( 0 < diffHours && diffHours < 24) return(diffHours + ' hours ago');
+
+    var diffDate = Math.floor(diffHours/24);
+    if (diffDate > 0 && diffDate < 31) return(diffDate + ' days ago');
+
+    var diffMonth = Math.floor(diffDate/30);    
+    if (diffMonth > 0 && diffMonth < 12) return(diffMonth + ' months ago');
+
+    var diffYears = Math.floor(diffMonth/12);
+    if (diffYears > 0) return(diffYears + ' years ago');
+
+}
 
 //#29 UC9 Chat Api == UC9.1 Display Chat - Main list
 chatApi.get('/all', checkAuth, function(req, res) {
     var userId = req.userData.userId;
 
-    var limitHour = 1;
-
-    var joinQuery = 'inner join tbl_chat d on c.chat_id=d.id inner join tbl_user e on c.other_user_id=e.id inner join tbl_video g on g.user_id=e.id WHERE d.created_date < DATE_SUB(NOW(), INTERVAL ? HOUR) order by d.created_date asc';
+    var joinQuery = 'inner join tbl_chat d on c.chat_id=d.id inner join tbl_user e on c.other_user_id=e.id inner join tbl_video g on g.user_id=e.id order by d.created_date asc';
     var matchWhereCondition = 'a.main_user_id=? and a.status in (6,7) and a.publish=1 and f.publish=1 group by a.id';
     var matchJoinQuery = 'inner join tbl_chat b on a.id=b.match_id inner join tbl_video f on f.user_id=a.other_user_id ';
     var matchQuery = 'SELECT a.id as match_id, max(b.id) as chat_id, a.other_user_id as other_user_id FROM `tbl_match` a '+matchJoinQuery+' where ' +matchWhereCondition;
-    var queryString = 'select c.*, d.message_text, e.name, e.gender, e.birth_date, g.cdn_id, g.cdn_filtered_id from ('+matchQuery+') c ' + joinQuery;
+    var queryString = 'select c.*, d.message_text, d.created_date as created_date, e.name, e.gender, e.birth_date, TIMESTAMPDIFF(YEAR, e.birth_date, CURDATE()) AS age, g.cdn_id, g.cdn_filtered_id from ('+matchQuery+') c ' + joinQuery;
     
-    dbConn.query(queryString, [userId, limitHour], function(error, results, fields){
+    dbConn.query(queryString, userId, function(error, results, fields){
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+        results.forEach(chat => {
+            chat.time_ago = timeAgo(chat.created_date);
+        });
         return res.send({ error: false, data: results, message: "Get All Chat List"});
     });
 });
@@ -37,7 +63,7 @@ chatApi.get('/getChatWithMatchId/:matchId', checkAuth, function(req,res) {
         
         if (results.length === 0) return res.status(400).send({error: false, message: 'chat content doesn`t exist.'});
         //get other user detail information from match id
-        dbConn.query('SELECT a.name, a.gender, a.birth_date, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age from tbl_user as a inner join tbl_match as b on a.id=b.other_user_id where b.id=? and a.account_status=1', [matchId], function(error1, userResults, fields) {
+        dbConn.query('SELECT a.name, a.gender, a.birth_date, c.cdn_id, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age from tbl_user as a inner join tbl_match as b on a.id=b.other_user_id inner join tbl_video c on a.id=c.user_id where b.id=? and a.account_status=1 and c.is_primary=1 and c.is_reply=0 and c.publish=1', [matchId], function(error1, userResults, fields) {
             if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
             if (userResults.length === 0) return res.status(403).send({error: false, message: 'Matched Other User not found'});
             var matchedOtherUser = userResults[0];

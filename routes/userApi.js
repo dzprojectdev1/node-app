@@ -176,7 +176,7 @@ userApi.post('/removeAccount', checkAuth, function (req, res) {
 
         if (!oldResults.length) return res.send({ error: false, message: 'User not found.'});
 
-        dbConn.query('UPDATE tbl_user SET account_status=? WHERE id=?', [0, user_id], function (error2, results, fields) {
+        dbConn.query('UPDATE tbl_user SET account_status=9 WHERE id=?', user_id, function (error2, results, fields) {
             if (error2) return res.status(400).send({error: true, detail: error2.code, message: error2.sqlMessage});
             return res.send({ error: false, data: results, message: 'User has been removed successfully.'});
         });
