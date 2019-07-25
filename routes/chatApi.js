@@ -2,6 +2,7 @@ var express = require("express");
 var chatApi = express.Router();
 var dbConn = require("../config/dbConfig");
 const checkAuth = require('../middleware/check_auth');
+const blockFunction = require("./matchApi").blockFunction;
 
 function timeAgo(dateString) {
     var createdDate = new Date(dateString);
@@ -129,15 +130,19 @@ chatApi.post('/create', checkAuth, function(req, res) {
 });
 
 //#32 UC 10.1 Report - hide from display once blocked
-chatApi.post('/reportUser', checkAuth, function(req, res) {
+chatApi.post('/reportUser', checkAuth, blockFunction, function(req, res) {
     var userId = req.userData.userId;
     var otherId = req.body.otherId;
-    var matchId = req.body.matchId;
+    var matchId = req.matchId;
+    
     var reportDescription = req.body.reportDescription;
     
-    if (!userId || !otherId || !reportDescription || !matchId) {
-        return res.status(400).send({ error:true, message: 'Invalid Params.'});  
+    if (!otherId) {
+        return res.status(400).send({ error:true, message: 'Invalid Other Id.'});  
     };
+    if (!reportDescription) {
+        return res.status(400).send({ error:true, message: 'Invalid Report Description.'});
+    }
 
     var sendReportData = {
         user_id_submitted: userId,
@@ -145,7 +150,8 @@ chatApi.post('/reportUser', checkAuth, function(req, res) {
         tbl_match_id: matchId,
         report_description: reportDescription,
         report_status: 8,
-        created_date: new Date()
+        created_date: new Date(),
+        admin_comment: ''
     };
 
     dbConn.beginTransaction(function(error){
@@ -162,7 +168,8 @@ chatApi.post('/reportUser', checkAuth, function(req, res) {
                 tbl_match_id: matchId,
                 report_description: reportDescription,
                 report_status: 9,
-                created_date: new Date()
+                created_date: new Date(),
+                admin_comment: ''
             };
             dbConn.query('INSERT INTO tbl_report set ? ', [receiveReportData], function(error, receiveResult) {
                 if (error) {
@@ -178,7 +185,7 @@ chatApi.post('/reportUser', checkAuth, function(req, res) {
                         });
                     };
 
-                    return res.send({ error: false, data: {sendResult, receiveResult}, message: "New Report is Created."});
+                    return res.send({ error: false, data: {sender_report_id: sendResult.insertId, receiver_report_id: receiveResult.insertId}, message: "New Report is Created."});
                 });
             });
         });

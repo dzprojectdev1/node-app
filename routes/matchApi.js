@@ -131,61 +131,88 @@ matchApi.post('/dislike', checkAuth, function(req, res) {
     });    
 });
 
-//#14 uc4.3 === user set other user with block
-matchApi.post('/block', checkAuth, function(req, res) {
-    var userId = req.userData.userId;
-    var otherId = req.body.otherId;
+var blockFunction = (req, res, next) => {
+    try {
+        var userId = req.userData.userId;
+        var otherId = req.body.otherId;
 
-    if (!therId) {
-		return res.status(400).send({ error:true, message: 'Please provide other user id' });
-    }
+        if (!otherId) {
+            return res.status(400).send({ error:true, message: 'Please provide other user id' });
+        }
 
-    var blockCreateData = {
-        main_user_id: userId,
-        other_user_id: otherId,
-        status: 8,
-        status_description: "block_created",
-        publish: 1,
-        created_date: new Date(),
-        updated_date: new Date()
-    };
+        //get status 2,6,7 match data,
+        dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [userId, otherId], function(error, results, fields) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+            if (!results.length) return res.status(403).send({error: true, data: results, message: 'Match data not found.'});
+            
+            var resultIdArr = results.map(one => {
+                return one.id;
+            });
+            
+            dbConn.query("UPDATE tbl_match SET publish=0 WHERE id IN (?)", resultIdArr.join(), function(error, updateResults, updateFields) {
+                if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
-    dbConn.beginTransaction(function(err){
-        if (err) return res.status(400).send({error: true, message: err});
-        dbConn.query("INSERT INTO tbl_match SET ? ", blockCreateData, function (error, results, fields) {
-            if (error) {
-                dbConn.rollback(function(){
-                    return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-                });
-            }
+                var blockCreateData = {
+                    main_user_id: userId,
+                    other_user_id: otherId,
+                    status: 8,
+                    status_description: "block_created",
+                    publish: 1,
+                    created_date: new Date(),
+                    updated_date: new Date()
+                };
+            
+                dbConn.beginTransaction(function(err){
+                    if (err) return res.status(400).send({error: true, message: err});
+                    dbConn.query("INSERT INTO tbl_match SET ? ", blockCreateData, function (error, results, fields) {
+                        if (error) {
+                            dbConn.rollback(function(){
+                                return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                            });
+                        }
 
-            var blockRecieveData = {
-                main_user_id: otherId,
-                other_user_id: userId,
-                status: 9,
-                status_description: "block_received",
-                publish: 1,
-                created_date: new Date(),
-                updated_date: new Date()
-            };
-
-            dbConn.query('INSERT INTO tbl_match SET ? ', blockRecieveData, function(error1, receiveResult, fields) {
-                if (error1) {
-                    dbConn.rollback(function() {
-                        return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
-                    });
-                }
-                dbConn.commit(function(error) {
-                    if (error) {
-                        dbConn.rollback(function() {
-                            return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                        req.matchId = results.insertId;
+            
+                        var blockRecieveData = {
+                            main_user_id: otherId,
+                            other_user_id: userId,
+                            status: 9,
+                            status_description: "block_received",
+                            publish: 1,
+                            created_date: new Date(),
+                            updated_date: new Date()
+                        };
+            
+                        dbConn.query('INSERT INTO tbl_match SET ? ', blockRecieveData, function(error1, receiveResult, fields) {
+                            if (error1) {
+                                dbConn.rollback(function() {
+                                    return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                                });
+                            }
+            
+                            dbConn.commit(function(error) {
+                                if (error) {
+                                    dbConn.rollback(function() {
+                                        return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                                    });
+                                };
+                                next();                                
+                            });
                         });
-                    };
-                    return res.send({ error: false, data: {sentDataId: results.insertId, receiveDataId: receiveResult.insertId}, message: 'New block has been created.' });
+                    });
                 });
             });
+        });        
+    } catch (error) {
+        return res.status(401).json({
+            message: error
         });
-    });
+    }
+}
+
+//#14 uc4.3 === user set other user with block
+matchApi.post('/block', checkAuth, blockFunction, function(req, res) {
+    return res.send({ error: false, message: 'New block has been created.' });
 });
 
 //#16 uc7.1 display incoming hearts
@@ -452,5 +479,6 @@ matchApi.post('/discover', checkAuth, function(req, res) {
 });
 
 
-module.exports = matchApi;
+module.exports.matchApi = matchApi;
+module.exports.blockFunction = blockFunction;
 

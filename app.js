@@ -1,7 +1,10 @@
-var express = require('express');
+const express = require('express');
+const session = require('express-session');
 var app = express();
 const expressip = require('express-ip');
 var bodyParser = require('body-parser');
+const async = require('async');
+var jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 app.use(bodyParser.json());
@@ -15,6 +18,17 @@ app.use((req, res, next) => {
     next();
 });
 
+app.use(session({
+    secret: 'skweieoodofsdfs=-jjsdf',
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: true }
+}));
+
+const dbConn = require('./config/dbConfig');
+const sendEmail = require('./config/mailConfig').sendEmail;
+const fromEmail = process.env.SERVER_EMAIL_ADDRESS;
+
 // default route
 app.get('/', function (req, res) {
     return res.send({ error: true, message: 'hello' })
@@ -22,7 +36,7 @@ app.get('/', function (req, res) {
 
 var userApi = require('./routes/userApi');
 var videoApi = require('./routes/videoApi');
-var matchApi = require('./routes/matchApi');
+var matchApi = require('./routes/matchApi').matchApi;
 var languageApi = require('./routes/languageApi');
 var countryApi = require('./routes/countryApi');
 var ethnicityApi = require('./routes/ethnicityApi');
@@ -30,6 +44,95 @@ var chatApi = require('./routes/chatApi');
 
 const storageApi = require('./routes/storageApi');
 
+//----- *  user password reset apis * ------//
+//user reset password request api
+app.post('/requestResetPassword', function(req, res) {
+    var toEmail = req.body.email;
+    if (!toEmail) return res.status(400).send({error: true, message: 'Please provide reset email address'});
+
+    dbConn.query("SELECT id FROM tbl_user WHERE email_address=? ", toEmail, function(error, results, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if (!results.length) return res.status(403).send({error: true, message: 'Email address does not exist.'});
+        const token = jwt.sign(
+            {
+                email: toEmail
+            }, process.env.EMAIL_SECRET_KEY,
+            {
+                expiresIn: '30min'
+            }
+        );
+        const confirmLink = req.protocol+"://"+req.get('host')+"/confirm/" + token;
+        async.parallel(
+            [
+                function (callback) {
+                    sendEmail(
+                        callback,
+                        fromEmail,
+                        toEmail,
+                        'Resetting Password',
+                        'Do you want to change your passsword?',
+                        "Hello,<br> Please Click on the link to reset your password.<br><a href="+confirmLink+">Click here to reset your password</a>" 
+                    );
+                }
+            ], function(err, results) {
+            if (err) res.status(403).send({error: true, detail: err, message: 'Sending Email Faild'});
+            
+            res.send({
+                error: false,
+                message: 'Emails sent'
+            });
+        });
+    });    
+});
+//confirm user token link from email
+app.get('/confirm/:token', function(req, res) {    
+    try {
+        const token = req.params.token;
+        const decode = jwt.verify(token, process.env.EMAIL_SECRET_KEY);
+        req.session.resetEmail = decode.email;
+        res.send({error: false, data: decode.email, message: 'user can reset password!'});
+    } catch (error) {
+        return res.status(401).json({
+            message: 'Authentication Failed.'
+        });
+    }
+});
+
+//reset user password
+app.post('/resetPassword', function(req, res) {
+    var newPassword = req.body.newPassword;
+    if (!req.session.resetEmail) return res.render('error', {error: 'Reset Failed!'});
+    const resetEmail = req.session.resetEmail;
+    var updateData = {
+        password: bcrypt.hashSync(newPassword, 10, (err, hash) => {
+            return hash;
+        }),
+        updated_date: new Date()
+    };
+    dbConn.query('UPDATE tbl_user SET ? WHERE email_address=?', [updateData, resetEmail], function(error1, updateResult, updateFeidls) {
+        if (error1) return res.render('resetPassword', {error: 'Database Error!'});
+        async.parallel(
+            [
+                function (callback) {
+                    sendEmail(
+                        callback,
+                        fromEmail,
+                        resetEmail,
+                        'Resetting Password',
+                        'Do you want to change your passsword?',
+                        "<p><b> Dear, Your Password was recently changed</b></p><p>This email confirms that you recently changed the password for user account "+oldName+". No further action is required.</p><br>" 
+                    );
+                }
+            ], function(err, results) {
+            if (err) return res.send({error: 'Sending email failed!'});
+            
+            return res.send({success: 'Success! Please try to login again!'});
+        });
+    });
+});
+//----- *  user password reset apis end * ------//
+
+//routers
 app.use('/api/user', userApi);
 app.use('/api/video', videoApi);
 app.use('/api/match', matchApi);
