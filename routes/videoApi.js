@@ -334,6 +334,7 @@ videoApi.put('/removeMyVideo/:videoId', checkAuth, function(req, res) {
 videoApi.get('/getVideosByOtherId/:otherId', checkAuth, function(req,res) {
     var otherId = req.params.otherId;
     var userId = req.userData.userId;
+    
     dbConn.query('SELECT id FROM tbl_match WHERE status in (6,7) AND main_user_id=? AND other_user_id=?', [userId, otherId], function(error, oldResults, oldFields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         if (!oldResults.length) return res.status(403).send({error: true, message: 'User does not have any accepted match data.'});
