@@ -150,11 +150,11 @@ var blockFunction = (req, res, next) => {
                 //get status 2,6,7 match data,
                 dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [userId, otherId], function(error, results, fields) {
                     if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-                    // if (!results.length) return res.status(403).send({error: true, data: results, message: 'Logged user does not have any match data that status is in 2,6,7 with other user (id='+otherId+')'});
+                    
                     if (results.length) {
                         var resultIdArr = results.map(one => {
                             return one.id;
-                        });                
+                        });
                         dbConn.query("UPDATE tbl_match SET publish=0 WHERE id IN (?)", resultIdArr.join(), function(error, updateResults, updateFields) {
                             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});                    
                         });
