@@ -165,6 +165,12 @@ userApi.put('/updateSetting', checkAuth, function (req, res) {
     if (req.body.ethnicityId) {
         updateData.ethnicity_id = req.body.ethnicityId;
     }
+    if (req.body.latGeo) {
+        updateData.lat_geo = req.body.latGeo;
+    }
+    if (req.body.longGeo) {
+        updateData.long_geo = req.body.longGeo;
+    }
   
     dbConn.query("UPDATE tbl_user SET ? WHERE id=?", [updateData, userId], function (error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
