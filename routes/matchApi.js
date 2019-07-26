@@ -228,7 +228,7 @@ matchApi.get('/getReceivedHearts', checkAuth, function(req, res) {
     
     var whereCondition = ' a.publish=1 and a.status=2 and a.main_user_id=? and b.publish=1 and b.is_primary=1 and b.is_reply=0 and c.account_status=1 and c.email_status=1 order by a.id desc ';
 
-    var query= 'SELECT a.id, a.other_user_id, b.cdn_filtered_id, b.cdn_id, c.name, c.gender, '+ distanceQuery + ageQuery +'FROM `tbl_match` a '+joinQuery+'WHERE' + whereCondition;
+    var query= 'SELECT a.id, a.other_user_id, b.cdn_filtered_id, c.name, c.gender, '+ distanceQuery + ageQuery +'FROM `tbl_match` a '+joinQuery+'WHERE' + whereCondition;
     
     dbConn.query(query, [userId], function(error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
