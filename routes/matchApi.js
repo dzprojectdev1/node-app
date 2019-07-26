@@ -483,7 +483,7 @@ matchApi.post('/discover', checkAuth, function(req, res) {
                 if (otherUser.last_loggedin_date) {
                     otherUser.last_activity = commonFunc.timeAgo(otherUser.last_loggedin_date);
                 }
-                if (results.length) return res.status(403).send({error: true, data: otherUser, message: 'Already view data exist.'});
+                if (results.length) return res.status(403).send({error: false, data: otherUser, message: 'A New Lovely User found.'});
                 dbConn.query('INSERT INTO tbl_match SET ? ', [newMatchData], function(error, newMatch, fields) {
                     if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                     otherUser.match_id = newMatch.insertId;
