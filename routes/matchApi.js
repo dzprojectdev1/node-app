@@ -2,6 +2,7 @@ var express = require("express");
 var matchApi = express.Router();
 var dbConn = require("../config/dbConfig");
 const checkAuth = require('../middleware/check_auth');
+const commonFunc = require('../config/common').commonFunc;
 
 // #11 === set new match data
 matchApi.post('/view', checkAuth, function(req,res) {   
@@ -143,7 +144,7 @@ var blockFunction = (req, res, next) => {
         //get status 2,6,7 match data,
         dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [userId, otherId], function(error, results, fields) {
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-            if (!results.length) return res.status(403).send({error: true, data: results, message: 'Match data not found.'});
+            if (!results.length) return res.status(403).send({error: true, data: results, message: 'Logged user does not have any match data that status is in 2,6,7 with other user (id='+otherId+')'});
             
             var resultIdArr = results.map(one => {
                 return one.id;
@@ -220,12 +221,16 @@ matchApi.get('/getReceivedHearts', checkAuth, function(req, res) {
     var userId = req.userData.userId;
 
     var distanceQuery = ' (3959 * acos(cos(radians(d.lat_geo)) * cos(radians(c.lat_geo)) * cos(radians(c.long_geo) - radians(d.long_geo)) + sin(radians(d.lat_geo)) * sin(radians(c.lat_geo)))) as distance, ';
+    
     var ageQuery = ' TIMESTAMPDIFF(YEAR, c.birth_date, CURDATE()) AS age ';
+    
     var joinQuery = ' inner join tbl_video b on a.other_user_id=b.user_id Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id ';
-    var whereCondition = ' a.publish=1 and a.status=2 and a.main_user_id=? and b.publish=1 and c.account_status=1 and c.email_status=1 AND b.is_primary=1 AND b.is_reply=0 order by a.id desc ';
+    
+    var whereCondition = ' a.publish=1 and a.status=2 and a.main_user_id=? and b.publish=1 and b.is_primary=1 and b.is_reply=0 and c.account_status=1 and c.email_status=1 order by a.id desc ';
 
-    dbConn.query('SELECT a.id, a.other_user_id, b.cdn_filtered_id, c.name, c.gender, '+ distanceQuery + ageQuery +'FROM `tbl_match` a '+joinQuery+'WHERE' + whereCondition, [userId], function(error, results, fields) {
+    dbConn.query('SELECT a.id, a.other_user_id, b.cdn_filtered_id, b.cdn_id, c.name, c.gender, '+ distanceQuery + ageQuery +'FROM `tbl_match` a '+joinQuery+'WHERE' + whereCondition, [userId], function(error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if (!results.length) return res.status(403).send({error: true, message: 'Received Heart data not found.'})
         return res.send({error: false, data: results, message: 'All hearts list'});
     });
 });
@@ -419,7 +424,7 @@ matchApi.post('/discover', checkAuth, function(req, res) {
 
         //age, gender, ethnicity, country, distance, language
         var distance = 0;
-        var selectQuery = 'a.id, a.birth_date, a.name, a.gender, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, e.cdn_filtered_id, b.ethnicity_name, c.country_name, d.language_name, ';
+        var selectQuery = 'a.id, a.birth_date, a.name, a.gender, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, b.ethnicity_name, c.country_name, d.language_name, ';
         
         var getOtherMatchInfo = 'select other_user_id from tbl_match where main_user_id=? and status != 0';
 
@@ -458,22 +463,30 @@ matchApi.post('/discover', checkAuth, function(req, res) {
         dbConn.query(query, [userId, userId], function(error, results, fields) {
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
             if (!results.length)
-                return res.send({ error:false, data: {}, message: 'Not found.'});
+                return res.send({ error:false, message: 'Not found.'});
             var otherUser = results[0];
-            var newMatchData = {
-                main_user_id: userId,
-                other_user_id: otherUser.id,
-                status: 0,
-                status_description: 'viewed',
-                publish: 1,
-                created_date: new Date(),
-                updated_date: new Date()
-            };
-            dbConn.query('INSERT INTO tbl_match SET ? ', [newMatchData], function(error, newMatch, fields) {
+            var otherUserId = otherUser.id;
+            dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=0', [userId, otherUserId], function(error, results, fields) {
                 if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-                otherUser.match_id = newMatch.insertId;
-                return res.send({ error: false, data: otherUser, message: "A New Lovely User found."});
-            });
+                if (results.length) return res.status(403).send({error: true, data: results[0].id, message: 'Already view data exist.'});
+                var newMatchData = {
+                    main_user_id: userId,
+                    other_user_id: otherUser.id,
+                    status: 0,
+                    status_description: 'viewed',                
+                    publish: 1,
+                    created_date: new Date(),
+                    updated_date: new Date()
+                };
+                if (otherUser.last_loggedin_date) {
+                    otherUser.last_activity = commonFunc.timeAgo(otherUser.last_loggedin_date);
+                }
+                dbConn.query('INSERT INTO tbl_match SET ? ', [newMatchData], function(error, newMatch, fields) {
+                    if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                    otherUser.match_id = newMatch.insertId;
+                    return res.send({ error: false, data: otherUser, message: "A New Lovely User found."});
+                });
+            });            
         });
     });    
 });

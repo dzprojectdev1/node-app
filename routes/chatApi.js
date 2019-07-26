@@ -3,31 +3,7 @@ var chatApi = express.Router();
 var dbConn = require("../config/dbConfig");
 const checkAuth = require('../middleware/check_auth');
 const blockFunction = require("./matchApi").blockFunction;
-
-function timeAgo(dateString) {
-    var createdDate = new Date(dateString);
-    var nowDate = new Date();
-
-    var diffSecond = Math.floor((nowDate.getTime() - createdDate.getTime())/1000);
-    if (diffSecond < 5) return 'now';
-    if (diffSecond < 60 ) return(diffSecond + ' sec ago');
-
-    var diffMinute = Math.floor(diffSecond/60);
-    if (diffMinute < 60) return(diffMinute + ' mins ago');
-
-    var diffHours = Math.floor(diffMinute/60);
-    if ( 0 < diffHours && diffHours < 24) return(diffHours + ' hours ago');
-
-    var diffDate = Math.floor(diffHours/24);
-    if (diffDate > 0 && diffDate < 31) return(diffDate + ' days ago');
-
-    var diffMonth = Math.floor(diffDate/30);    
-    if (diffMonth > 0 && diffMonth < 12) return(diffMonth + ' months ago');
-
-    var diffYears = Math.floor(diffMonth/12);
-    if (diffYears > 0) return(diffYears + ' years ago');
-
-}
+const commonFunc = require('../config/common').commonFunc;
 
 //#29 UC9 Chat Api == UC9.1 Display Chat - Main list
 chatApi.get('/all', checkAuth, function(req, res) {
@@ -43,7 +19,7 @@ chatApi.get('/all', checkAuth, function(req, res) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
         results.forEach(chat => {
-            chat.time_ago = timeAgo(chat.created_date);
+            chat.time_ago = commonFunc.timeAgo(chat.created_date);
         });
         return res.send({ error: false, data: results, message: "Get All Chat List"});
     });

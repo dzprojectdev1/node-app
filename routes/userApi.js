@@ -92,8 +92,8 @@ userApi.post('/login', function (req, res) {
 		return res.status(400).send({ error:true, message: 'Please provide user email' });
     if (!userpassword)
         return res.status(400).send({ error:true, message: 'Please provide user password' });
-  
-	dbConn.query('SELECT * FROM tbl_user where email_address=?', useremail, function (error, results, fields) {
+    var joinQuery = 'INNER JOIN tbl_language b on a.language_id=b.id INNER JOIN tbl_ethnicity c ON c.id=a.ethnicity_id INNER JOIN tbl_country d ON a.country_id=d.id';
+	dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a '+joinQuery+' WHERE a.email_address=?', useremail, function (error, results, fields) {
 		if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 		if (!results.length || !results[0])
             return res.status(400).send({error: true, message: "Email doesn't exist."});
@@ -116,13 +116,25 @@ userApi.post('/login', function (req, res) {
                 ip_address: req.ip,
                 created_date: new Date()
             };
+            var outputResult = {
+                id: results[0].id,
+                token: token,
+                name: results[0].name,
+                email: results[0].email_address,
+                age: results[0].age,
+                gender: results[0].gender,
+                language: results[0].language_name,
+                ethnicity: results[0].ethnicity_name,
+                country: results[0].country_name
+            };
+
             dbConn.query('INSERT INTO tbl_user_login SET ? ', lastLoggedData, function(error, newResults, fields) {
                 if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
                 dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=? ', [new Date(), results[0].id], function(error1, updateResult, fields) {
                     if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
 
-                    return res.send({ error: false, token: token, message: 'User have been logged in successfully.' });
+                    return res.send({ error: false, data: outputResult, message: 'User have been logged in successfully.' });
                 });
             });
         }
