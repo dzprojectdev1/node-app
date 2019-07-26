@@ -141,68 +141,76 @@ var blockFunction = (req, res, next) => {
             return res.status(400).send({ error:true, message: 'Please provide other user id' });
         }
 
-        //get status 2,6,7 match data,
-        dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [userId, otherId], function(error, results, fields) {
+        dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=8", function(error, results, fields) {
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-            if (!results.length) return res.status(403).send({error: true, data: results, message: 'Logged user does not have any match data that status is in 2,6,7 with other user (id='+otherId+')'});
-            
-            var resultIdArr = results.map(one => {
-                return one.id;
-            });
-            
-            dbConn.query("UPDATE tbl_match SET publish=0 WHERE id IN (?)", resultIdArr.join(), function(error, updateResults, updateFields) {
-                if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+            if (results.length) {
+                req.oldData = results[0];
+                next();
+            } else {
+                //get status 2,6,7 match data,
+                dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [userId, otherId], function(error, results, fields) {
+                    if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                    // if (!results.length) return res.status(403).send({error: true, data: results, message: 'Logged user does not have any match data that status is in 2,6,7 with other user (id='+otherId+')'});
+                    if (results.length) {
+                        var resultIdArr = results.map(one => {
+                            return one.id;
+                        });                
+                        dbConn.query("UPDATE tbl_match SET publish=0 WHERE id IN (?)", resultIdArr.join(), function(error, updateResults, updateFields) {
+                            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});                    
+                        });
+                    }
 
-                var blockCreateData = {
-                    main_user_id: userId,
-                    other_user_id: otherId,
-                    status: 8,
-                    status_description: "block_created",
-                    publish: 1,
-                    created_date: new Date(),
-                    updated_date: new Date()
-                };
-            
-                dbConn.beginTransaction(function(err){
-                    if (err) return res.status(400).send({error: true, message: err});
-                    dbConn.query("INSERT INTO tbl_match SET ? ", blockCreateData, function (error, results, fields) {
-                        if (error) {
-                            dbConn.rollback(function(){
-                                return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-                            });
-                        }
+                    var blockCreateData = {
+                        main_user_id: userId,
+                        other_user_id: otherId,
+                        status: 8,
+                        status_description: "block_created",
+                        publish: 1,
+                        created_date: new Date(),
+                        updated_date: new Date()
+                    };
 
-                        req.matchId = results.insertId;
-            
-                        var blockRecieveData = {
-                            main_user_id: otherId,
-                            other_user_id: userId,
-                            status: 9,
-                            status_description: "block_received",
-                            publish: 1,
-                            created_date: new Date(),
-                            updated_date: new Date()
-                        };
-            
-                        dbConn.query('INSERT INTO tbl_match SET ? ', blockRecieveData, function(error1, receiveResult, fields) {
-                            if (error1) {
-                                dbConn.rollback(function() {
-                                    return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                    dbConn.beginTransaction(function(err){
+                        if (err) return res.status(400).send({error: true, message: err});
+                        dbConn.query("INSERT INTO tbl_match SET ? ", blockCreateData, function (error, results, fields) {
+                            if (error) {
+                                dbConn.rollback(function(){
+                                    return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                                 });
                             }
-            
-                            dbConn.commit(function(error) {
-                                if (error) {
+
+                            req.matchId = results.insertId;
+
+                            var blockRecieveData = {
+                                main_user_id: otherId,
+                                other_user_id: userId,
+                                status: 9,
+                                status_description: "block_received",
+                                publish: 1,
+                                created_date: new Date(),
+                                updated_date: new Date()
+                            };
+
+                            dbConn.query('INSERT INTO tbl_match SET ? ', blockRecieveData, function(error1, receiveResult, fields) {
+                                if (error1) {
                                     dbConn.rollback(function() {
-                                        return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                                        return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
                                     });
-                                };
-                                next();                                
+                                }
+
+                                dbConn.commit(function(error) {
+                                    if (error) {
+                                        dbConn.rollback(function() {
+                                            return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                                        });
+                                    };
+                                    next();                                
+                                });
                             });
                         });
                     });
-                });
-            });
+                });        
+            }            
         });        
     } catch (error) {
         return res.status(401).json({
@@ -213,6 +221,7 @@ var blockFunction = (req, res, next) => {
 
 //#14 uc4.3 === user set other user with block
 matchApi.post('/block', checkAuth, blockFunction, function(req, res) {
+    if (req.oldData) return res.send({error: true, data: req.oldData, message: 'Block Data Already exist'});
     return res.send({ error: false, message: 'New block has been created.' });
 });
 

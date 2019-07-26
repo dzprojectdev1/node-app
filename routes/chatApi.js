@@ -109,7 +109,7 @@ chatApi.post('/create', checkAuth, function(req, res) {
 chatApi.post('/reportUser', checkAuth, blockFunction, function(req, res) {
     var userId = req.userData.userId;
     var otherId = req.body.otherId;
-    var matchId = req.matchId;
+    var matchId = req.oldData ? req.oldData.id : req.matchId;
     
     var reportDescription = req.body.reportDescription;
     
@@ -119,53 +119,57 @@ chatApi.post('/reportUser', checkAuth, blockFunction, function(req, res) {
     if (!reportDescription) {
         return res.status(400).send({ error:true, message: 'Invalid Report Description.'});
     }
-
-    var sendReportData = {
-        user_id_submitted: userId,
-        user_id_violated: otherId,
-        tbl_match_id: matchId,
-        report_description: reportDescription,
-        report_status: 8,
-        created_date: new Date(),
-        admin_comment: ''
-    };
-
-    dbConn.beginTransaction(function(error){
-        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});;
-        dbConn.query('INSERT INTO tbl_report set ? ', [sendReportData], function(error, sendResult) {
-            if (error) {
-                dbConn.rollback(function(){
-                    return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-                });
-            }
-            var receiveReportData = {
-                user_id_submitted: otherId,
-                user_id_violated: userId,
-                tbl_match_id: matchId,
-                report_description: reportDescription,
-                report_status: 9,
-                created_date: new Date(),
-                admin_comment: ''
-            };
-            dbConn.query('INSERT INTO tbl_report set ? ', [receiveReportData], function(error, receiveResult) {
+    dbConn.query("SELECT * FROM tbl_report WHERE user_id_submitted=? AND user_id_violated=? AND tbl_match_id=? ", [userId, otherId, matchId], function(error, results, feilds) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if (results.length) return res.status(403).send({error: true, data: results[0], message: 'Report data already exist.'});
+        
+        var sendReportData = {
+            user_id_submitted: userId,
+            user_id_violated: otherId,
+            tbl_match_id: matchId,
+            report_description: reportDescription,
+            report_status: 8,
+            created_date: new Date(),
+            admin_comment: ''
+        };
+    
+        dbConn.beginTransaction(function(error){
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});;
+            dbConn.query('INSERT INTO tbl_report set ? ', [sendReportData], function(error, sendResult) {
                 if (error) {
-                    dbConn.rollback(function() {
+                    dbConn.rollback(function(){
                         return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                     });
+                }
+                var receiveReportData = {
+                    user_id_submitted: otherId,
+                    user_id_violated: userId,
+                    tbl_match_id: matchId,
+                    report_description: reportDescription,
+                    report_status: 9,
+                    created_date: new Date(),
+                    admin_comment: ''
                 };
-
-                dbConn.commit(function(error) {
+                dbConn.query('INSERT INTO tbl_report set ? ', [receiveReportData], function(error, receiveResult) {
                     if (error) {
                         dbConn.rollback(function() {
                             return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                         });
                     };
-
-                    return res.send({ error: false, data: {sender_report_id: sendResult.insertId, receiver_report_id: receiveResult.insertId}, message: "New Report is Created."});
+    
+                    dbConn.commit(function(error) {
+                        if (error) {
+                            dbConn.rollback(function() {
+                                return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                            });
+                        };
+    
+                        return res.send({ error: false, data: {sender_report_id: sendResult.insertId, receiver_report_id: receiveResult.insertId}, message: "New Report is Created."});
+                    });
                 });
             });
         });
-    });
+    });    
 });
 
 //#33 UC 11 = block user from chat
