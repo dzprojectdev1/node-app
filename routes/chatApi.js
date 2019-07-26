@@ -122,7 +122,7 @@ chatApi.post('/reportUser', checkAuth, blockFunction, function(req, res) {
     dbConn.query("SELECT * FROM tbl_report WHERE user_id_submitted=? AND user_id_violated=? AND tbl_match_id=? ", [userId, otherId, matchId], function(error, results, feilds) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         if (results.length) return res.status(403).send({error: true, data: results[0], message: 'Report data already exist.'});
-        
+
         var sendReportData = {
             user_id_submitted: userId,
             user_id_violated: otherId,
@@ -134,7 +134,7 @@ chatApi.post('/reportUser', checkAuth, blockFunction, function(req, res) {
         };
     
         dbConn.beginTransaction(function(error){
-            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});;
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
             dbConn.query('INSERT INTO tbl_report set ? ', [sendReportData], function(error, sendResult) {
                 if (error) {
                     dbConn.rollback(function(){

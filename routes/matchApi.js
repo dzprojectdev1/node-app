@@ -141,7 +141,7 @@ var blockFunction = (req, res, next) => {
             return res.status(400).send({ error:true, message: 'Please provide other user id' });
         }
 
-        dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=8", function(error, results, fields) {
+        dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=8", [userId, otherId],function(error, results, fields) {
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
             if (results.length) {
                 req.oldData = results[0];
