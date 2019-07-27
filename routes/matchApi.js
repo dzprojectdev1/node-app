@@ -412,7 +412,7 @@ matchApi.get('/matches', checkAuth, function(req, res) {
     var distanceQuery = '(3959 * acos (cos (radians(d.lat_geo)) * cos(radians( b.lat_geo )) * cos(radians( b.long_geo ) - radians(d.long_geo)) + sin ( radians( d.lat_geo) )  * sin( radians( b.lat_geo ) ))) as distance, ';
     var ageQuery = 'TIMESTAMPDIFF(YEAR, b.birth_date, CURDATE()) AS age ';
     var joinQuery = ' inner join tbl_user b on a.other_user_id=b.id inner join tbl_video c on a.other_user_id=c.user_id inner join tbl_user d on a.main_user_id=d.id' ;
-    var whereCondition = ' where a.main_user_id=10 and a.status in (6,7) and a.publish=1 and b.account_status=1 and b.email_status=1 and c.is_primary=1 and c.is_reply=0 and c.publish=1 ';
+    var whereCondition = ' where a.main_user_id=? and a.status in (6,7) and a.publish=1 and b.account_status=1 and b.email_status=1 and c.is_primary=1 and c.is_reply=0 and c.publish=1 ';
     dbConn.query('SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, c.cdn_id, ' + distanceQuery + ageQuery+ ' FROM tbl_match a ' + joinQuery + whereCondition + ' order by a.id desc', [userId], function(error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         return res.send({ error: false, data: results, message: 'All match data'}); 

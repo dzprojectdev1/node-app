@@ -61,7 +61,7 @@ app.post('/requestResetPassword', function(req, res) {
                 expiresIn: '30min'
             }
         );
-        const confirmLink = req.protocol+"://"+req.get('host')+"/confirm/" + token;
+        const confirmLink = "http://localhost:3000/confirm/" + token;
         async.parallel(
             [
                 function (callback) {
@@ -101,7 +101,7 @@ app.get('/confirm/:token', function(req, res) {
 //reset user password
 app.post('/resetPassword', function(req, res) {
     var newPassword = req.body.newPassword;
-    if (!req.session.resetEmail) return res.render('error', {error: 'Reset Failed!'});
+    if (!req.session.resetEmail) return res.send({error: 'Reset Failed! Please try to request resetpassword again.'});
     const resetEmail = req.session.resetEmail;
     var updateData = {
         password: bcrypt.hashSync(newPassword, 10, (err, hash) => {
