@@ -56,7 +56,7 @@ app.post('/requestResetPassword', function(req, res) {
                 expiresIn: '30min'
             }
         );
-        const confirmLink = "http://localhost:3000/confirm/" + token;
+        const confirmLink = "https://dazzleddate.com/confirm/" + token;
         async.parallel(
             [
                 function (callback) {
