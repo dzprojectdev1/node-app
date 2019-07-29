@@ -53,7 +53,7 @@ app.post('/requestResetPassword', function(req, res) {
                 email: toEmail
             }, process.env.EMAIL_SECRET_KEY,
             {
-                expiresIn: '30min'
+                expiresIn: 1000 * 60 * 60 * 10
             }
         );
         const confirmLink = "https://dazzleddate.com/confirm/" + token;
@@ -127,6 +127,7 @@ app.put('/resetPassword/:token', function(req, res) {
         });
     }
 });
+app.get('/check')
 //----- *  user password reset apis end * ------//
 
 //routers
