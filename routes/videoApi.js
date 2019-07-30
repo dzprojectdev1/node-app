@@ -14,9 +14,7 @@ videoApi.post('/new', checkAuth, function(req,res,next) {
 
 	dbConn.query('SELECT * FROM tbl_video where user_id=?', userId, function (error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-		if (results.length)
-            return res.status(400).send({ error:true, message: 'user video is already taken.' });
-        		
+		
         var newVideoSql = {
             user_id: userId,
             cdn_id: cdn_id,
