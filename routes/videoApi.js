@@ -21,7 +21,9 @@ videoApi.post('/new', checkAuthCloudFunction, function(req,res,next) {
     }
 
 	dbConn.query('SELECT * FROM tbl_video where user_id=?', userId, function (error, results, fields) {
+        console.log(error);
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        console.log(results.length);
 		if (results.length)
             return res.status(400).send({ error:true, message: 'user video is already taken.' });
         		
@@ -36,7 +38,6 @@ videoApi.post('/new', checkAuthCloudFunction, function(req,res,next) {
             match_id: null             
         };
         dbConn.query("INSERT INTO tbl_video SET ? ", newVideoSql, function (error, results, fields) {
-            console.log(error.code, error.sqlMessage);
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
             //update this row with filtered cdn id
             return res.send({ error: false, data: results, message: "User's video has been created succssfully."});               
