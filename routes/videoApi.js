@@ -7,9 +7,14 @@ const checkAuthCloudFunction = require('../middleware/check_auth_cloud_function'
 // #8 === insert new video after upload to firebase storage
 videoApi.post('/new', checkAuthCloudFunction, function(req,res,next) {
     let cdn_id = req.body.cdn_id;
-    let userId = req.userData.userId;
+    let userId = req.body.userId;
+    let isPrimary = req.body.isPrimary;
   
     if (!cdn_id) {
+        return res.status(400).send({ error:true, message: 'Please provide video id'});
+    }
+
+    if (!userId) {
         return res.status(400).send({ error:true, message: 'Please provide video id'});
     }
 
@@ -24,7 +29,7 @@ videoApi.post('/new', checkAuthCloudFunction, function(req,res,next) {
             created_date: new Date(),
             updated_date: new Date(),
             is_reply: 0,
-            is_primary: 1,
+            is_primary: isPrimary ? 1 : 0,
             publish: 1,
             match_id: null             
         };
@@ -38,7 +43,7 @@ videoApi.post('/new', checkAuthCloudFunction, function(req,res,next) {
 
 //video update after uploaded
 videoApi.put('/update/:cdn_id', checkAuthCloudFunction, function(req, res) {
-    var userId = req.userData.userId;
+    var userId = req.body.userId;
 
     var cdnId = req.params.cdn_id;
     if (!cdnId)
