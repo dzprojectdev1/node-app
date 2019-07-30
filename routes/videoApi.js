@@ -2,9 +2,10 @@ var express = require("express");
 var videoApi = express.Router();
 var dbConn = require("../config/dbConfig");
 const checkAuth = require('../middleware/check_auth');
+const checkAuthCloudFunction = require('../middleware/check_auth_cloud_function');
 
 // #8 === insert new video after upload to firebase storage
-videoApi.post('/new', checkAuth, function(req,res,next) {
+videoApi.post('/new', checkAuthCloudFunction, function(req,res,next) {
     let cdn_id = req.body.cdn_id;
     let userId = req.userData.userId;
   
@@ -36,7 +37,7 @@ videoApi.post('/new', checkAuth, function(req,res,next) {
 });
 
 //video update after uploaded
-videoApi.put('/update/:cdn_id', checkAuth, function(req, res) {
+videoApi.put('/update/:cdn_id', checkAuthCloudFunction, function(req, res) {
     var userId = req.userData.userId;
 
     var cdnId = req.params.cdn_id;
