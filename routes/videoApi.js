@@ -8,9 +8,6 @@ const checkAuthCloudFunction = require('../middleware/check_auth_cloud_function'
 videoApi.post('/new', checkAuthCloudFunction, function(req,res,next) {
     let cdn_id = req.body.cdn_id;
     let userId = req.body.userId;
-    let isPrimary = req.body.isPrimary;
-
-    console.log(cdn_id, userId, isPrimary, typeof isPrimary);
   
     if (!cdn_id) {
         return res.status(400).send({ error:true, message: 'Please provide video id'});
@@ -21,9 +18,7 @@ videoApi.post('/new', checkAuthCloudFunction, function(req,res,next) {
     }
 
 	dbConn.query('SELECT * FROM tbl_video where user_id=?', userId, function (error, results, fields) {
-        console.log(error);
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-        console.log(results.length);
 		if (results.length)
             return res.status(400).send({ error:true, message: 'user video is already taken.' });
         		
@@ -33,7 +28,7 @@ videoApi.post('/new', checkAuthCloudFunction, function(req,res,next) {
             created_date: new Date(),
             updated_date: new Date(),
             is_reply: 0,
-            is_primary: isPrimary ? 1 : 0,
+            is_primary: 1,
             publish: 1,
             match_id: null             
         };
@@ -48,8 +43,8 @@ videoApi.post('/new', checkAuthCloudFunction, function(req,res,next) {
 //video update after uploaded
 videoApi.put('/update/:cdn_id', checkAuthCloudFunction, function(req, res) {
     var userId = req.body.userId;
+    var cdnId = req.body.cdn_id;
 
-    var cdnId = req.params.cdn_id;
     if (!cdnId)
         return res.status(400).send({error: true, message: 'Please provide video id'});
 
@@ -258,8 +253,8 @@ videoApi.put('/setAsPrimary/:videoId', checkAuth, function(req, res) {
 });
 
 // #36 UC12.2 - My Video Page - upload my videos
-videoApi.post('/uploadMyVideo', checkAuth, function(req, res) {
-    var userId = req.userData.userId;
+videoApi.post('/uploadMyVideo', checkAuthCloudFunction, function(req, res) {
+    var userId = req.body.userId;
     var cdnId = req.body.cdn_id;
     var cdnFilteredId = req.body.cdn_filtered_id;
     var durationSecond = req.body.duration;
