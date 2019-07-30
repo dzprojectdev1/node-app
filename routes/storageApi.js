@@ -6,6 +6,8 @@ const { bucket } = require('../config/storageConfig');
 const uuidv1 = require('uuid/v1');
 const moment = require('moment');
 
+console.log('1');
+
 storageApi.get('/videoLink', checkAuth, (req, res) => {
   const fileId = req.query.fileId;
 
@@ -36,7 +38,9 @@ storageApi.get('/videoLink', checkAuth, (req, res) => {
 });
 
 storageApi.get('/uploadCredentials', checkAuth, (req, res) => {
-  const fileId = uuidv1();
+  const isPrimary = req.body.isPrimary;
+  const userId = req.userData.userId;
+  const fileId = `${userId}_${isPrimary ? 1 : 0}_${uuidv1()}`;
   const file = bucket.file(fileId);
   const options = {
     equals: ['$Content-Type', 'video/mp4'],
@@ -46,6 +50,7 @@ storageApi.get('/uploadCredentials', checkAuth, (req, res) => {
       // 100MB
       max: 1024 * 1000 * 100,
     },
+    // successStatus: 'succ',
   };
 
   file.getSignedPolicy(options, function(err, policy) {
