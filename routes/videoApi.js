@@ -43,7 +43,7 @@ videoApi.post('/new', checkAuthCloudFunction, function(req,res,next) {
 //video update after uploaded
 videoApi.put('/update/:cdn_id', checkAuthCloudFunction, function(req, res) {
     var userId = req.body.userId;
-    var cdnId = req.body.cdn_id;
+    var cdnId = req.params.cdn_id;
 
     if (!cdnId)
         return res.status(400).send({error: true, message: 'Please provide video id'});
