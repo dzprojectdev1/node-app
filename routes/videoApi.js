@@ -9,6 +9,8 @@ videoApi.post('/new', checkAuthCloudFunction, function(req,res,next) {
     let cdn_id = req.body.cdn_id;
     let userId = req.body.userId;
     let isPrimary = req.body.isPrimary;
+
+    console.log(cdn_id, userId, isPrimary);
   
     if (!cdn_id) {
         return res.status(400).send({ error:true, message: 'Please provide video id'});
