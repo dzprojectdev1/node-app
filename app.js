@@ -127,7 +127,6 @@ app.put('/resetPassword/:token', function(req, res) {
         });
     }
 });
-app.get('/check')
 //----- *  user password reset apis end * ------//
 
 //routers

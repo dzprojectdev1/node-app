@@ -39,9 +39,9 @@ chatApi.get('/getChatWithMatchId/:matchId', checkAuth, function(req,res) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         
         //get other user detail information from match id
-        dbConn.query('SELECT a.name, a.gender, a.birth_date, c.cdn_id, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age from tbl_user as a inner join tbl_match as b on a.id=b.other_user_id inner join tbl_video c on a.id=c.user_id where b.id=? and a.account_status=1 and c.is_primary=1 and c.is_reply=0 and c.publish=1', [matchId], function(error1, userResults, fields) {
+        dbConn.query('SELECT a.name, a.gender, a.birth_date, c.cdn_id, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age from tbl_user as a inner join tbl_match as b on a.id=b.other_user_id inner join tbl_video c on a.id=c.user_id where b.id=? and (b.main_user_id=? or b.other_user_id=?) and a.account_status=1 and c.is_primary=1 and c.is_reply=0 and c.publish=1', [matchId, userId, userId], function(error1, userResults, fields) {
             if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
-            if (userResults.length === 0) return res.status(403).send({error: false, message: 'Matched Other User not found'});
+            if (!userResults.length) return res.status(403).send({error: false, message: 'Match Data not found'});
             var matchedOtherUser = userResults[0];
             return res.send({ error: false, data: {user: matchedOtherUser, content: results}, message: "Get All Chat List With Match Id: " + matchId});
         });

@@ -268,7 +268,6 @@ function sendEmail(
         callback(null, true);
       }
     ], function(err, results) {
-      console.log('Done');
     });
     parentCallback(null,
       {
@@ -285,7 +284,7 @@ userApi.post('/sendConfirmEmail', checkAuth, function(req, res) {
     var toEmail = req.userData.email;
     var name = req.userData.name;
 
-    dbConn.query('SELECT * FROM tbl_user WHERE id=? AND email_status=0 AND account_status=0', userId, function(error, emailResults, fields) {
+    dbConn.query('SELECT * FROM tbl_user WHERE id=? AND (email_status=0 or email_status=2) AND account_status=0', userId, function(error, emailResults, fields) {
         if (error) 
             return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
@@ -336,7 +335,7 @@ userApi.post('/emailVerify', checkAuth, function(req, res) {
 
     if (!confirmCode) return res.status(403).send({error: true, message: 'Confirmation Code Not Found.'});  
                         
-    dbConn.query('SELECT * from tbl_user WHERE email_address=? AND account_status=0 AND email_status=2', userEmail, function(error, getResult, fields) {
+    dbConn.query('SELECT * from tbl_user WHERE email_address=? AND account_status=0 AND (email_status=2 OR email_status=0)', userEmail, function(error, getResult, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
         if (!getResult.length) return res.status(403).send({error: true, message: 'User not found.'});
