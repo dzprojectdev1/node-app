@@ -80,8 +80,7 @@ userApi.post('/signup', function (req, res) {
 			});
 		}
     });
-});
- 
+}); 
  
 // #4 ===  Add a new user  
 userApi.post('/login', function (req, res) {

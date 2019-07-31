@@ -2,13 +2,18 @@ var express = require("express");
 var videoApi = express.Router();
 var dbConn = require("../config/dbConfig");
 const checkAuth = require('../middleware/check_auth');
+const checkAuthCloudFunction = require('../middleware/check_auth_cloud_function');
 
 // #8 === insert new video after upload to firebase storage
-videoApi.post('/new', checkAuth, function(req,res,next) {
+videoApi.post('/new', checkAuthCloudFunction, function(req,res,next) {
     let cdn_id = req.body.cdn_id;
-    let userId = req.userData.userId;
+    let userId = req.body.userId;
   
     if (!cdn_id) {
+        return res.status(400).send({ error:true, message: 'Please provide video id'});
+    }
+
+    if (!userId) {
         return res.status(400).send({ error:true, message: 'Please provide video id'});
     }
 
@@ -34,10 +39,10 @@ videoApi.post('/new', checkAuth, function(req,res,next) {
 });
 
 //video update after uploaded
-videoApi.put('/update/:cdn_id', checkAuth, function(req, res) {
-    var userId = req.userData.userId;
+videoApi.put('/update/:cdn_id', checkAuthCloudFunction, function(req, res) {
+    var userId = req.body.userId;
+    var cdnId = req.body.cdn_id;
 
-    var cdnId = req.params.cdn_id;
     if (!cdnId)
         return res.status(400).send({error: true, message: 'Please provide video id'});
 
@@ -246,8 +251,8 @@ videoApi.put('/setAsPrimary/:videoId', checkAuth, function(req, res) {
 });
 
 // #36 UC12.2 - My Video Page - upload my videos
-videoApi.post('/uploadMyVideo', checkAuth, function(req, res) {
-    var userId = req.userData.userId;
+videoApi.post('/uploadMyVideo', checkAuthCloudFunction, function(req, res) {
+    var userId = req.body.userId;
     var cdnId = req.body.cdn_id;
     var cdnFilteredId = req.body.cdn_filtered_id;
     var durationSecond = req.body.duration;
