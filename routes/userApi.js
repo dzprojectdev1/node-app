@@ -242,14 +242,7 @@ userApi.get('/displayMySetting', checkAuth, function(req, res) {
 
 /*  sendgrid email sending */
 
-function sendEmail(
-    parentCallback,
-    fromEmail,
-    toEmails,
-    subject,
-    textContent,
-    htmlContent
-  ) {
+function sendEmail(parentCallback, fromEmail,toEmails, subject, textContent, htmlContent) {
     const errorEmails = [];
     const successfulEmails = [];
     
@@ -268,6 +261,7 @@ function sendEmail(
         callback(null, true);
       }
     ], function(err, results) {
+        return err;
     });
     parentCallback(null,
       {
@@ -311,18 +305,20 @@ userApi.post('/sendConfirmEmail', checkAuth, function(req, res) {
             if (err) {
                 res.status(403).send({error: true, detail: err, message: 'Sending Email Faild'});
             }
-            var userUpdateData = {
-                updated_date: new Date(),
-                email_status: 2
-            };
-            dbConn.query('UPDATE tbl_user SET ? WHERE id=? AND email_status=0 AND account_status=0', [userUpdateData, userId], function(error1, updateResult, fields) {
-                if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
-                
-                res.send({
-                    error: false,
-                    message: 'Emails sent'
-                });                
-            });           
+            if (results) {
+                var userUpdateData = {
+                    updated_date: new Date(),
+                    email_status: 2
+                };
+                dbConn.query('UPDATE tbl_user SET ? WHERE id=? AND email_status=0 AND account_status=0', [userUpdateData, userId], function(error1, updateResult, fields) {
+                    if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                    
+                    res.send({
+                        error: false,
+                        message: 'Emails sent'
+                    });                
+                });
+            }                   
         });    
     });      
 });
@@ -354,7 +350,7 @@ userApi.post('/emailVerify', checkAuth, function(req, res) {
                 res.send({error: false, email: userEmail, message: 'Email has been successfully verified.'});
             });
         } else {
-            return res.send({error: false, message: 'Confirmation Code is not correct.'});
+            return res.send({error: true, message: 'Confirmation Code is not correct.'});
         }        
     });
 });

@@ -70,9 +70,9 @@ app.post('/requestResetPassword', function(req, res) {
                     );
                 }
             ], function(err, results) {
-            if (err) res.status(403).send({error: true, detail: err, message: 'Sending Email Faild'});
+            if (err) return res.status(403).send({error: true, detail: err, message: 'Sending Email Faild'});
             
-            res.send({
+            return res.send({
                 error: false,
                 message: 'Emails sent'
             });

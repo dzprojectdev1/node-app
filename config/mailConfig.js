@@ -32,6 +32,8 @@ module.exports.sendEmail = function(
       }
     ], function(err, results) {
       // console.log('Done');
+      if (err) return err; 
+      return results;
     });
     parentCallback(null,
       {
