@@ -334,7 +334,7 @@ userApi.post('/emailVerify', checkAuth, function(req, res) {
     dbConn.query('SELECT * from tbl_user WHERE email_address=? AND account_status=0 AND (email_status=2 OR email_status=0)', userEmail, function(error, getResult, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
-        if (!getResult.length) return res.status(403).send({error: true, message: 'User not found.'});
+        if (!getResult.length) return res.status(403).send({error: true, message: 'User is not registered!'});
         var dbConfirmationCode  = getResult[0].confirmation_code;
         
         if (parseInt(confirmCode) === parseInt(dbConfirmationCode)) {
@@ -350,7 +350,7 @@ userApi.post('/emailVerify', checkAuth, function(req, res) {
                 res.send({error: false, email: userEmail, message: 'Email has been successfully verified.'});
             });
         } else {
-            return res.send({error: true, message: 'Confirmation Code is not correct.'});
+            return res.send({error: true, message: 'Confirmation code is not correct.'});
         }        
     });
 });
