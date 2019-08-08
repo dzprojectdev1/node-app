@@ -399,7 +399,7 @@ matchApi.post('/requestMatch', checkAuth, function(req, res) {
                                             return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                                         });
                                     };
-                                    return res.send({error: false, data: {cdn_id: cdnResults.cdn_id, match_id: receiveResult.insertId}, message: "New match is created."});
+                                    return res.send({error: false, data: {cdn_id: cdnResults[0].cdn_id, match_id: receiveResult.insertId}, message: "New match is created."});
                                 });
                             });                            
                         });                        
