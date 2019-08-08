@@ -126,25 +126,17 @@ videoApi.get('/getVideosByMatchId/:matchId', checkAuth, function(req, res) {
     var userId = req.userData.userId;
     var matchId = req.params.matchId;
 
-    // var getMatchQuery = 'select id from tbl_match where main_user_id=? and other_user_id=? and status=1 and publish=1 limit 1';
-
-    // var whereCondition = 'a.user_id=? And a.is_reply=1 and a.is_primary=0 and a.publish=1 And a.match_id=('+getMatchQuery+')';
-    // dbConn.query('Select a.cdn_id from tbl_video a inner join tbl_match b On a.match_id=b.id where '  + whereCondition, [otherId, userId, otherId], function(error, results, fields) {
-    //     if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-    //     return res.send({ error: false, data: results, message: "Matched others video Id"});
-    // });
-
     dbConn.query('SELECT * FROM tbl_match WHERE id=? AND main_user_id=? OR other_user_id=?', [matchId, userId, userId], function(error, getResults, getFields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         if (!getResults.length) return res.status(403).send({error: true, message: 'Match Data Not Found.'});
         
-        dbConn.query('SELECT a.cdn_id, a.created_date, b.name, b.email_address, b.birth_date, b.gender FROM tbl_video a INNER JOIN tbl_user b ON a.user_id=b.id WHERE match_id=? AND is_reply=1 AND publish=1', matchId, function(error1, videoResults, videoFields) {
+        dbConn.query('SELECT a.cdn_id, a.created_date, b.name, b.email_address, b.birth_date, b.gender FROM tbl_video a INNER JOIN tbl_user b ON a.user_id=b.id WHERE a.match_id=? AND a.is_reply=1 AND a.is_primary=1 AND a.publish=1', matchId, function(error1, videoResults, videoFields) {
             if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
             if (!videoResults.length) return res.send({error: true, message: 'Video Data Not Found'});
 
             return res.send({error: false, data: videoResults, message: 'Matched Video Data'});
         });
-    })
+    });
 });
 
 //#26 uc 8.1 === UC B

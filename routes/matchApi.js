@@ -82,7 +82,7 @@ matchApi.post('/like', checkAuth, function(req,res) {
                             dbConn.rollback(function() {
                                 return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                             });
-                        }
+                        }                        
     
                         dbConn.commit(function(error) {
                             if (error) {
@@ -385,14 +385,23 @@ matchApi.post('/requestMatch', checkAuth, function(req, res) {
                                     return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                                 });
                             }
-                            dbConn.commit(function(error) {
+
+                            dbConn.query('SELECT cdn_id FROM tbl_video WHERE user_id=? AND is_primary=1 AND is_reply=0', otherUserId, function(error, cdnResults, fields) {
                                 if (error) {
                                     dbConn.rollback(function() {
                                         return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                                     });
-                                };
-                                return res.send({ error: false, data: {sendResult, receiveResult}, message: "New Match is Created."});
-                            });
+                                }
+                                if (!cdnResults.length) return res.send({error: true, message: "user's private video does not exist."});                                
+                                dbConn.commit(function(error) {
+                                    if (error) {
+                                        dbConn.rollback(function() {
+                                            return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                                        });
+                                    };
+                                    return res.send({error: false, data: cdnResults, message: "New match is created."});
+                                });
+                            });                            
                         });                        
                     });                
                 });

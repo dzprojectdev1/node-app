@@ -14,7 +14,7 @@ chatApi.get('/all', checkAuth, function(req, res) {
     var matchJoinQuery = 'inner join tbl_chat b on a.id=b.match_id inner join tbl_video f on f.user_id=a.other_user_id ';
     var matchQuery = 'SELECT a.id as match_id, max(b.id) as chat_id, a.other_user_id as other_user_id FROM `tbl_match` a '+matchJoinQuery+' where ' +matchWhereCondition;
     var queryString = 'select c.*, d.message_text, d.created_date as created_date, e.name, e.gender, e.birth_date, TIMESTAMPDIFF(YEAR, e.birth_date, CURDATE()) AS age, g.cdn_id, g.cdn_filtered_id from ('+matchQuery+') c ' + joinQuery;
-    
+   
     dbConn.query(queryString, userId, function(error, results, fields){
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
