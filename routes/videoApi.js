@@ -111,14 +111,25 @@ videoApi.post('/reply', checkAuth, function(req, res) {
 
 //#10 uc 6 other videos for the users
 videoApi.get('/othervideo/:otherId', checkAuth, function(req, res) {
-    var user_id = req.params.otherId;
-    if (!user_id)
+    var userId = req.userData.userId;
+    var otherId = req.params.otherId;
+
+    if (!otherId)
         return res.status(400).send({error: true, message: "Please provide other`s Id"});
-    
-    dbConn.query('SELECT cdn_filtered_id from tbl_video where user_id= ? and is_reply=0 and publish=1 order by created_date desc', [user_id], function (error, results, fields){
+
+    dbConn.query("SELECT * FROM tbl_match WHERE (main_user_id=? AND other_user_id=?) OR (main_user_id=? AND other_user_id=?) AND status in (6,7) AND publish=1", [userId, otherId, otherId, userId], function(error, matchResult, matchFields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-        return res.send({ error: false, data: results, message: "list other videos for the user"});
-    });
+        var searchFields;
+        if (matchResult.length) {
+            searchFields = 'cdn_id';
+        } else {
+            searchFields = 'cdn_filtered_id';
+        }
+        dbConn.query('SELECT '+searchFields+' from tbl_video where user_id= ? and is_reply=0 and publish=1 order by created_date desc', [otherId], function (error, results, fields){
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+            return res.send({ error: false, data: results, message: "list other videos for the user"});
+        });
+    });    
 });
 
 //#25 uc 8.1 matched page return for video ids === UC A
@@ -160,7 +171,7 @@ videoApi.post('/getVideoForOther', checkAuth, function(req, res) {
     dbConn.query('Select a.cdn_id from tbl_video a inner join tbl_match b On a.match_id=b.id Where ' + whereCondition, [userId, userId, otherId], function(error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         return res.send({ error: false, data: results, message: "Get video for Other"});
-    })
+    });
 });
 
 //#28 uc8.1 === UC D
@@ -174,7 +185,6 @@ videoApi.post('/getVideoForMe', checkAuth, function(req, res) {
         return res.send({ error: false, data: results, message: "Get video for Me"});
     })
 });
-
 
 //#34 UC12.1 - My Video Page - display my videos
 videoApi.get('/getMyAllVideo', checkAuth, function(req, res) {

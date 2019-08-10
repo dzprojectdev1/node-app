@@ -6,8 +6,6 @@ const { bucket } = require('../config/storageConfig');
 const uuidv1 = require('uuid/v1');
 const moment = require('moment');
 
-console.log('1');
-
 storageApi.get('/videoLink', checkAuth, (req, res) => {
   const fileId = req.query.fileId;
 
