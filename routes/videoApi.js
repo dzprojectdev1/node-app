@@ -117,7 +117,7 @@ videoApi.get('/othervideo/:otherId', checkAuth, function(req, res) {
     if (!otherId)
         return res.status(400).send({error: true, message: "Please provide other`s Id"});
 
-    dbConn.query("SELECT * FROM tbl_match WHERE (main_user_id=? AND other_user_id=?) OR (main_user_id=? AND other_user_id=?) AND status in (6,7) AND publish=1", [userId, otherId, otherId, userId], function(error, matchResult, matchFields) {
+    dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status IN (6,7) AND publish=1", [userId, otherId], function(error, matchResult, matchFields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         var searchFields;
         if (matchResult.length) {
