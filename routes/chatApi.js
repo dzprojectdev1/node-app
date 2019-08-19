@@ -35,7 +35,7 @@ chatApi.get('/getChatWithMatchId/:matchId', checkAuth, function(req,res) {
 
     var whereCondition = 'a.match_id=? and (b.main_user_id=? or b.other_user_id=?)';
     
-    dbConn.query('Select a.*, b.mutual_match_id from tbl_chat as a inner join tbl_match as b on a.match_id=b.id where '+whereCondition+' order by created_date desc', [matchId, userId, userId], function(error, results, fields){
+    dbConn.query('Select a.*, b.mutual_match_id from tbl_chat as a inner join tbl_match as b on a.match_id=b.id where '+whereCondition+' order by created_date asc', [matchId, userId, userId], function(error, results, fields){
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         
         //get other user detail information from match id

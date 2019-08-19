@@ -129,7 +129,7 @@ videoApi.get('/othervideo/:otherId', checkAuth, function(req, res) {
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
             return res.send({ error: false, data: results, message: "list other videos for the user"});
         });
-    });    
+    });
 });
 
 //#25 uc 8.1 matched page return for video ids === UC A
