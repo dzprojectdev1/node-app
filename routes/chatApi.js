@@ -9,7 +9,7 @@ const commonFunc = require('../config/common').commonFunc;
 chatApi.get('/all', checkAuth, function(req, res) {
     var userId = req.userData.userId;
 
-    var joinQuery = 'inner join tbl_chat d on c.chat_id=d.id inner join tbl_user e on c.other_user_id=e.id inner join tbl_video g on g.user_id=e.id where g.is_primary=1 order by d.created_date asc';
+    var joinQuery = 'inner join tbl_chat d on c.chat_id=d.id inner join tbl_user e on c.other_user_id=e.id inner join tbl_video g on g.user_id=e.id where g.is_primary=1 order by d.created_date desc';
     var matchWhereCondition = 'a.main_user_id=? and a.status in (6,7) and a.publish=1 and f.publish=1 and f.is_primary=1 group by a.id';
     var matchJoinQuery = 'inner join tbl_chat b on a.id=b.match_id inner join tbl_video f on f.user_id=a.other_user_id ';
     var matchQuery = 'SELECT a.id as match_id, max(b.id) as chat_id, a.other_user_id as other_user_id FROM `tbl_match` a '+matchJoinQuery+' where ' +matchWhereCondition;
