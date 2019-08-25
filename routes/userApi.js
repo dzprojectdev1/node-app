@@ -85,12 +85,16 @@ userApi.post('/signup', function (req, res) {
 // #4 ===  Add a new user  
 userApi.post('/login', function (req, res) {
 	let useremail = req.body.useremail;
-	let userpassword = req.body.userpassword;
+    let userpassword = req.body.userpassword;
+    let deviceId = req.body.deviceId;
 
 	if (!useremail)
 		return res.status(400).send({ error:true, message: 'Please provide user email' });
     if (!userpassword)
         return res.status(400).send({ error:true, message: 'Please provide user password' });
+    if (!deviceId) 
+        return res.status(400).send({ error: true, message: 'Device Token Error'});
+
     var joinQuery = 'INNER JOIN tbl_language b on a.language_id=b.id INNER JOIN tbl_ethnicity c ON c.id=a.ethnicity_id INNER JOIN tbl_country d ON a.country_id=d.id';
 	dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a '+joinQuery+' WHERE a.email_address=?', useremail, function (error, results, fields) {
 		if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
@@ -130,7 +134,7 @@ userApi.post('/login', function (req, res) {
             dbConn.query('INSERT INTO tbl_user_login SET ? ', lastLoggedData, function(error, newResults, fields) {
                 if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
-                dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=? ', [new Date(), results[0].id], function(error1, updateResult, fields) {
+                dbConn.query('UPDATE tbl_user SET last_loggedin_date=?, device_id=? WHERE id=? ', [new Date(), deviceId, results[0].id], function(error1, updateResult, fields) {
                     if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
 
                     return res.send({ error: false, data: outputResult, message: 'User have been logged in successfully.' });
