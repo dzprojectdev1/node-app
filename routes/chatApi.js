@@ -4,6 +4,7 @@ var dbConn = require("../config/dbConfig");
 const checkAuth = require('../middleware/check_auth');
 const blockFunction = require("./matchApi").blockFunction;
 const commonFunc = require('../config/common').commonFunc;
+var FCM = require('fcm-node');
 
 //#29 UC9 Chat Api == UC9.1 Display Chat - Main list
 chatApi.get('/all', checkAuth, function(req, res) {
@@ -53,6 +54,8 @@ chatApi.post('/create', checkAuth, function(req, res) {
     var userId = req.userData.userId;
     var matchId = req.body.matchId;
     var messageText = req.body.messageText;
+    const serverKey = process.env.FIREBASE_SERVER_KEY;
+    const fcm = new FCM(serverKey);
 
     if (!matchId || !messageText) {
         return res.status(400).send({ error:true, message: 'Invalid Params.'}); 
@@ -71,7 +74,7 @@ chatApi.post('/create', checkAuth, function(req, res) {
             created_date: new Date()
         };
         dbConn.beginTransaction(function(error){
-            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});;            
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
             dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function(error, sendResult) {
                 if (error) {
                     dbConn.rollback(function(){
@@ -96,7 +99,31 @@ chatApi.post('/create', checkAuth, function(req, res) {
                                 return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                             });
                         }
-                        return res.send({ error: false, data: {sendResult, receiveResult}, message: "New Message is Created."});
+
+                        dbConn.query('SELECT * FROM tbl_user a INNER JOIN tbl_match b ON a.id=b.main_user_id WHERE b.id=?', mutualMatchId, function(error1, receiver, receiverFields) {
+                            if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                            if (!receiver.length) res.status(400).send({ error:true, message: 'Receiver data not found.'});
+                            const receiverData = receiver[0];
+                            if (!receiverData.device_id) return res.status(400).send({error: true, message: 'firebase token not found'});
+                            const deviceId = receiverData.device_id;
+                            var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                                to: deviceId,
+                                
+                                notification: {
+                                    title: 'New Message', 
+                                    body: messageText
+                                }
+                            };
+                            fcm.send(message, function(notiErr, notiRes){
+                                if (notiErr) {
+                                    console.log("Something has gone wrong!");
+                                    return res.status({error: false, data: {sendResult, receiverResult}, message: 'New message created, notification error', notificationError: err})
+                                } else {
+                                    console.log("Successfully sent with response: ", notiRes);
+                                    return res.send({ error: false, data: {sendResult, receiveResult}, message: "New Message is Created."});
+                                }
+                            });
+                        });
                     });
                 });
             });
