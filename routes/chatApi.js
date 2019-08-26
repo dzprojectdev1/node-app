@@ -110,8 +110,9 @@ chatApi.post('/create', checkAuth, function(req, res) {
                                 to: deviceId,
                                 
                                 notification: {
-                                    title: 'New Message', 
-                                    body: messageText
+                                    title: 'New Message',
+                                    body: messageText,
+                                    type: "ChatDetail"
                                 }
                             };
                             fcm.send(message, function(notiErr, notiRes){
