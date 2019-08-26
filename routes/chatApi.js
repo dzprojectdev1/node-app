@@ -107,12 +107,14 @@ chatApi.post('/create', checkAuth, function(req, res) {
                             if (!receiverData.device_id) return res.status(400).send({error: true, message: 'firebase token not found'});
                             const deviceId = receiverData.device_id;
                             var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
-                                to: deviceId,
-                                
+                                to: deviceId,                                
                                 notification: {
                                     title: 'New Message',
                                     body: messageText,
                                     type: "ChatDetail"
+                                },
+                                data: {  //you can send only notification or only data(or include both)
+                                    type: 'ChatDetail'
                                 }
                             };
                             fcm.send(message, function(notiErr, notiRes){
