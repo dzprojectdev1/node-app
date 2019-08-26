@@ -3,6 +3,9 @@ var matchApi = express.Router();
 var dbConn = require("../config/dbConfig");
 const checkAuth = require('../middleware/check_auth');
 const commonFunc = require('../config/common').commonFunc;
+var FCM = require('fcm-node');
+const serverKey = process.env.FIREBASE_SERVER_KEY;
+const fcm = new FCM(serverKey);
 
 // #11 === set new match data
 matchApi.post('/view', checkAuth, function (req, res) {
@@ -90,7 +93,37 @@ matchApi.post('/like', checkAuth, function (req, res) {
                                     return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                 });
                             };
-                            return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId }, message: 'New match has been created.' });
+                            dbConn.query("SELECT * FROM tbl_user WHERE id=?", otherId, function(error1, receiverData, receiverFields) {
+                                if (error1) return res.status(403).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                                if (!receiverData.length) return res.status(400).send({error: true, message: 'user not found'});
+                                const receiver = receiverData[0];
+                                const deviceId = receiver.device_id;
+                                dbConn.query('SELECT * FROM tbl_user WHERE id=?', userId, function(error2, senderData, senderFeidls) {
+                                    if (error2) return res.status(403).send({error: true, detail: error2.code, message: error2.sqlMessage});
+                                    if (!senderData.length) return res.status(403).send({error: true, message: 'Sender User not found'});
+                                    const sender = senderData[0];
+                                    const senderName = sender.name;
+                                    var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                                        to: deviceId,
+                                        notification: {
+                                            title: 'Incoming Heart',
+                                            body: senderName.toString() + ' sent you a heart.',
+                                        },
+                                        data: {  //you can send only notification or only data(or include both)
+                                            type: 'IncomeDetail'
+                                        }
+                                    };
+                                    fcm.send(message, function(notiErr, notiRes){
+                                        if (notiErr) {
+                                            console.log("Something has gone wrong!");
+                                            return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId }, message: 'New match has been created.' });
+                                        } else {
+                                            console.log("Successfully sent with response: ", notiRes);
+                                            return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId }, message: 'New match has been created.' });
+                                        }
+                                    });
+                                });
+                            });
                         });
                     });
                 });
@@ -399,7 +432,37 @@ matchApi.post('/requestMatch', checkAuth, function (req, res) {
                                             return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                         });
                                     };
-                                    return res.send({ error: false, data: { cdn_id: cdnResults[0].cdn_id, match_id: receiveResult.insertId }, message: "New match is created." });
+                                    dbConn.query("SELECT * FROM tbl_user WHERE id=?", otherUserId, function(error1, receiverData, receiverFields) {
+                                        if (error1) return res.status(403).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                                        if (!receiverData.length) return res.status(400).send({error: true, message: 'user not found'});
+                                        const receiver = receiverData[0];
+                                        const deviceId = receiver.device_id;
+                                        dbConn.query('SELECT * FROM tbl_user WHERE id=?', userId, function(error2, senderData, senderFeidls) {
+                                            if (error2) return res.status(403).send({error: true, detail: error2.code, message: error2.sqlMessage});
+                                            if (!senderData.length) return res.status(403).send({error: true, message: 'Sender User not found'});
+                                            const sender = senderData[0];
+                                            const senderName = sender.name;
+                                            var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                                                to: deviceId,
+                                                notification: {
+                                                    title: 'You have a new match!',
+                                                    body: senderName.toString() + ' is matched with you.',
+                                                },
+                                                data: {  //you can send only notification or only data(or include both)
+                                                    type: 'Match'
+                                                }
+                                            };
+                                            fcm.send(message, function(notiErr, notiRes){
+                                                if (notiErr) {
+                                                    console.log("Something has gone wrong!");
+                                                    return res.send({ error: false, data: { cdn_id: cdnResults[0].cdn_id, match_id: receiveResult.insertId }, message: "New match is created." });
+                                                } else {
+                                                    console.log("Successfully sent with response: ", notiRes);
+                                                    return res.send({ error: false, data: { cdn_id: cdnResults[0].cdn_id, match_id: receiveResult.insertId }, message: "New match is created." });
+                                                }
+                                            });
+                                        });                                        
+                                    });
                                 });
                             });
                         });
