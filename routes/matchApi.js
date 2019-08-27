@@ -110,7 +110,7 @@ matchApi.post('/like', checkAuth, function (req, res) {
                                             body: senderName.toString() + ' sent you a heart.',
                                         },
                                         data: {  //you can send only notification or only data(or include both)
-                                            type: 'IncomeDetail'
+                                            type: 'Income'
                                         }
                                     };
                                     fcm.send(message, function(notiErr, notiRes){
