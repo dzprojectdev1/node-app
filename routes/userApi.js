@@ -49,10 +49,11 @@ userApi.post('/signup', function (req, res) {
 	let country = req.body.country;
 	let ethnicity = req.body.ethnicity;
     let userBirthData = req.body.birth_date;
-    let usergeo = req.body.usergeo;
+    let userlat = req.body.lat_geo;
+    let userlong = req.body.long_geo;
   
-    if (!useremail || !userpassword || !username || !usergender || !userlanguage || !country || !ethnicity || !userBirthData || !usergeo) {
-        return res.status(400).send({ error:true, message: 'Please provide user email and pasword' });
+    if (!useremail || !userpassword || !username || !usergender || !userlanguage || !country || !ethnicity || !userBirthData || !userlat || !userlong) {
+        return res.status(400).send({ error:true, message: 'Please provide all params' });
 	}
 
 	dbConn.query('SELECT * FROM tbl_user where email_address=?', useremail, function (error, results, fields) {
@@ -71,8 +72,8 @@ userApi.post('/signup', function (req, res) {
 				country_id: country,
 				ethnicity_id: ethnicity,
                 birth_date: userBirthData,
-                lat_geo: parseFloat(usergeo.lat_geo),
-                long_geo: parseFloat(usergeo.long_geo),
+                lat_geo: parseFloat(userlat),
+                long_geo: parseFloat(userlong),
                 confirmation_code: getRndInteger(100000, 999999),
                 created_date: new Date()
 			};
