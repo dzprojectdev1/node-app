@@ -74,7 +74,7 @@ userApi.post('/signup', function (req, res) {
                 lat_geo: parseFloat(usergeo.lat_geo),
                 long_geo: parseFloat(usergeo.long_geo),
                 confirmation_code: getRndInteger(100000, 999999),
-                created_date: new Date()                
+                created_date: new Date()
 			};
 
 			dbConn.query("INSERT INTO tbl_user SET ? ", newUserSql, function (error, results, fields) {
