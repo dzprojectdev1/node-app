@@ -45,7 +45,7 @@ userApi.post('/signup', function (req, res) {
 	let userpassword = req.body.userpassword;
 	let username = req.body.username;
 	let usergender = req.body.usergender;
-	let userlanguage = req.body.userlanguage;
+	let userlanguage = req.body.language;
 	let country = req.body.country;
 	let ethnicity = req.body.ethnicity;
     let userBirthData = req.body.birth_date;
