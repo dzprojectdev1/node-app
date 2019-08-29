@@ -57,9 +57,9 @@ userApi.post('/signup', function (req, res) {
 
 	dbConn.query('SELECT * FROM tbl_user where email_address=?', useremail, function (error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-		if (results.length)
+		if (results.length) {
             return res.status(400).send({ error:true, message: 'Email is already taken.'});
-		else {
+        } else {
 			var newUserSql = {
 				email_address: useremail,
 				password: bcrypt.hashSync(userpassword, 10, (err, hash) => {
