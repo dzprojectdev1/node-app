@@ -48,9 +48,10 @@ userApi.post('/signup', function (req, res) {
 	let userlanguage = req.body.userlanguage;
 	let country = req.body.country;
 	let ethnicity = req.body.ethnicity;
-	let userBirthData = req.body.birth_date;
+    let userBirthData = req.body.birth_date;
+    let usergeo = req.body.usergeo;
   
-    if (!useremail || !userpassword || !username || !usergender || !userlanguage || !country || !ethnicity || !userBirthData) {
+    if (!useremail || !userpassword || !username || !usergender || !userlanguage || !country || !ethnicity || !userBirthData || !usergeo) {
         return res.status(400).send({ error:true, message: 'Please provide user email and pasword' });
 	}
 
@@ -70,8 +71,10 @@ userApi.post('/signup', function (req, res) {
 				country_id: country,
 				ethnicity_id: ethnicity,
                 birth_date: userBirthData,
+                lat_geo: usergeo.lat_geo,
+                long_geo: usergeo.long_geo,
                 confirmation_code: getRndInteger(100000, 999999),
-				created_date: new Date()
+                created_date: new Date()                
 			};
 
 			dbConn.query("INSERT INTO tbl_user SET ? ", newUserSql, function (error, results, fields) {
