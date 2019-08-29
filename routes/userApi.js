@@ -71,8 +71,8 @@ userApi.post('/signup', function (req, res) {
 				country_id: country,
 				ethnicity_id: ethnicity,
                 birth_date: userBirthData,
-                lat_geo: usergeo.lat_geo,
-                long_geo: usergeo.long_geo,
+                lat_geo: parseFloat(usergeo.lat_geo),
+                long_geo: parseFloat(usergeo.long_geo),
                 confirmation_code: getRndInteger(100000, 999999),
                 created_date: new Date()                
 			};
