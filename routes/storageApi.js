@@ -55,6 +55,7 @@ storageApi.get('/uploadCredentials', checkAuth, (req, res) => {
     if (err) {
       res.status(500).send('Storage API could not get signed policy.');
     } else {
+      console.log('Sending policy:', policy);
       res.send({
         policy,
         fileId,
