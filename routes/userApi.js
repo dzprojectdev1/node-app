@@ -133,7 +133,7 @@ userApi.post('/login', function (req, res) {
             return res.send({error: true, message: 'Your account is closed'})
 
         if (!bcrypt.compareSync(userpassword, results[0].password))
-            return res.status(400).send({ error: true, message: 'Wrong Password' });
+            return res.status(400).send({ error: true, message: 'The email or password is invalid,\n please try again' });
         else {
             const token = jwt.sign(
                 {
