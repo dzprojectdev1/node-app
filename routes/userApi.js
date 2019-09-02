@@ -125,6 +125,13 @@ userApi.post('/login', function (req, res) {
         if (!results.length || !results[0])
             return res.status(400).send({ error: true, message: "Email doesn't exist." });
 
+        var userData = results[0];
+        var accountStatus = userData.account_status;
+        if (accountStatus === 8)
+            return res.send({error: true, message: 'You have been banned'});
+        if (accountStatus === 9)
+            return res.send({error: true, message: 'Your account is closed'})
+
         if (!bcrypt.compareSync(userpassword, results[0].password))
             return res.status(400).send({ error: true, message: 'Wrong Password' });
         else {
