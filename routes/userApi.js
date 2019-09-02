@@ -109,7 +109,8 @@ userApi.get('/checkLoginStatus', checkAuth, function (req, res) {
             gender: results[0].gender,
             language: results[0].language_name,
             ethnicity: results[0].ethnicity_name,
-            country: results[0].country_name
+            country: results[0].country_name,
+            email_status: results[0].email_status
         };
         return res.send({ error: false, data: outputResult, message: 'User have been logged in successfully.' });
     });
