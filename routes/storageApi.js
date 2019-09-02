@@ -2,7 +2,7 @@ const express = require("express");
 const storageApi = express.Router();
 const dbConn = require("../config/dbConfig");
 const checkAuth = require('../middleware/check_auth');
-const { bucket } = require('../config/storageConfig');
+const { bucket, sideBucket } = require('../config/storageConfig');
 const uuidv1 = require('uuid/v1');
 const moment = require('moment');
 
@@ -11,7 +11,7 @@ storageApi.get('/videoLink', checkAuth, (req, res) => {
 
   // TODO: SQL query to see if user has right to view video here
 
-  bucket.getFiles(function(err, files) {
+  sideBucket.getFiles(function(err, files) {
     if (err) {
       res.status(500).send('Storage API could not get files.');
     } else {
@@ -36,7 +36,7 @@ storageApi.get('/videoLink', checkAuth, (req, res) => {
 });
 
 storageApi.get('/uploadCredentials', checkAuth, (req, res) => {
-  const isPrimary = req.body.isPrimary;
+  const isPrimary = Number(req.query.isPrimary || 0);
   const userId = req.userData.userId;
   const fileId = `${userId}_${isPrimary ? 1 : 0}_${uuidv1()}`;
   const file = bucket.file(fileId);
@@ -55,6 +55,7 @@ storageApi.get('/uploadCredentials', checkAuth, (req, res) => {
     if (err) {
       res.status(500).send('Storage API could not get signed policy.');
     } else {
+      console.log('Sending policy:', policy);
       res.send({
         policy,
         fileId,
