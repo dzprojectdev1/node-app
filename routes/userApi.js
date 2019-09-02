@@ -169,6 +169,7 @@ userApi.post('/login', function (req, res) {
                 language: results[0].language_name,
                 ethnicity: results[0].ethnicity_name,
                 country: results[0].country_name,
+                email_status: results[0].email_status,
                 last_activity: common.commonFunc.timeAgo(results[0].last_loggedin_date)
             };
 
