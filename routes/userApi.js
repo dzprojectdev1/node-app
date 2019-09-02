@@ -6,6 +6,7 @@ var jwt = require('jsonwebtoken');
 const checkAuth = require('../middleware/check_auth');
 const sgMail = require('@sendgrid/mail');
 const async = require('async');
+const common = require('../config/common');
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const fromEmail = process.env.SERVER_EMAIL_ADDRESS;
@@ -92,6 +93,14 @@ userApi.get('/checkLoginStatus', checkAuth, function (req, res) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         if (!results.length || !results[0])
             return res.status(400).send({ error: true, message: "User doesn't exist." });
+
+        var userData = results[0];
+        var accountStatus = userData.account_status;
+        if (accountStatus === 8)
+            return res.send({error: true, message: 'You have been banned'});
+        if (accountStatus === 9)
+            return res.send({error: true, message: 'Your account is closed'})
+            
         var outputResult = {
             id: results[0].id,
             name: results[0].name,
@@ -159,7 +168,8 @@ userApi.post('/login', function (req, res) {
                 gender: results[0].gender,
                 language: results[0].language_name,
                 ethnicity: results[0].ethnicity_name,
-                country: results[0].country_name
+                country: results[0].country_name,
+                last_activity: common.commonFunc.timeAgo(results[0].last_loggedin_date)
             };
 
             dbConn.query('INSERT INTO tbl_user_login SET ? ', lastLoggedData, function (error, newResults, fields) {
