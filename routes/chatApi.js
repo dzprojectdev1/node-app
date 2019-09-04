@@ -229,7 +229,7 @@ chatApi.post('/blockChat', checkAuth, function(req, res) {
             var blockReplyData = {
                 main_user_id: otherId,
                 other_user_id: userId,
-                status: 8,
+                status: 9,
                 mutual_match_id: sendResult.insertId,
                 status_description: 'block_chat_receive',
                 created_date: new Date(),
@@ -241,7 +241,7 @@ chatApi.post('/blockChat', checkAuth, function(req, res) {
                         return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                     });
                 };
-                dbConn.query("UPDATE tbl_match SET mutual_match_id = ? WHERE main_user_id = ?", [receiveResult.insertId, userId], function (error, results, fields) {
+                dbConn.query("UPDATE tbl_match SET mutual_match_id = ? WHERE main_user_id = ? and other_user_id=? and status=8", [receiveResult.insertId, userId, otherId], function (error, results, fields) {
                     if (error) {
                         dbConn.rollback(function() {
                             return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});

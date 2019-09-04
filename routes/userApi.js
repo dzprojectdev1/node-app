@@ -179,7 +179,6 @@ userApi.post('/login', function (req, res) {
 
                 dbConn.query('UPDATE tbl_user SET last_loggedin_date=?, device_id=? WHERE id=? ', [new Date(), deviceId, results[0].id], function (error1, updateResult, fields) {
                     if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
-
                     return res.send({ error: false, data: outputResult, message: 'User have been logged in successfully.' });
                 });
             });
