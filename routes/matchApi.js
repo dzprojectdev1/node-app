@@ -97,7 +97,7 @@ matchApi.post('/like', checkAuth, function (req, res) {
                                 if (error1) return res.status(403).send({error: true, detail: error1.code, message: error1.sqlMessage});
                                 if (!receiverData.length) return res.status(400).send({error: true, message: 'user not found'});
                                 const receiver = receiverData[0];
-                                const deviceId = receiver.device_id;
+                                const deviceId = receiver.fcm_id;
                                 dbConn.query('SELECT * FROM tbl_user WHERE id=?', userId, function(error2, senderData, senderFeidls) {
                                     if (error2) return res.status(403).send({error: true, detail: error2.code, message: error2.sqlMessage});
                                     if (!senderData.length) return res.status(403).send({error: true, message: 'Sender User not found'});
@@ -436,7 +436,7 @@ matchApi.post('/requestMatch', checkAuth, function (req, res) {
                                         if (error1) return res.status(403).send({error: true, detail: error1.code, message: error1.sqlMessage});
                                         if (!receiverData.length) return res.status(400).send({error: true, message: 'user not found'});
                                         const receiver = receiverData[0];
-                                        const deviceId = receiver.device_id;
+                                        const deviceId = receiver.fcm_id;
                                         dbConn.query('SELECT * FROM tbl_user WHERE id=?', userId, function(error2, senderData, senderFeidls) {
                                             if (error2) return res.status(403).send({error: true, detail: error2.code, message: error2.sqlMessage});
                                             if (!senderData.length) return res.status(403).send({error: true, message: 'Sender User not found'});
@@ -542,7 +542,7 @@ matchApi.post('/discover', checkAuth, function (req, res) {
         }
 
         var query = 'SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a' + joinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date asc limit 1';
-
+        
         dbConn.query(query, [userId, userId], function (error, results, fields) {
             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
             if (!results.length)
