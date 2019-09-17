@@ -86,6 +86,16 @@ userApi.post('/signup', function (req, res) {
     });
 });
 
+userApi.get('/checkDeviceUniqueId/:deviceId', function (req, res) {
+    var deviceId = req.params.deviceId;
+    dbConn.query('SELECT * FROM tbl_user a WHERE device_id=?', deviceId, function (error, results, fields) {
+        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+        if (!results || !results.length) return res.send({ error: false, message: 'User does not exist.' });
+        var userData = results[0];
+        return res.send({error: false, user: userData, message: 'User already exist!'});
+    });
+})
+
 userApi.get('/checkLoginStatus', checkAuth, function (req, res) {
     var userId = req.userData.userId;
     var joinQuery = 'INNER JOIN tbl_language b on a.language_id=b.id INNER JOIN tbl_ethnicity c ON c.id=a.ethnicity_id INNER JOIN tbl_country d ON a.country_id=d.id';
@@ -97,10 +107,10 @@ userApi.get('/checkLoginStatus', checkAuth, function (req, res) {
         var userData = results[0];
         var accountStatus = userData.account_status;
         if (accountStatus === 8)
-            return res.send({error: true, message: 'You have been banned'});
+            return res.send({ error: true, message: 'You have been banned' });
         if (accountStatus === 9)
-            return res.send({error: true, message: 'Your account is closed'})
-            
+            return res.send({ error: true, message: 'Your account is closed' })
+
         var outputResult = {
             id: results[0].id,
             name: results[0].name,
@@ -138,9 +148,9 @@ userApi.post('/login', function (req, res) {
         var userData = results[0];
         var accountStatus = userData.account_status;
         if (accountStatus === 8)
-            return res.send({error: true, message: 'You have been banned'});
+            return res.send({ error: true, message: 'You have been banned' });
         if (accountStatus === 9)
-            return res.send({error: true, message: 'Your account is closed'})
+            return res.send({ error: true, message: 'Your account is closed' })
 
         if (!bcrypt.compareSync(userpassword, results[0].password))
             return res.status(400).send({ error: true, message: 'The email or password is invalid,\n please try again' });
@@ -177,7 +187,7 @@ userApi.post('/login', function (req, res) {
             dbConn.query('INSERT INTO tbl_user_login SET ? ', lastLoggedData, function (error, newResults, fields) {
                 if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
 
-                dbConn.query('UPDATE tbl_user SET last_loggedin_date=?, device_id=? WHERE id=? ', [new Date(), deviceId, results[0].id], function (error1, updateResult, fields) {
+                dbConn.query('UPDATE tbl_user SET last_loggedin_date=?, fcm_id=? WHERE id=? ', [new Date(), deviceId, results[0].id], function (error1, updateResult, fields) {
                     if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
                     return res.send({ error: false, data: outputResult, message: 'User have been logged in successfully.' });
                 });
