@@ -41,8 +41,8 @@ function getRndInteger(min, max) {
 
 // #3 === login user
 userApi.post('/signup', function (req, res) {
-    let useremail = req.body.useremail;
-    let userpassword = req.body.userpassword;
+    // let useremail = req.body.useremail;
+    // let userpassword = req.body.userpassword;
     let username = req.body.username;
     let usergender = req.body.usergender;
     let userlanguage = req.body.language;
@@ -51,21 +51,23 @@ userApi.post('/signup', function (req, res) {
     let userBirthData = req.body.birth_date;
     let userlat = req.body.lat_geo;
     let userlong = req.body.long_geo;
+    let deviceId = req.body.device_id;
+    let fcmId = req.body.fcm_id;
 
-    if (!useremail || !userpassword || !username || !usergender || !userlanguage || !country || !ethnicity || !userBirthData || !userlat || !userlong) {
+    if (!fcmId || !deviceId || !username || !usergender || !userlanguage || !country || !ethnicity || !userBirthData || !userlat || !userlong) {
         return res.status(400).send({ error: true, message: 'Please provide all params' });
     }
 
-    dbConn.query('SELECT * FROM tbl_user where email_address=?', useremail, function (error, results, fields) {
-        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-        if (results.length) {
-            return res.status(400).send({ error: true, message: 'Email is already taken.' });
-        } else {
-            var newUserSql = {
-                email_address: useremail,
-                password: bcrypt.hashSync(userpassword, 10, (err, hash) => {
-                    return hash;
-                }),
+    // dbConn.query('SELECT * FROM tbl_user where email_address=?', useremail, function (error, results, fields) {
+    //     if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+    //     if (results.length) {
+    //         return res.status(400).send({ error: true, message: 'Email is already taken.' });
+    //     } else {
+            var newUserData = {
+                // email_address: useremail,
+                // password: bcrypt.hashSync(userpassword, 10, (err, hash) => {
+                //     return hash;
+                // }),
                 name: username,
                 gender: usergender,
                 language_id: userlanguage,
@@ -75,26 +77,56 @@ userApi.post('/signup', function (req, res) {
                 lat_geo: parseFloat(userlat),
                 long_geo: parseFloat(userlong),
                 confirmation_code: getRndInteger(100000, 999999),
-                created_date: new Date()
+                created_date: new Date(),
+                fcm_id: fcmId,
+                device_id: deviceId
             };
 
-            dbConn.query("INSERT INTO tbl_user SET ? ", newUserSql, function (error, results, fields) {
+            dbConn.query("INSERT INTO tbl_user SET ? ", newUserData, function (error, results, fields) {
                 if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                return res.send({ error: false, data: results.insertId, message: 'New user has been created successfully.' });
+                var joinQuery = 'INNER JOIN tbl_language b on a.language_id=b.id INNER JOIN tbl_ethnicity c ON c.id=a.ethnicity_id INNER JOIN tbl_country d ON a.country_id=d.id';
+                dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE a.id=?', results.insertId, function (error, results, fields) {
+                    if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                    if (!results || !results.length) return res.send({ error: false, message: 'User does not exist.' });
+
+                    var outputResult = {
+                        id: results[0].id,
+                        name: results[0].name,
+                        email: results[0].email_address,
+                        age: results[0].age,
+                        gender: results[0].gender,
+                        language: results[0].language_name,
+                        ethnicity: results[0].ethnicity_name,
+                        country: results[0].country_name,
+                    };
+                    return res.send({error: false, user: outputResult, message: 'User exist!'});
+                });
+                // return res.send({ error: false, data: results.insertId, message: 'New user has been created successfully.' });
             });
-        }
-    });
+//         }
+//     });
 });
 
 userApi.get('/checkDeviceUniqueId/:deviceId', function (req, res) {
     var deviceId = req.params.deviceId;
-    dbConn.query('SELECT * FROM tbl_user a WHERE device_id=?', deviceId, function (error, results, fields) {
+    var joinQuery = 'INNER JOIN tbl_language b on a.language_id=b.id INNER JOIN tbl_ethnicity c ON c.id=a.ethnicity_id INNER JOIN tbl_country d ON a.country_id=d.id';
+    dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE device_id=?', deviceId, function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         if (!results || !results.length) return res.send({ error: false, message: 'User does not exist.' });
-        var userData = results[0];
-        return res.send({error: false, user: userData, message: 'User already exist!'});
+
+        var outputResult = {
+            id: results[0].id,
+            name: results[0].name,
+            email: results[0].email_address,
+            age: results[0].age,
+            gender: results[0].gender,
+            language: results[0].language_name,
+            ethnicity: results[0].ethnicity_name,
+            country: results[0].country_name,
+        };
+        return res.send({error: false, user: outputResult, message: 'User already exist!'});
     });
-})
+});
 
 userApi.get('/checkLoginStatus', checkAuth, function (req, res) {
     var userId = req.userData.userId;
@@ -109,7 +141,7 @@ userApi.get('/checkLoginStatus', checkAuth, function (req, res) {
         if (accountStatus === 8)
             return res.send({ error: true, message: 'You have been banned' });
         if (accountStatus === 9)
-            return res.send({ error: true, message: 'Your account is closed' })
+            return res.send({ error: true, message: 'Your account is closed' });
 
         var outputResult = {
             id: results[0].id,
