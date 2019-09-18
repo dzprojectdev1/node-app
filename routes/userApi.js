@@ -88,8 +88,18 @@ userApi.post('/signup', function (req, res) {
                 dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE a.id=?', results.insertId, function (error, results, fields) {
                     if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                     if (!results || !results.length) return res.send({ error: false, message: 'User does not exist.' });
-
+                    const token = jwt.sign(
+                        {
+                            userId: results[0].id,
+                            name: results[0].name,
+                            device_id: results[0].device_id
+                        }, process.env.JWT_KEY,
+                        {
+                            expiresIn: '24h'
+                        }
+                    );
                     var outputResult = {
+                        token: token,
                         id: results[0].id,
                         name: results[0].name,
                         email: results[0].email_address,
@@ -113,9 +123,19 @@ userApi.get('/checkDeviceUniqueId/:deviceId', function (req, res) {
     dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE device_id=?', deviceId, function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         if (!results || !results.length) return res.send({ error: false, message: 'User does not exist.' });
-
+        const token = jwt.sign(
+            {
+                userId: results[0].id,
+                name: results[0].name,
+                device_id: results[0].device_id
+            }, process.env.JWT_KEY,
+            {
+                expiresIn: '1h'
+            }
+        );
         var outputResult = {
             id: results[0].id,
+            token: token,
             name: results[0].name,
             email: results[0].email_address,
             age: results[0].age,
