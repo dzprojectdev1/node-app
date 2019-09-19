@@ -81,7 +81,8 @@ userApi.post('/signup', function (req, res) {
                 created_date: new Date(),
                 fcm_id: fcmId,
                 device_id: deviceId,
-                description: description
+                description: description,
+                account_status: 1
             };
 
             dbConn.query("INSERT INTO tbl_user SET ? ", newUserData, function (error, results, fields) {
@@ -110,7 +111,8 @@ userApi.post('/signup', function (req, res) {
                         language: results[0].language_name,
                         ethnicity: results[0].ethnicity_name,
                         country: results[0].country_name,
-                        description: results[0].description
+                        description: results[0].description,
+                        last_loggedin_date: new Date()
                     };
                     return res.send({error: false, user: outputResult, message: 'User exist!'});
                 });
@@ -123,7 +125,7 @@ userApi.post('/signup', function (req, res) {
 userApi.get('/checkDeviceUniqueId/:deviceId', function (req, res) {
     var deviceId = req.params.deviceId;
     var joinQuery = 'INNER JOIN tbl_language b on a.language_id=b.id INNER JOIN tbl_ethnicity c ON c.id=a.ethnicity_id INNER JOIN tbl_country d ON a.country_id=d.id';
-    dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE device_id=?', deviceId, function (error, results, fields) {
+    dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE a.device_id=? AND account_status=1', deviceId, function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         if (!results || !results.length) return res.send({ error: false, message: 'User does not exist.' });
         const token = jwt.sign(
@@ -146,7 +148,8 @@ userApi.get('/checkDeviceUniqueId/:deviceId', function (req, res) {
             language: results[0].language_name,
             ethnicity: results[0].ethnicity_name,
             country: results[0].country_name,
-            description: results[0].description
+            description: results[0].description,
+            last_loggedin_date: new Date()
         };
         return res.send({error: false, user: outputResult, message: 'User already exist!'});
     });
