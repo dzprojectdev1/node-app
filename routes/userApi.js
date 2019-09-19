@@ -53,8 +53,9 @@ userApi.post('/signup', function (req, res) {
     let userlong = req.body.long_geo;
     let deviceId = req.body.device_id;
     let fcmId = req.body.fcm_id;
+    let description = req.body.description;
 
-    if (!fcmId || !deviceId || !username || !usergender || !userlanguage || !country || !ethnicity || !userBirthData || !userlat || !userlong) {
+    if (!fcmId || !deviceId || !username || !usergender || !userlanguage || !country || !ethnicity || !userBirthData || !userlat || !userlong || !description) {
         return res.status(400).send({ error: true, message: 'Please provide all params' });
     }
 
@@ -79,7 +80,8 @@ userApi.post('/signup', function (req, res) {
                 confirmation_code: getRndInteger(100000, 999999),
                 created_date: new Date(),
                 fcm_id: fcmId,
-                device_id: deviceId
+                device_id: deviceId,
+                description: description
             };
 
             dbConn.query("INSERT INTO tbl_user SET ? ", newUserData, function (error, results, fields) {
@@ -88,8 +90,18 @@ userApi.post('/signup', function (req, res) {
                 dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE a.id=?', results.insertId, function (error, results, fields) {
                     if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                     if (!results || !results.length) return res.send({ error: false, message: 'User does not exist.' });
-
+                    const token = jwt.sign(
+                        {
+                            userId: results[0].id,
+                            name: results[0].name,
+                            device_id: results[0].device_id
+                        }, process.env.JWT_KEY,
+                        {
+                            expiresIn: '24h'
+                        }
+                    );
                     var outputResult = {
+                        token: token,
                         id: results[0].id,
                         name: results[0].name,
                         email: results[0].email_address,
@@ -98,6 +110,7 @@ userApi.post('/signup', function (req, res) {
                         language: results[0].language_name,
                         ethnicity: results[0].ethnicity_name,
                         country: results[0].country_name,
+                        description: results[0].description
                     };
                     return res.send({error: false, user: outputResult, message: 'User exist!'});
                 });
@@ -113,9 +126,19 @@ userApi.get('/checkDeviceUniqueId/:deviceId', function (req, res) {
     dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE device_id=?', deviceId, function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         if (!results || !results.length) return res.send({ error: false, message: 'User does not exist.' });
-
+        const token = jwt.sign(
+            {
+                userId: results[0].id,
+                name: results[0].name,
+                device_id: results[0].device_id
+            }, process.env.JWT_KEY,
+            {
+                expiresIn: '1h'
+            }
+        );
         var outputResult = {
             id: results[0].id,
+            token: token,
             name: results[0].name,
             email: results[0].email_address,
             age: results[0].age,
@@ -123,6 +146,7 @@ userApi.get('/checkDeviceUniqueId/:deviceId', function (req, res) {
             language: results[0].language_name,
             ethnicity: results[0].ethnicity_name,
             country: results[0].country_name,
+            description: results[0].description
         };
         return res.send({error: false, user: outputResult, message: 'User already exist!'});
     });
