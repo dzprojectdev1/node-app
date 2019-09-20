@@ -82,7 +82,8 @@ userApi.post('/signup', function (req, res) {
                 fcm_id: fcmId,
                 device_id: deviceId,
                 description: description,
-                account_status: 1
+                account_status: 1,
+                last_loggedin_date: new Date()
             };
 
             dbConn.query("INSERT INTO tbl_user SET ? ", newUserData, function (error, results, fields) {
@@ -112,7 +113,7 @@ userApi.post('/signup', function (req, res) {
                         ethnicity: results[0].ethnicity_name,
                         country: results[0].country_name,
                         description: results[0].description,
-                        last_loggedin_date: new Date()
+                        last_loggedin_date: results[0].last_loggedin_date
                     };
                     return res.send({error: false, user: outputResult, message: 'User exist!'});
                 });
@@ -150,7 +151,8 @@ userApi.get('/checkDeviceUniqueId/:deviceId', function (req, res) {
                 language: results[0].language_name,
                 ethnicity: results[0].ethnicity_name,
                 country: results[0].country_name,
-                description: results[0].description
+                description: results[0].description,
+                last_loggedin_date: results[0].last_loggedin_date
             };
             return res.send({error: false, user: outputResult, message: 'User already exist!'});
         });      
