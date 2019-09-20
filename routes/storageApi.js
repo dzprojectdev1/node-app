@@ -29,7 +29,7 @@ storageApi.get('/videoLink', checkAuth, (req, res) => {
           }
         });
       } else {
-        res.send({message: 'video not found'});
+        res.send({message: 'video not found.'});
       }
     }
   });

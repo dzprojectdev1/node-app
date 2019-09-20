@@ -116,7 +116,9 @@ matchApi.post('/like', checkAuth, function (req, res) {
                                             }
                                         };
                                         fcm.send(message, function(notiErr, notiRes){
-                                             
+                                            if (notiErr) {
+                                                console.log('Notification sending Error : ', notiErr);
+                                            }
                                             return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId }, message: 'New match has been created.' });
                                         });
                                     });
@@ -453,7 +455,9 @@ matchApi.post('/requestMatch', checkAuth, function (req, res) {
                                                     }
                                                 };
                                                 fcm.send(message, function(notiErr, notiRes){
-                                                     
+                                                    if (notiErr) {
+                                                        console.log(notiErr);
+                                                    }
                                                     return res.send({ error: false, data: { cdn_id: cdnResults, match_id: receiveResult.insertId }, message: "New match is created." });
                                                 }); 
                                             });
