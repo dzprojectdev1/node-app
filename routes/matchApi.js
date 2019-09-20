@@ -117,9 +117,12 @@ matchApi.post('/like', checkAuth, function (req, res) {
                                         };
                                         fcm.send(message, function(notiErr, notiRes){
                                             if (notiErr) {
-                                                console.log('Notification sending Error : ', notiErr);
+                                                console.log("Something has gone wrong!");
+                                                return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId }, message: 'New match has been created.' });
+                                            } else {
+                                                console.log("Successfully sent with response: ", notiRes);
+                                                return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId }, message: 'New match has been created.' });
                                             }
-                                            return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId }, message: 'New match has been created.' });
                                         });
                                     });
                                 });
@@ -456,12 +459,14 @@ matchApi.post('/requestMatch', checkAuth, function (req, res) {
                                                 };
                                                 fcm.send(message, function(notiErr, notiRes){
                                                     if (notiErr) {
-                                                        console.log(notiErr);
+                                                        console.log("Something has gone wrong!");
+                                                        return res.send({ error: false, data: { cdn_id: cdnResults[0].cdn_id, match_id: receiveResult.insertId }, message: "New match is created." });
+                                                    } else {
+                                                        console.log("Successfully sent with response: ", notiRes);
+                                                        return res.send({ error: false, data: { cdn_id: cdnResults[0].cdn_id, match_id: receiveResult.insertId }, message: "New match is created." });
                                                     }
-                                                    return res.send({ error: false, data: { cdn_id: cdnResults, match_id: receiveResult.insertId }, message: "New match is created." });
-                                                }); 
-                                            });
-                                                                                     
+                                                });
+                                            });                                                                                     
                                         });                                        
                                     });
                                 });
