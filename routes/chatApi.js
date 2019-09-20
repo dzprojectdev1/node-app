@@ -107,7 +107,6 @@ chatApi.post('/create', checkAuth, function(req, res) {
                             const receiverData = receiver[0];
                             if (!receiverData.fcm_id) return res.status(400).send({error: true, message: 'firebase token not found'});
                             const deviceId = receiverData.fcm_id;
-                            if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
                             var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
                                 to: deviceId,                                
                                 notification: {
@@ -126,7 +125,7 @@ chatApi.post('/create', checkAuth, function(req, res) {
                                     console.log("Successfully sent with response: ", notiRes);
                                     return res.send({ error: false, data: {sendResult, receiveResult}, message: "New Message is Created."});
                                 }                                   
-                            });                     
+                            });                           
                         });
                     });
                 });
