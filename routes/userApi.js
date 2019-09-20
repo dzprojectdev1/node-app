@@ -127,31 +127,33 @@ userApi.get('/checkDeviceUniqueId/:deviceId', function (req, res) {
     var joinQuery = 'INNER JOIN tbl_language b on a.language_id=b.id INNER JOIN tbl_ethnicity c ON c.id=a.ethnicity_id INNER JOIN tbl_country d ON a.country_id=d.id';
     dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE a.device_id=? AND account_status=1', deviceId, function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-        if (!results || !results.length) return res.send({ error: false, message: 'User does not exist.' });
-        const token = jwt.sign(
-            {
-                userId: results[0].id,
+        if (!results || !results.length) return res.send({ error: false, message: 'User does not exist.' });       
+        dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=?', [new Date(), results[0].id], function(updateErr, updateRow, updateFields) {
+            if (updateErr) return res.status(400).send({error: true, detail: updateErr.code, message: updateErr.message});
+            const token = jwt.sign(
+                {
+                    userId: results[0].id,
+                    name: results[0].name,
+                    device_id: results[0].device_id
+                }, process.env.JWT_KEY,
+                {
+                    expiresIn: '24h'
+                }
+            );
+            var outputResult = {
+                id: results[0].id,
+                token: token,
                 name: results[0].name,
-                device_id: results[0].device_id
-            }, process.env.JWT_KEY,
-            {
-                expiresIn: '1h'
-            }
-        );
-        var outputResult = {
-            id: results[0].id,
-            token: token,
-            name: results[0].name,
-            email: results[0].email_address,
-            age: results[0].age,
-            gender: results[0].gender,
-            language: results[0].language_name,
-            ethnicity: results[0].ethnicity_name,
-            country: results[0].country_name,
-            description: results[0].description,
-            last_loggedin_date: new Date()
-        };
-        return res.send({error: false, user: outputResult, message: 'User already exist!'});
+                email: results[0].email_address,
+                age: results[0].age,
+                gender: results[0].gender,
+                language: results[0].language_name,
+                ethnicity: results[0].ethnicity_name,
+                country: results[0].country_name,
+                description: results[0].description
+            };
+            return res.send({error: false, user: outputResult, message: 'User already exist!'});
+        });      
     });
 });
 
