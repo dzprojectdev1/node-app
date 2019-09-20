@@ -103,7 +103,7 @@ matchApi.post('/like', checkAuth, function (req, res) {
                                     if (!senderData.length) return res.status(403).send({error: true, message: 'Sender User not found'});
                                     const sender = senderData[0];
                                     const senderName = sender.name;
-                                    dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id IN (?, ?)', [new Date(), sender.id, receiver.id], function(actErr, actRows, actFields) {
+                                    dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=?', [new Date(), userId], function(actErr, actRows, actFields) {
                                         if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
                                         var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
                                             to: deviceId,
@@ -116,7 +116,7 @@ matchApi.post('/like', checkAuth, function (req, res) {
                                             }
                                         };
                                         fcm.send(message, function(notiErr, notiRes){
-                                            console.log("Successfully sent with response: ", notiRes);
+                                             
                                             return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId }, message: 'New match has been created.' });
                                         });
                                     });
@@ -440,7 +440,7 @@ matchApi.post('/requestMatch', checkAuth, function (req, res) {
                                             if (!senderData.length) return res.status(403).send({error: true, message: 'Sender User not found'});
                                             const sender = senderData[0];
                                             const senderName = sender.name;
-                                            dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id IN (?, ?)', [new Date(), sender.id, receiver.id], function(actErr, actRows, actFields) {
+                                            dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=?', [new Date(), userId], function(actErr, actRows, actFields) {
                                                 if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
                                                 var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
                                                     to: deviceId,
@@ -453,10 +453,11 @@ matchApi.post('/requestMatch', checkAuth, function (req, res) {
                                                     }
                                                 };
                                                 fcm.send(message, function(notiErr, notiRes){
-                                                    console.log("Successfully sent with response: ", notiRes);
+                                                     
                                                     return res.send({ error: false, data: { cdn_id: cdnResults, match_id: receiveResult.insertId }, message: "New match is created." });
-                                                });
-                                            });                                            
+                                                }); 
+                                            });
+                                                                                     
                                         });                                        
                                     });
                                 });
@@ -572,10 +573,7 @@ matchApi.post('/discover', checkAuth, function (req, res) {
                 dbConn.query('INSERT INTO tbl_match SET ? ', [newMatchData], function (error, newMatch, fields) {
                     if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                     otherUser.match_id = newMatch.insertId;
-                    dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=?', [new Date(), otherUser.id], function(actErr, actRows, actFields) {
-                        if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
-                        return res.send({ error: false, data: otherUser, message: "A New Lovely User found." });
-                    });                    
+                    return res.send({ error: false, data: otherUser, message: "A New Lovely User found." });                   
                 });
             });
         });
