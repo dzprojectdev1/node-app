@@ -13,7 +13,7 @@ storageApi.get('/videoLink', checkAuth, (req, res) => {
 
   sideBucket.getFiles(function(err, files) {
     if (err) {
-      res.status(500).send('Storage API could not get files.');
+      res.status(500).send({message: 'Storage API could not get files.'});
     } else {
       const match = files.find(file => file.id === fileId);
 
@@ -29,7 +29,7 @@ storageApi.get('/videoLink', checkAuth, (req, res) => {
           }
         });
       } else {
-        res.status(400).send('Video not found.');
+        res.send({message: 'video not found'});
       }
     }
   });
