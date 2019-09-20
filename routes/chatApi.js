@@ -40,7 +40,7 @@ chatApi.get('/getChatWithMatchId/:matchId', checkAuth, function(req,res) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         
         //get other user detail information from match id
-        dbConn.query('SELECT a.name, a.gender, a.birth_date, c.cdn_id, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age from tbl_user as a inner join tbl_match as b on a.id=b.other_user_id inner join tbl_video c on a.id=c.user_id where b.id=? and (b.main_user_id=? or b.other_user_id=?) and a.account_status=1 and c.is_primary=1 and c.is_reply=0 and c.publish=1', [matchId, userId, userId], function(error1, userResults, fields) {
+        dbConn.query('SELECT a.name, a.gender, a.birth_date, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age from tbl_user as a inner join tbl_match as b on a.id=b.other_user_id where b.id=? and (b.main_user_id=? or b.other_user_id=?) and a.account_status=1', [matchId, userId, userId], function(error1, userResults, fields) {
             if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
             if (!userResults.length) return res.status(403).send({error: false, message: 'Match Data not found'});
             var matchedOtherUser = userResults[0];
@@ -107,28 +107,26 @@ chatApi.post('/create', checkAuth, function(req, res) {
                             const receiverData = receiver[0];
                             if (!receiverData.fcm_id) return res.status(400).send({error: true, message: 'firebase token not found'});
                             const deviceId = receiverData.fcm_id;
-                            dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id IN (?, ?)', [new Date(), userId, receiver.id], function(actErr, actRows, actFields) {
-                                if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
-                                var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
-                                    to: deviceId,                                
-                                    notification: {
-                                        title: 'New Message',
-                                        body: messageText,
-                                    },
-                                    data: {  //you can send only notification or only data(or include both)
-                                        type: 'ChatDetail'
-                                    }
-                                };
-                                fcm.send(message, function(notiErr, notiRes){
-                                    if (notiErr) {
-                                        console.log("Notification Sending is failed", notiErr);
-                                        return res.send({ error: false, data: {sendResult, receiveResult}, message: "New Message is Created."});
-                                    } else {
-                                        console.log("Successfully sent with response: ", notiRes);
-                                        return res.send({ error: false, data: {sendResult, receiveResult}, message: "New Message is Created."});
-                                    }                                   
-                                });
-                            });                            
+                            if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
+                            var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                                to: deviceId,                                
+                                notification: {
+                                    title: 'New Message',
+                                    body: messageText,
+                                },
+                                data: {  //you can send only notification or only data(or include both)
+                                    type: 'ChatDetail'
+                                }
+                            };
+                            fcm.send(message, function(notiErr, notiRes){
+                                if (notiErr) {
+                                    console.log("Notification Sending is failed", notiErr);
+                                    return res.send({ error: false, data: {sendResult, receiveResult}, message: "New Message is Created."});
+                                } else {
+                                    console.log("Successfully sent with response: ", notiRes);
+                                    return res.send({ error: false, data: {sendResult, receiveResult}, message: "New Message is Created."});
+                                }                                   
+                            });                     
                         });
                     });
                 });
