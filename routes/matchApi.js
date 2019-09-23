@@ -502,11 +502,94 @@ matchApi.get('/matches', checkAuth, function (req, res) {
     });
 });
 
+matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
+    var userId = req.userData.userId;
+    var perPageCount = req.body.count;
+    var offSet = req.body.offset;
+    
+    if (!perPageCount || !offSet) 
+        return res.status(403).send({error: true, message: 'invalid params'});
+
+    perPageCount = parseInt(perPageCount);
+    offSet = parseInt(offSet);
+    
+    dbConn.query('SELECT lat_geo, long_geo FROM tbl_user WHERE id=? AND account_status=1', userId, function(userErr, userData, userFields) {
+        if (userErr) return res.status(400).send({error: true, detail: userErr.code, message: userErr.sqlMessage});
+        if (!userData.length) return res.status(403).send({error: true, message: 'user not found.'});
+        var loggedUser = userData[0];
+
+        var myLat = loggedUser.lat_geo;
+        var myLong = loggedUser.long_geo;
+        if (!myLat || !myLong) return res.status(403).send({error: true, message: 'user location information is invalid'});
+
+        var selectQuery = 'a.id, a.birth_date, a.name, a.gender, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
+        var getOtherMatchInfo = 'select other_user_id from tbl_match where main_user_id=? and status != 0';
+
+        var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
+
+        var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
+        var whereCondition = ' a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
+
+        if (req.body.distance) {
+            distance = req.body.distance;
+            whereCondition += ' AND (' + distanceQuery + ') <' + distance;
+        }
+        if (req.body.gender) {
+            var gender = req.body.gender;
+            whereCondition += ' AND a.gender=' + gender;
+        }
+        if (req.body.ethnicityId) {
+            whereCondition += ' AND a.ethnicity_id=' + req.body.ethnicityId;
+        }
+        if (req.body.countryId) {
+            whereCondition += ' AND a.country_id=' + req.body.countryId;
+        }
+        if (req.body.languageId) {
+            whereCondition += ' AND a.language_id=' + req.body.languageId;
+        }
+        if (req.body.lessAge) {
+            whereCondition += ' AND TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) < ' + req.body.lessAge;
+        }
+        if (req.body.greaterAge) {
+            whereCondition += ' AND TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) > ' + req.body.greaterAge;
+        }
+
+        joinQuery += ' LEFT JOIN tbl_video as e ON a.id=e.user_id ';
+
+        var leftQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + joinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date DESC)';
+        var rightJoinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id RIGHT JOIN tbl_video as e ON a.id=e.user_id ';
+        var rightQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + rightJoinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date DESC)';
+        var totalQuery = leftQuery + ' UNION ' + rightQuery;
+
+        dbConn.query(totalQuery, [userId, userId, userId, userId, offSet], function (error, results, fields) {
+            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+            if (!results.length)
+                return res.send({ error: false, message: 'Not found.' });
+            var finalResults = [];
+            var filteredResults = [];
+            if (results.length) {
+                results.forEach(element => {
+                    if (element.cdn_filtered_id && element.is_primary === 1) {
+                        filteredResults.push(element);
+                    }
+                    if (element.cdn_filtered_id === null) {
+                        filteredResults.push(element);
+                    }
+                });
+                for (var i = offSet; i < (offSet + perPageCount); i ++) {
+                    finalResults.push(filteredResults[i]);
+                }
+            }
+            return res.send({error: false, data: finalResults, message: 'discover list updated'});
+        });
+    });
+});
+
 // UC4.1 - Browse : display one user
 matchApi.post('/discover', checkAuth, function (req, res) {
     var userId = req.userData.userId;
 
-    dbConn.query("SELECT lat_geo, long_geo FROM tbl_user WHERE id=?", userId, function (error, loggedUserResults, loggedUserFields) {
+    dbConn.query("SELECT lat_geo, long_geo FROM tbl_user WHERE id=? AND account_status=1", [userId], function (error, loggedUserResults, loggedUserFields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         if (!loggedUserResults.length) return res.status(403).send({ error: true, message: 'User does not exist' });
         var myData = loggedUserResults[0];
@@ -526,6 +609,7 @@ matchApi.post('/discover', checkAuth, function (req, res) {
 
         var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
         var whereCondition = ' a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
+
         if (req.body.distance) {
             distance = req.body.distance;
             whereCondition += ' AND (' + distanceQuery + ') <' + distance;
