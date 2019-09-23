@@ -528,7 +528,7 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
         var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
 
         var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
-        var whereCondition = ' a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
+        var whereCondition = ' (e.cdn_filtered_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
 
         if (req.body.distance) {
             distance = req.body.distance;
@@ -559,28 +559,14 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
         var leftQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + joinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date DESC)';
         var rightJoinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id RIGHT JOIN tbl_video as e ON a.id=e.user_id ';
         var rightQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + rightJoinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date DESC)';
-        var totalQuery = leftQuery + ' UNION ' + rightQuery;
+        var totalQuery = leftQuery + ' UNION ' + rightQuery + ' LIMIT ? OFFSET ? ';
 
-        dbConn.query(totalQuery, [userId, userId, userId, userId, offSet], function (error, results, fields) {
+        dbConn.query(totalQuery, [userId, userId, userId, userId, perPageCount, offSet], function (error, results, fields) {
             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
             if (!results.length)
                 return res.send({ error: false, message: 'Not found.' });
-            var finalResults = [];
-            var filteredResults = [];
-            if (results.length) {
-                results.forEach(element => {
-                    if (element.cdn_filtered_id && element.is_primary === 1) {
-                        filteredResults.push(element);
-                    }
-                    if (element.cdn_filtered_id === null) {
-                        filteredResults.push(element);
-                    }
-                });
-                for (var i = offSet; i < (offSet + perPageCount); i ++) {
-                    finalResults.push(filteredResults[i]);
-                }
-            }
-            return res.send({error: false, data: finalResults, message: 'discover list updated'});
+            
+            return res.send({error: false, data: results, message: 'discover list updated'});
         });
     });
 });
