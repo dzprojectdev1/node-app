@@ -34,6 +34,18 @@ userApi.get('/one/:id', checkAuth, function (req, res) {
     });
 });
 
+// get loggedin user detail information
+userApi.get('/getMyDetailInfo', checkAuth, function(req, res) {
+    var userId = req.userData.userId;
+    dbConn.query('SELECT * FROM tbl_user WHERE id=? AND account_status=1', userId, function(userErr, userResults, fields) {
+        if (userErr) return res.status(400).send({error: true, detail: userErr.code, message: userErr.sqlMessage});
+        if (!userResults.length) return res.status(403).send({error: true, message: 'user not found'});
+        return res.send({error: false, data: userResults[0], message: 'user data found.'})
+    });
+});
+
+
+
 //getting random number 
 function getRndInteger(min, max) {
     return Math.floor(Math.random() * (max - min)) + min;
@@ -271,39 +283,49 @@ userApi.post('/logout', checkAuth, function (req, res) {
 // #5 ===  Update user with id
 userApi.put('/updateSetting', checkAuth, function (req, res) {
     var userId = req.userData.userId;
-    var updateData = {
-        updated_date: new Date()
-    };
 
-    if (req.body.name) {
-        updateData.name = req.body.name;
-    }
-    if (req.body.languageId) {
-        updateData.language_id = req.body.languageId;
-    }
-    if (req.body.countryId) {
-        updateData.country_id = req.body.countryId;
-    }
-    if (req.body.ethnicityId) {
-        updateData.ethnicity_id = req.body.ethnicityId;
-    }
-    if (req.body.latGeo) {
-        updateData.lat_geo = req.body.latGeo;
-    }
-    if (req.body.longGeo) {
-        updateData.long_geo = req.body.longGeo;
-    }
+    dbConn.query('SELECT * FROM tbl_user WHERE id=? AND account_status=1', userId, function(userErr, userResult, userField) {
+        if (userErr) return res.status(400).send({error: true, detail: userErr.code, message: userErr.sqlMessage});
+        if (!userResult.length) return res.status(403).send({error: true, message: 'user not found.'});
+        var updateData = {};
 
-    dbConn.query("UPDATE tbl_user SET ? WHERE id=?", [updateData, userId], function (error, results, fields) {
-        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-
-        var joingQuery = 'INNER JOIN tbl_ethnicity b ON a.ethnicity_id=b.id INNER JOIN tbl_language c ON a.language_id=c.id INNER JOIN tbl_country d ON a.country_id=d.id';
-
-        dbConn.query("SELECT a.name, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.birth_date, a.email_address, a.gender, a.lat_geo, a.long_geo, a.last_loggedin_date, a.updated_date, a.created_date, b.ethnicity_name, c.language_name, d.country_name FROM tbl_user a " + joingQuery + " WHERE a.id=?", userId, function (error1, updatedUser, fields) {
-            if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
-            return res.send({ error: false, data: updatedUser, message: 'User has been updated successfully.' });
+        if (req.body.name) {
+            updateData.name = req.body.name;
+        }
+        if (req.body.description) {
+            updateData.description = req.body.description;
+        }
+        if (req.body.languageId) {
+            updateData.language_id = req.body.languageId;
+        }
+        if (req.body.countryId) {
+            updateData.country_id = req.body.countryId;
+        }
+        if (req.body.ethnicityId) {
+            updateData.ethnicity_id = req.body.ethnicityId;
+        }
+        if (req.body.latGeo) {
+            updateData.lat_geo = req.body.latGeo;
+        }
+        if (req.body.longGeo) {
+            updateData.long_geo = req.body.longGeo;
+        }
+    
+        updateData.updated_date = new Date();
+    
+        dbConn.query("UPDATE tbl_user SET ? WHERE id=?", [updateData, userId], function (error, results, fields) {
+            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+    
+            var joingQuery = 'INNER JOIN tbl_ethnicity b ON a.ethnicity_id=b.id INNER JOIN tbl_language c ON a.language_id=c.id INNER JOIN tbl_country d ON a.country_id=d.id';
+    
+            dbConn.query("SELECT a.name, a.description, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.birth_date, a.email_address, a.gender, a.lat_geo, a.long_geo, a.last_loggedin_date, a.updated_date, a.created_date, b.ethnicity_name, c.language_name, d.country_name FROM tbl_user a " + joingQuery + " WHERE a.id=?", userId, function (error1, updatedUser, fields) {
+                if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+                if (!updatedUser.length) return res.status(403).send({error: true, message: 'user not found'});
+                return res.send({ error: false, data: updatedUser[0], message: 'User has been updated successfully.' });
+            });
         });
-    });
+    })
+    
 });
 
 
