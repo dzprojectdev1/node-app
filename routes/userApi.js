@@ -34,6 +34,18 @@ userApi.get('/one/:id', checkAuth, function (req, res) {
     });
 });
 
+// get loggedin user detail information
+userApi.get('/getMyDetailInfo', checkAuth, function(req, res) {
+    var userId = req.userData.userId;
+    dbConn.query('SELECT * FROM tbl_user WHERE id=? AND account_status=1', userId, function(userErr, userResults, fields) {
+        if (userErr) return res.status(400).send({error: true, detail: userErr.code, message: userErr.sqlMessage});
+        if (!userResults.length) return res.status(403).send({error: true, message: 'user not found'});
+        return res.send({error: false, data: userResults[0], message: 'user data found.'})
+    });
+});
+
+
+
 //getting random number 
 function getRndInteger(min, max) {
     return Math.floor(Math.random() * (max - min)) + min;
@@ -81,7 +93,9 @@ userApi.post('/signup', function (req, res) {
                 created_date: new Date(),
                 fcm_id: fcmId,
                 device_id: deviceId,
-                description: description
+                description: description,
+                account_status: 1,
+                last_loggedin_date: new Date()
             };
 
             dbConn.query("INSERT INTO tbl_user SET ? ", newUserData, function (error, results, fields) {
@@ -110,7 +124,8 @@ userApi.post('/signup', function (req, res) {
                         language: results[0].language_name,
                         ethnicity: results[0].ethnicity_name,
                         country: results[0].country_name,
-                        description: results[0].description
+                        description: results[0].description,
+                        last_loggedin_date: results[0].last_loggedin_date
                     };
                     return res.send({error: false, user: outputResult, message: 'User exist!'});
                 });
@@ -120,35 +135,43 @@ userApi.post('/signup', function (req, res) {
 //     });
 });
 
-userApi.get('/checkDeviceUniqueId/:deviceId', function (req, res) {
+userApi.put('/checkDeviceUniqueId/:deviceId', function (req, res) {
     var deviceId = req.params.deviceId;
+    var fcmId = req.body.fcmId;
+
+    if (!fcmId) return res.status(403).send({error: true, message: 'please provide fcm token'});
+
     var joinQuery = 'INNER JOIN tbl_language b on a.language_id=b.id INNER JOIN tbl_ethnicity c ON c.id=a.ethnicity_id INNER JOIN tbl_country d ON a.country_id=d.id';
-    dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE device_id=?', deviceId, function (error, results, fields) {
+    dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE a.device_id=? AND account_status=1', deviceId, function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-        if (!results || !results.length) return res.send({ error: false, message: 'User does not exist.' });
-        const token = jwt.sign(
-            {
-                userId: results[0].id,
+        if (!results || !results.length) return res.send({ error: false, message: 'User does not exist.' });       
+        dbConn.query('UPDATE tbl_user SET last_loggedin_date=?, fcm_id=? WHERE id=?', [new Date(), fcmId, results[0].id], function(updateErr, updateRow, updateFields) {
+            if (updateErr) return res.status(400).send({error: true, detail: updateErr.code, message: updateErr.message});
+            const token = jwt.sign(
+                {
+                    userId: results[0].id,
+                    name: results[0].name,
+                    device_id: results[0].device_id
+                }, process.env.JWT_KEY,
+                {
+                    expiresIn: '24h'
+                }
+            );
+            var outputResult = {
+                id: results[0].id,
+                token: token,
                 name: results[0].name,
-                device_id: results[0].device_id
-            }, process.env.JWT_KEY,
-            {
-                expiresIn: '1h'
-            }
-        );
-        var outputResult = {
-            id: results[0].id,
-            token: token,
-            name: results[0].name,
-            email: results[0].email_address,
-            age: results[0].age,
-            gender: results[0].gender,
-            language: results[0].language_name,
-            ethnicity: results[0].ethnicity_name,
-            country: results[0].country_name,
-            description: results[0].description
-        };
-        return res.send({error: false, user: outputResult, message: 'User already exist!'});
+                email: results[0].email_address,
+                age: results[0].age,
+                gender: results[0].gender,
+                language: results[0].language_name,
+                ethnicity: results[0].ethnicity_name,
+                country: results[0].country_name,
+                description: results[0].description,
+                last_loggedin_date: results[0].last_loggedin_date
+            };
+            return res.send({error: false, user: outputResult, message: 'User already exist!'});
+        });      
     });
 });
 
@@ -260,39 +283,49 @@ userApi.post('/logout', checkAuth, function (req, res) {
 // #5 ===  Update user with id
 userApi.put('/updateSetting', checkAuth, function (req, res) {
     var userId = req.userData.userId;
-    var updateData = {
-        updated_date: new Date()
-    };
 
-    if (req.body.name) {
-        updateData.name = req.body.name;
-    }
-    if (req.body.languageId) {
-        updateData.language_id = req.body.languageId;
-    }
-    if (req.body.countryId) {
-        updateData.country_id = req.body.countryId;
-    }
-    if (req.body.ethnicityId) {
-        updateData.ethnicity_id = req.body.ethnicityId;
-    }
-    if (req.body.latGeo) {
-        updateData.lat_geo = req.body.latGeo;
-    }
-    if (req.body.longGeo) {
-        updateData.long_geo = req.body.longGeo;
-    }
+    dbConn.query('SELECT * FROM tbl_user WHERE id=? AND account_status=1', userId, function(userErr, userResult, userField) {
+        if (userErr) return res.status(400).send({error: true, detail: userErr.code, message: userErr.sqlMessage});
+        if (!userResult.length) return res.status(403).send({error: true, message: 'user not found.'});
+        var updateData = {};
 
-    dbConn.query("UPDATE tbl_user SET ? WHERE id=?", [updateData, userId], function (error, results, fields) {
-        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-
-        var joingQuery = 'INNER JOIN tbl_ethnicity b ON a.ethnicity_id=b.id INNER JOIN tbl_language c ON a.language_id=c.id INNER JOIN tbl_country d ON a.country_id=d.id';
-
-        dbConn.query("SELECT a.name, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.birth_date, a.email_address, a.gender, a.lat_geo, a.long_geo, a.last_loggedin_date, a.updated_date, a.created_date, b.ethnicity_name, c.language_name, d.country_name FROM tbl_user a " + joingQuery + " WHERE a.id=?", userId, function (error1, updatedUser, fields) {
-            if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
-            return res.send({ error: false, data: updatedUser, message: 'User has been updated successfully.' });
+        if (req.body.name) {
+            updateData.name = req.body.name;
+        }
+        if (req.body.description) {
+            updateData.description = req.body.description;
+        }
+        if (req.body.languageId) {
+            updateData.language_id = req.body.languageId;
+        }
+        if (req.body.countryId) {
+            updateData.country_id = req.body.countryId;
+        }
+        if (req.body.ethnicityId) {
+            updateData.ethnicity_id = req.body.ethnicityId;
+        }
+        if (req.body.latGeo) {
+            updateData.lat_geo = req.body.latGeo;
+        }
+        if (req.body.longGeo) {
+            updateData.long_geo = req.body.longGeo;
+        }
+    
+        updateData.updated_date = new Date();
+    
+        dbConn.query("UPDATE tbl_user SET ? WHERE id=?", [updateData, userId], function (error, results, fields) {
+            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+    
+            var joingQuery = 'INNER JOIN tbl_ethnicity b ON a.ethnicity_id=b.id INNER JOIN tbl_language c ON a.language_id=c.id INNER JOIN tbl_country d ON a.country_id=d.id';
+    
+            dbConn.query("SELECT a.name, a.description, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.birth_date, a.email_address, a.gender, a.lat_geo, a.long_geo, a.last_loggedin_date, a.updated_date, a.created_date, b.ethnicity_name, c.language_name, d.country_name FROM tbl_user a " + joingQuery + " WHERE a.id=?", userId, function (error1, updatedUser, fields) {
+                if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+                if (!updatedUser.length) return res.status(403).send({error: true, message: 'user not found'});
+                return res.send({ error: false, data: updatedUser[0], message: 'User has been updated successfully.' });
+            });
         });
-    });
+    })
+    
 });
 
 

@@ -10,13 +10,13 @@ var FCM = require('fcm-node');
 chatApi.get('/all', checkAuth, function(req, res) {
     var userId = req.userData.userId;
 
-    var joinQuery = 'inner join tbl_chat d on c.chat_id=d.id inner join tbl_user e on c.other_user_id=e.id inner join tbl_video g on g.user_id=e.id where g.is_primary=1 order by d.created_date desc';
-    var matchWhereCondition = 'a.main_user_id=? and a.status in (6,7) and a.publish=1 and f.publish=1 and f.is_primary=1 group by a.id';
-    var matchJoinQuery = 'inner join tbl_chat b on a.id=b.match_id inner join tbl_video f on f.user_id=a.other_user_id ';
-    var matchQuery = 'SELECT a.id as match_id, max(b.id) as chat_id, a.other_user_id as other_user_id FROM `tbl_match` a '+matchJoinQuery+' where ' +matchWhereCondition;
-    var queryString = 'select c.*, d.message_text, d.created_date as created_date, e.name, e.gender, e.birth_date, TIMESTAMPDIFF(YEAR, e.birth_date, CURDATE()) AS age, g.cdn_id, g.cdn_filtered_id from ('+matchQuery+') c ' + joinQuery;
-   
-    dbConn.query(queryString, userId, function(error, results, fields){
+    var leftJoinQuery = 'inner join tbl_chat d on c.chat_id=d.id inner join tbl_user e on c.other_user_id=e.id left join tbl_video g on g.user_id=e.id order by d.created_date desc';
+    var matchWhereCondition = ' a.main_user_id=? and a.status in (6,7) and a.publish=1 group by a.id ';
+    var leftMatchJoinQuery = ' inner join tbl_chat b on a.id=b.match_id';
+    var matchQuery = 'SELECT a.id as match_id, max(b.id) as chat_id, a.other_user_id as other_user_id FROM `tbl_match` a '+leftMatchJoinQuery+' where ' +matchWhereCondition;
+    var leftQueryString = '(select c.*, d.message_text, d.created_date as created_date, e.name, e.gender, e.birth_date, TIMESTAMPDIFF(YEAR, e.birth_date, CURDATE()) AS age, g.cdn_id, g.cdn_filtered_id from ('+matchQuery+') c ' + leftJoinQuery + ')';
+    
+    dbConn.query(leftQueryString, [userId], function(error, results, fields){
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
         results.forEach(chat => {
@@ -40,10 +40,11 @@ chatApi.get('/getChatWithMatchId/:matchId', checkAuth, function(req,res) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         
         //get other user detail information from match id
-        dbConn.query('SELECT a.name, a.gender, a.birth_date, c.cdn_id, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age from tbl_user as a inner join tbl_match as b on a.id=b.other_user_id inner join tbl_video c on a.id=c.user_id where b.id=? and (b.main_user_id=? or b.other_user_id=?) and a.account_status=1 and c.is_primary=1 and c.is_reply=0 and c.publish=1', [matchId, userId, userId], function(error1, userResults, fields) {
+        dbConn.query('SELECT a.name, a.gender, a.birth_date, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age from tbl_user as a inner join tbl_match as b on a.id=b.other_user_id where b.id=? and (b.main_user_id=? or b.other_user_id=?) and a.account_status=1', [matchId, userId, userId], function(error1, userResults, fields) {
             if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
             if (!userResults.length) return res.status(403).send({error: false, message: 'Match Data not found'});
             var matchedOtherUser = userResults[0];
+
             return res.send({ error: false, data: {user: matchedOtherUser, content: results}, message: "Get All Chat List With Match Id: " + matchId});
         });
     });
@@ -118,13 +119,13 @@ chatApi.post('/create', checkAuth, function(req, res) {
                             };
                             fcm.send(message, function(notiErr, notiRes){
                                 if (notiErr) {
-                                    console.log("Something has gone wrong!");
-                                    return res.status({error: false, data: {sendResult, receiverResult}, message: 'New message created, notification error', notificationError: err})
+                                    console.log("Notification Sending is failed", notiErr);
+                                    return res.send({ error: false, data: {sendResult, receiveResult}, message: "New Message is Created."});
                                 } else {
                                     console.log("Successfully sent with response: ", notiRes);
                                     return res.send({ error: false, data: {sendResult, receiveResult}, message: "New Message is Created."});
-                                }
-                            });
+                                }                                   
+                            });                           
                         });
                     });
                 });
