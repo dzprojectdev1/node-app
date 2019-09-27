@@ -6,6 +6,7 @@ const async = require('async');
 const bcrypt = require('bcrypt');
 var jwt = require('jsonwebtoken');
 require('dotenv').config();
+const port = 8080
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({
@@ -28,6 +29,7 @@ const fromEmail = process.env.SERVER_EMAIL_ADDRESS;
 app.get('/', function (req, res) {
     return res.send({ error: true, message: 'hello' })
 });
+app.listen(port, () => console.log(`App listening on port ${port}!`))
 
 var userApi = require('./routes/userApi');
 var videoApi = require('./routes/videoApi');
@@ -36,6 +38,7 @@ var languageApi = require('./routes/languageApi');
 var countryApi = require('./routes/countryApi');
 var ethnicityApi = require('./routes/ethnicityApi');
 var chatApi = require('./routes/chatApi');
+var transactionApi = require('./routes/transactionApi');
 
 const storageApi = require('./routes/storageApi');
 
@@ -137,6 +140,7 @@ app.use('/api/language', languageApi);
 app.use('/api/country', countryApi);
 app.use('/api/ethnicity', ethnicityApi);
 app.use('/api/chat', chatApi);
-app.use('/api/storage', storageApi)
+app.use('/api/storage', storageApi);
+app.use('/api/transaction', transactionApi);
 
 module.exports = app;
