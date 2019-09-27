@@ -6,7 +6,6 @@ const async = require('async');
 const bcrypt = require('bcrypt');
 var jwt = require('jsonwebtoken');
 require('dotenv').config();
-const port = 8080
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({
@@ -29,7 +28,6 @@ const fromEmail = process.env.SERVER_EMAIL_ADDRESS;
 app.get('/', function (req, res) {
     return res.send({ error: true, message: 'hello' })
 });
-app.listen(port, () => console.log(`App listening on port ${port}!`))
 
 var userApi = require('./routes/userApi');
 var videoApi = require('./routes/videoApi');
