@@ -36,6 +36,7 @@ var languageApi = require('./routes/languageApi');
 var countryApi = require('./routes/countryApi');
 var ethnicityApi = require('./routes/ethnicityApi');
 var chatApi = require('./routes/chatApi');
+var uploadApi = require('./routes/uploadApi');
 var transactionApi = require('./routes/transactionApi');
 
 const storageApi = require('./routes/storageApi');
@@ -139,6 +140,7 @@ app.use('/api/country', countryApi);
 app.use('/api/ethnicity', ethnicityApi);
 app.use('/api/chat', chatApi);
 app.use('/api/storage', storageApi);
+app.use('/api/upload', uploadApi);
 app.use('/api/transaction', transactionApi);
 
 module.exports = app;
