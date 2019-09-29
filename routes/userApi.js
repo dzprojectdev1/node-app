@@ -168,7 +168,8 @@ userApi.put('/checkDeviceUniqueId/:deviceId', function (req, res) {
                 ethnicity: results[0].ethnicity_name,
                 country: results[0].country_name,
                 description: results[0].description,
-                last_loggedin_date: results[0].last_loggedin_date
+                last_loggedin_date: results[0].last_loggedin_date,
+                coin_count: results[0].coin_count
             };
             return res.send({error: false, user: outputResult, message: 'User already exist!'});
         });      

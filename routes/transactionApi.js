@@ -1,0 +1,155 @@
+var express = require('express');
+var transactionApi = express.Router();
+var dbConnect = require('../config/dbConfig');
+
+/**
+ * return transaction lists for selected user
+ * table_name: tbl_transaction
+ */
+transactionApi.get('/user/:user_id', function(req, res) {
+
+    var user_id = req.params.user_id;
+
+    dbConnect.query('select * from tbl_transaction where user_id = ?', user_id, function(error, results, fields) {
+
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if (!results || !results.length) return res.send({error: false, message: 'There is no transaction for this user yet.'});
+
+        return res.send({error: false, data: results, message: 'Transactions exist for this user.'});
+    })
+})
+
+/**
+ * add coin / amount on tbl_transaction
+ * update coin_count on tbl_user
+ */
+transactionApi.post('/putCoin', function(req, res) {
+
+    let user_id = req.body.user_id;
+    let coin_number = req.body.coin_number;
+    let coin_price = req.body.coin_price;
+    let currency = req.body.currency;
+
+    dbConnect.query('select * from tbl_user where id = ?', user_id, function(error, results, fields) {
+        if (error) return res.status(400).send({error: true, detail: error, message: error.sqlMessage});
+        if (!results || !results.length) return res.send({error: false, message: 'There is no registered user with the user_id.'});
+
+        var coin_count = results[0].coin_count;
+        coin_count = coin_count + parseInt(coin_number);
+            
+        dbConnect.query('insert into tbl_transaction (user_id, coin, amount, currency, created_at) values (?, ?, ?, ?, ?)', [user_id, coin_number, coin_price, currency, new Date()], function(error, row, fields) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+            dbConnect.query('update tbl_user set coin_count = ? where id = ?', [coin_count, user_id], function(error, row, fields) {
+                if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+                return res.send({error: false, coin_count: coin_count, message: 'Successfully added coins.'});
+            })
+        })
+    })
+})
+
+/**
+ * upate coin / amount on tbl_transaction
+ * update coin_count on tbl_user
+ */
+transactionApi.put('/:id', function(req, res) {
+    let id = req.params.id;
+    let coin_number = req.body.coin_number;
+    let coin_price = req.body.coin_price;
+
+    dbConnect.query('select t.coin coin, u.coin_count coin_count, t.user_id user_id from tbl_transaction t inner join tbl_user u on t.user_id = u.id where t.id = ?', id, function(error, results, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if(!results || !results.length) return res.send({error: false, message: 'There is no matched transaction with the id.'});
+
+        let user_id = results[0].user_id;
+        let coin = results[0].coin;
+        let coin_count = results[0].coin_count;
+
+        let diff_coin = coin - coin_number;
+        coin_count = coin_count - diff_coin;
+
+        dbConnect.query('update tbl_transaction set coin = ?, amount = ? where id = ?', [coin_number, coin_price, id], function(error, row, fields) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+            dbConnect.query('update tbl_user set coin_count = ? where id = ?', [coin_count, user_id], function(error, row, fields) {
+                if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+                var result_data = {
+                    id: id,
+                    coin_number: coin_number,
+                    coin_price: coin_price
+                }
+                return res.send({error: false, data: result_data, message: 'Updated successfully.'});
+            })
+        })
+
+    })
+})
+
+/**
+ * delete a transaction from tbl_transaction
+ * update coin_count on tbl_user
+ */
+transactionApi.delete('/:id', function(req, res) {
+    let id = req.params.id;
+
+    dbConnect.query('select t.coin coin, u.coin_count coin_count, t.user_id user_id from tbl_transaction t inner join tbl_user u on t.user_id = u.id where t.id = ?', id, function(error, results, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if(!results || !results.length) return res.send({error: false, message: 'There is no matched transaction with the id.'});
+
+        let user_id = results[0].user_id;
+        let coin = results[0].coin;
+        let coin_count = results[0].coin_count;
+        
+        coin_count = coin_count - coin;
+
+        dbConnect.query('delete from tbl_transaction where id = ?', id, function(error, row, fields) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+            dbConnect.query('update tbl_user set coin_count = ? where id = ?', [coin_count, user_id], function(error, row, fields) {
+                if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+                return res.send({error: false, message: 'Deleted successfully.'});
+            })
+        })
+
+    })
+})
+
+/**
+ * get status with txn_id
+ */
+transactionApi.get('/txn_id/:txn_id', function(req, res) {
+    let txn_id = req.params.txn_id;
+
+    dbConnect.query('select * from tbl_transaction where txn_id = ?', txn_id, function(error, results, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if(!results || !results.length) return res.send({error: false, message: 'There is no matched transaction with the txn_id.'});
+
+        let status = results[0].status;
+
+        return res.send({error: false, status: status, message: 'Found successfully.'});
+    })
+})
+
+/**
+ * update status with txn_id
+ */
+transactionApi.put('/txn_id/:txn_id', function(req, res) {
+    let txn_id = req.params.txn_id;
+    let status = req.body.status;
+
+    dbConnect.query('select * from tbl_transaction where txn_id = ?', txn_id, function(error, results, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if(!results || !results.length) return res.send({error: false, message: 'There is no matched transaction with the txn_id.'});
+
+        dbConnect.query('update tbl_transaction set status = ? where txn_id =?', [status, txn_id], function(error, row, fields) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+            return res.send({error: false, txn_id: txn_id, message: 'Updated successfully.'});
+        })
+    })
+})
+
+module.exports = transactionApi;
