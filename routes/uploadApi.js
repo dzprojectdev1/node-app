@@ -38,27 +38,33 @@ function createNewVideoInDatabase({
   userId,
   cdnId,
   cdnFilteredId,
-  isPrimary = false,
+  // isPrimary = 1,
 }) {
-  const videoData = {
-    user_id: userId,
-    cdn_id: cdnId,
-    cdn_filtered_id: cdnFilteredId,
-    created_date: new Date(),
-    updated_date: new Date(),
-    is_reply: 0,
-    is_primary: isPrimary,
-    publish: 1,
-    match_id: null
-  };
-
-  console.log('videoData:', videoData);
+  
 
   return new Promise((resolve, reject) => {
-    dbConn.query('INSERT INTO tbl_video SET ? ', videoData, (err, results) => {
-      if (err) reject(err);
-      resolve(results);
-    });
+    dbConn.query('SELECT * FROM tbl_video WHERE user_id=? AND is_primary=1', userId, function(error, results, fields) {
+      if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+      var isPrimary = 1;
+      if (results.length) {
+        isPrimary = 0;
+      }
+      const videoData = {
+        user_id: userId,
+        cdn_id: cdnId,
+        cdn_filtered_id: cdnFilteredId,
+        created_date: new Date(),
+        updated_date: new Date(),
+        is_reply: 0,
+        is_primary: isPrimary,
+        publish: 1,
+        match_id: null
+      };
+      dbConn.query('INSERT INTO tbl_video SET ? ', videoData, (err, results) => {
+        if (err) reject(err);
+        resolve(results);
+      });
+    });    
   })
 }
 
