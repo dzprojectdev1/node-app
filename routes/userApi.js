@@ -501,4 +501,17 @@ userApi.post('/emailVerify', checkAuth, function (req, res) {
     });
 });
 
+userApi.get('/getAllAssetData', function(req, res) {
+    dbConn.query('SELECT * FROM tbl_country where publish=1 order by order_by desc', function(countryError, countryResult, countryFields) {
+        if (countryError) return res.status(400).send({error: true, detail: countryError.code, message: countryError.sqlMessage});
+        dbConn.query('SELECT * FROM tbl_ethnicity where publish=1 order by order_by desc', function(ethnicityError, ethnicityResult, ethnicityFields) {
+            if (ethnicityError) return res.status(400).send({error: true, detail: ethnicityError.code, message: ethnicityError.sqlMessage});
+            dbConn.query('SELECT * FROM tbl_language where publish=1 order by order_by desc', function(languageError, languageResult, languageFields) {
+                if (languageError) return res.status(400).send({error: true, detail: languageError.code, message: languageError.sqlMessage});
+                res.send({error: false, data: {country: countryResult, ethnicity: ethnicityResult, language: languageResult}, message: 'get all user asset data'});
+            });
+        });
+    });
+});
+
 module.exports = userApi;
