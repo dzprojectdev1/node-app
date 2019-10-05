@@ -268,9 +268,9 @@ matchApi.get('/getReceivedHearts', checkAuth, function (req, res) {
     var distanceQuery = ' (3959 * acos(cos(radians(d.lat_geo)) * cos(radians(c.lat_geo)) * cos(radians(c.long_geo) - radians(d.long_geo)) + sin(radians(d.lat_geo)) * sin(radians(c.lat_geo)))) as distance, ';
     var ageQuery = ' TIMESTAMPDIFF(YEAR, c.birth_date, CURDATE()) AS age ';
 
-    var leftJoinQuery = ' Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id left join tbl_video b on d.id=b.user_id ';
+    var leftJoinQuery = ' Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id left join tbl_video b on a.other_user_id=b.user_id ';
     var whereCondition = ' (b.cdn_id IS NULL or b.is_primary=1) and a.publish=1 and a.status=2 and a.main_user_id=? and c.account_status=1 order by a.id desc ';
-    var leftSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_id, b.cdn_filtered_id, b.is_primary, c.name, c.gender, ' + distanceQuery + ageQuery + 'FROM tbl_match a ' + leftJoinQuery + 'WHERE' + whereCondition + ')';
+    var leftSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_id, b.cdn_filtered_id, b.is_primary, c.name, c.gender, c.description, ' + distanceQuery + ageQuery + 'FROM tbl_match a ' + leftJoinQuery + 'WHERE' + whereCondition + ')';
     
     // var rightJoinQuery = ' right join tbl_video b on a.other_user_id=b.user_id Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id '
     // var rightSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_filtered_id, c.name, c.gender, ' + distanceQuery + ageQuery + 'FROM `tbl_match` a ' + rightJoinQuery + 'WHERE' + whereCondition + ')';
@@ -493,7 +493,7 @@ matchApi.get('/matches', checkAuth, function (req, res) {
     
     var whereCondition = ' where (c.cdn_id IS NULL or c.is_primary=1) and a.main_user_id=? and a.status in (6,7) and a.publish=1 and b.account_status=1';
     
-    var leftQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + leftjoinQuery + whereCondition + ' order by a.id desc)'
+    var leftQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, b.description, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + leftjoinQuery + whereCondition + ' order by a.id desc)'
     // var rightjoinQuery = ' inner join tbl_user b on a.other_user_id=b.id inner join tbl_user d on a.main_user_id=d.id right join tbl_video c on a.other_user_id=c.user_id'
     // var rightQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + rightjoinQuery + whereCondition + ' order by a.id desc)'
     dbConn.query(leftQuery, [userId], function (error, results, fields) {
@@ -598,7 +598,7 @@ matchApi.post('/discover', checkAuth, function (req, res) {
         var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
 
         var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
-        var whereCondition = ' a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
+        var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
 
         if (req.body.distance) {
             distance = req.body.distance;
@@ -627,11 +627,11 @@ matchApi.post('/discover', checkAuth, function (req, res) {
         joinQuery += ' LEFT JOIN tbl_video as e ON a.id=e.user_id ';
 
         var leftQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + joinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date desc limit 1)';
-        var rightJoinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id RIGHT JOIN tbl_video as e ON a.id=e.user_id ';
-        var rightQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + rightJoinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date desc limit 1)';
-        var totalQuery = leftQuery + ' UNION ' + rightQuery + 'ORDER BY last_loggedin_date DESC LIMIT 1';
+        // var rightJoinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id RIGHT JOIN tbl_video as e ON a.id=e.user_id ';
+        // var rightQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + rightJoinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date desc limit 1)';
+        // var totalQuery = leftQuery + ' UNION ' + rightQuery + 'ORDER BY last_loggedin_date DESC LIMIT 1';
         
-        dbConn.query(totalQuery, [userId, userId, userId, userId], function (error, results, fields) {
+        dbConn.query(leftQuery, [userId, userId], function (error, results, fields) {
             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
             if (!results.length)
                 return res.send({ error: false, message: 'Not found.' });
