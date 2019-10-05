@@ -627,11 +627,11 @@ matchApi.post('/discover', checkAuth, function (req, res) {
         joinQuery += ' LEFT JOIN tbl_video as e ON a.id=e.user_id ';
 
         var leftQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + joinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date desc limit 1)';
-        var rightJoinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id RIGHT JOIN tbl_video as e ON a.id=e.user_id ';
-        var rightQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + rightJoinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date desc limit 1)';
-        var totalQuery = leftQuery + ' UNION ' + rightQuery + 'ORDER BY last_loggedin_date DESC LIMIT 1';
+        // var rightJoinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id RIGHT JOIN tbl_video as e ON a.id=e.user_id ';
+        // var rightQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + rightJoinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date desc limit 1)';
+        // var totalQuery = leftQuery + ' UNION ' + rightQuery + 'ORDER BY last_loggedin_date DESC LIMIT 1';
         
-        dbConn.query(totalQuery, [userId, userId, userId, userId], function (error, results, fields) {
+        dbConn.query(leftQuery, [userId, userId], function (error, results, fields) {
             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
             if (!results.length)
                 return res.send({ error: false, message: 'Not found.' });
