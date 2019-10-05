@@ -598,7 +598,7 @@ matchApi.post('/discover', checkAuth, function (req, res) {
         var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
 
         var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
-        var whereCondition = ' a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
+        var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
 
         if (req.body.distance) {
             distance = req.body.distance;
