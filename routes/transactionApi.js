@@ -30,14 +30,27 @@ transactionApi.post('/putCoin', function(req, res) {
     let coin_price = req.body.coin_price;
     let currency = req.body.currency;
 
+    let package_name = req.body.package_name;
+    let acknowledge = req.body.acknowledge;
+    let order_id = req.body.order_id;
+    let product_id = req.body.product_id;
+    let developer_payload = req.body.developer_payload;
+    let purchase_time = req.body.purchase_time;
+    let purchase_state = req.body.purchase_state;
+    let purchase_token = req.body.purchase_token;
+
     dbConnect.query('select * from tbl_user where id = ?', user_id, function(error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error, message: error.sqlMessage});
         if (!results || !results.length) return res.send({error: false, message: 'There is no registered user with the user_id.'});
 
         var coin_count = results[0].coin_count;
         coin_count = coin_count + parseInt(coin_number);
+
+        let query = 'insert into tbl_transaction';
+        query += ' (user_id, coin, amount, currency, package_name, acknowledge, order_id, product_id, developer_payload, purchase_time, purchase_state, purchase_token, created_at)';
+        query += ' values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
             
-        dbConnect.query('insert into tbl_transaction (user_id, coin, amount, currency, created_at) values (?, ?, ?, ?, ?)', [user_id, coin_number, coin_price, currency, new Date()], function(error, row, fields) {
+        dbConnect.query(query, [user_id, coin_number, coin_price, currency, package_name, acknowledge, order_id, product_id, developer_payload, purchase_time, purchase_state, purchase_token, new Date()], function(error, row, fields) {
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
             dbConnect.query('update tbl_user set coin_count = ? where id = ?', [coin_count, user_id], function(error, row, fields) {
@@ -149,6 +162,31 @@ transactionApi.put('/txn_id/:txn_id', function(req, res) {
 
             return res.send({error: false, txn_id: txn_id, message: 'Updated successfully.'});
         })
+    })
+})
+
+transactionApi.post('/gemRemove/:user_id', function(req, res) {
+    let user_id = req.params.user_id;
+
+    let query = 'select * from tbl_user where id = ?';
+    dbConnect.query(query, user_id, function(error, results, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if(!results || !results.length) return res.send({error: false, message: 'There is no matched user.'});
+
+        let coin_count = results[0].coin_count;
+
+        if (coin_count > 0) {
+            coin_count = coin_count - 1;
+
+            query = 'update tbl_user set coin_count = ? where id = ?';
+            dbConnect.query(query, [coin_count, user_id], function(error, row, fields) {
+                if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+                return res.send({error: false, coin_count: coin_count, message: 'Successfully removed coin.'});
+            })
+        } else {
+            return res.send({error: false, coin_count: -1, message: 'You need 1 diamond to send a heart.'});
+        }
     })
 })
 

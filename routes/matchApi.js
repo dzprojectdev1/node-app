@@ -39,90 +39,108 @@ matchApi.post('/like', checkAuth, function (req, res) {
         return res.status(400).send({ error: true, message: 'Please provide other user id' });
     }
 
-    dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=1', [userId, otherId], function (getError, getResults, getFields) {
-        if (getError) return res.status(400).send({ error: true, detail: getError.code, message: getError.sqlMessage });
-        if (getResults.length)
-            return res.status(400).send({ error: true, data: getResults, message: 'Match data is already taken.' });
+    let query = 'select * from tbl_user where id = ?';
+    dbConn.query(query, userId, function(error, results, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if(!results || !results.length) return res.send({error: false, message: 'There is no matched user.'});
 
-        var newMatchSql = {
-            main_user_id: userId,
-            other_user_id: otherId,
-            status: 1,
-            status_description: 'heart_sent',
-            publish: 1,
-            created_date: new Date(),
-            updated_date: new Date()
-        };
+        let coin_count = results[0].coin_count;
 
-        dbConn.beginTransaction(function (err) {
-            if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });
-            dbConn.query("INSERT INTO tbl_match SET ? ", newMatchSql, function (error, results, fields) {
-                if (error) {
-                    dbConn.rollback(function () {
-                        return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                    });
-                }
+        if (coin_count > 0) {
+            coin_count = coin_count - 1;
 
-                var heartReceiveData = {
-                    main_user_id: otherId,
-                    other_user_id: userId,
-                    status: 2,
-                    status_description: 'heart_received',
-                    mutual_match_id: results.insertId,
+            dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=1', [userId, otherId], function (getError, getResults, getFields) {
+                if (getError) return res.status(400).send({ error: true, detail: getError.code, message: getError.sqlMessage });
+                if (getResults.length)
+                    return res.status(400).send({ error: true, data: getResults, message: 'Match data is already taken.' });
+
+                var newMatchSql = {
+                    main_user_id: userId,
+                    other_user_id: otherId,
+                    status: 1,
+                    status_description: 'heart_sent',
                     publish: 1,
                     created_date: new Date(),
                     updated_date: new Date()
-                }
+                };
 
-                dbConn.query('INSERT INTO tbl_match SET ? ', heartReceiveData, function (error1, receiveResult, fields) {
-                    if (error1) {
-                        dbConn.rollback(function () {
-                            return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
-                        });
-                    }
-                    dbConn.query("UPDATE tbl_match SET mutual_match_id=? WHERE id=?", [receiveResult.insertId, results.insertId], function (error, results, fields) {
+                dbConn.beginTransaction(function (err) {
+                    if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });
+                    dbConn.query("INSERT INTO tbl_match SET ? ", newMatchSql, function (error, results, fields) {
                         if (error) {
                             dbConn.rollback(function () {
                                 return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                             });
                         }
 
-                        dbConn.commit(function (error) {
-                            if (error) {
+                        var heartReceiveData = {
+                            main_user_id: otherId,
+                            other_user_id: userId,
+                            status: 2,
+                            status_description: 'heart_received',
+                            mutual_match_id: results.insertId,
+                            publish: 1,
+                            created_date: new Date(),
+                            updated_date: new Date()
+                        }
+
+                        dbConn.query('INSERT INTO tbl_match SET ? ', heartReceiveData, function (error1, receiveResult, fields) {
+                            if (error1) {
                                 dbConn.rollback(function () {
-                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                    return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
                                 });
-                            };
-                            dbConn.query("SELECT * FROM tbl_user WHERE id=?", otherId, function(error1, receiverData, receiverFields) {
-                                if (error1) return res.status(403).send({error: true, detail: error1.code, message: error1.sqlMessage});
-                                if (!receiverData.length) return res.status(400).send({error: true, message: 'user not found'});
-                                const receiver = receiverData[0];
-                                const deviceId = receiver.fcm_id;
-                                dbConn.query('SELECT * FROM tbl_user WHERE id=?', userId, function(error2, senderData, senderFeidls) {
-                                    if (error2) return res.status(403).send({error: true, detail: error2.code, message: error2.sqlMessage});
-                                    if (!senderData.length) return res.status(403).send({error: true, message: 'Sender User not found'});
-                                    const sender = senderData[0];
-                                    const senderName = sender.name;
-                                    dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=?', [new Date(), userId], function(actErr, actRows, actFields) {
-                                        if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
-                                        var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
-                                            to: deviceId,
-                                            notification: {
-                                                title: 'Incoming Heart',
-                                                body: senderName.toString() + ' sent you a heart.',
-                                            },
-                                            data: {  //you can send only notification or only data(or include both)
-                                                type: 'Income'
-                                            }
-                                        };
-                                        fcm.send(message, function(notiErr, notiRes){
-                                            if (notiErr) {
-                                                console.log("Something has gone wrong!");
-                                                return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId }, message: 'New match has been created.' });
-                                            } else {
-                                                console.log("Successfully sent with response: ", notiRes);
-                                                return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId }, message: 'New match has been created.' });
-                                            }
+                            }
+                            dbConn.query("UPDATE tbl_match SET mutual_match_id=? WHERE id=?", [receiveResult.insertId, results.insertId], function (error, results, fields) {
+                                if (error) {
+                                    dbConn.rollback(function () {
+                                        return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                    });
+                                }
+
+                                dbConn.commit(function (error) {
+                                    if (error) {
+                                        dbConn.rollback(function () {
+                                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                        });
+                                    };
+                                    dbConn.query("SELECT * FROM tbl_user WHERE id=?", otherId, function(error1, receiverData, receiverFields) {
+                                        if (error1) return res.status(403).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                                        if (!receiverData.length) return res.status(400).send({error: true, message: 'user not found'});
+                                        const receiver = receiverData[0];
+                                        const deviceId = receiver.fcm_id;
+                                        dbConn.query('SELECT * FROM tbl_user WHERE id=?', userId, function(error2, senderData, senderFeidls) {
+                                            if (error2) return res.status(403).send({error: true, detail: error2.code, message: error2.sqlMessage});
+                                            if (!senderData.length) return res.status(403).send({error: true, message: 'Sender User not found'});
+                                            const sender = senderData[0];
+                                            const senderName = sender.name;
+                                            dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=?', [new Date(), userId], function(actErr, actRows, actFields) {
+                                                if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
+
+                                                query = 'update tbl_user set coin_count = ? where id = ?';
+                                                dbConn.query(query, [coin_count, userId], function(error, row, fields) {
+                                                    if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+                                                    var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                                                        to: deviceId,
+                                                        notification: {
+                                                            title: 'Incoming Heart',
+                                                            body: senderName.toString() + ' sent you a heart.',
+                                                        },
+                                                        data: {  //you can send only notification or only data(or include both)
+                                                            type: 'Income'
+                                                        }
+                                                    };
+                                                    fcm.send(message, function(notiErr, notiRes){
+                                                        if (notiErr) {
+                                                            console.log("Something has gone wrong!");
+                                                            return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId, coin_count: coin_count }, message: 'New match has been created.' });
+                                                        } else {
+                                                            console.log("Successfully sent with response: ", notiRes);
+                                                            return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId, coin_count: coin_count }, message: 'New match has been created.' });
+                                                        }
+                                                    });
+                                                })
+                                            });
                                         });
                                     });
                                 });
@@ -131,8 +149,10 @@ matchApi.post('/like', checkAuth, function (req, res) {
                     });
                 });
             });
-        });
-    });
+        } else {
+            return res.send({error: false, coin_count: -1, message: 'You need 1 diamond to send a heart.'});
+        }
+    })
 });
 
 //#13 === user not interest action request
@@ -268,14 +288,14 @@ matchApi.get('/getReceivedHearts', checkAuth, function (req, res) {
     var distanceQuery = ' (3959 * acos(cos(radians(d.lat_geo)) * cos(radians(c.lat_geo)) * cos(radians(c.long_geo) - radians(d.long_geo)) + sin(radians(d.lat_geo)) * sin(radians(c.lat_geo)))) as distance, ';
     var ageQuery = ' TIMESTAMPDIFF(YEAR, c.birth_date, CURDATE()) AS age ';
 
-    var leftJoinQuery = ' left join tbl_video b on a.other_user_id=b.user_id Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id ';
-    var whereCondition = ' a.publish=1 and a.status=2 and a.main_user_id=? and c.account_status=1 order by a.id desc ';
-    var leftSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_filtered_id, c.name, c.gender, ' + distanceQuery + ageQuery + 'FROM `tbl_match` a ' + leftJoinQuery + 'WHERE' + whereCondition + ')';
+    var leftJoinQuery = ' Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id left join tbl_video b on a.other_user_id=b.user_id ';
+    var whereCondition = ' (b.cdn_id IS NULL or b.is_primary=1) and a.publish=1 and a.status=2 and a.main_user_id=? and c.account_status=1 order by a.id desc ';
+    var leftSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_id, b.cdn_filtered_id, b.is_primary, c.name, c.gender, c.description, ' + distanceQuery + ageQuery + 'FROM tbl_match a ' + leftJoinQuery + 'WHERE' + whereCondition + ')';
     
-    var rightJoinQuery = ' right join tbl_video b on a.other_user_id=b.user_id Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id '
-    var rightSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_filtered_id, c.name, c.gender, ' + distanceQuery + ageQuery + 'FROM `tbl_match` a ' + rightJoinQuery + 'WHERE' + whereCondition + ')';
-
-    dbConn.query(leftSqlQuery + ' UNION ' + rightSqlQuery, [userId, userId], function (error, results, fields) {
+    // var rightJoinQuery = ' right join tbl_video b on a.other_user_id=b.user_id Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id '
+    // var rightSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_filtered_id, c.name, c.gender, ' + distanceQuery + ageQuery + 'FROM `tbl_match` a ' + rightJoinQuery + 'WHERE' + whereCondition + ')';
+    // return res.send({query: leftSqlQuery});
+    dbConn.query(leftSqlQuery, [userId], function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         if (!results.length) return res.status(403).send({ error: true, message: 'Received Heart data not found.' })
         return res.send({ error: false, data: results, message: 'All hearts list' });
@@ -491,12 +511,12 @@ matchApi.get('/matches', checkAuth, function (req, res) {
     var ageQuery = 'TIMESTAMPDIFF(YEAR, b.birth_date, CURDATE()) AS age ';
     var leftjoinQuery = ' inner join tbl_user b on a.other_user_id=b.id inner join tbl_user d on a.main_user_id=d.id left join tbl_video c on a.other_user_id=c.user_id';
     
-    var whereCondition = ' where a.main_user_id=? and a.status in (6,7) and a.publish=1 and b.account_status=1';
+    var whereCondition = ' where (c.cdn_id IS NULL or c.is_primary=1) and a.main_user_id=? and a.status in (6,7) and a.publish=1 and b.account_status=1';
     
-    var leftQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, c.cdn_id, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + leftjoinQuery + whereCondition + ' order by a.id desc)'
-    var rightjoinQuery = ' inner join tbl_user b on a.other_user_id=b.id inner join tbl_user d on a.main_user_id=d.id right join tbl_video c on a.other_user_id=c.user_id'
-    var rightQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, c.cdn_id, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + rightjoinQuery + whereCondition + ' order by a.id desc)'
-    dbConn.query(leftQuery + ' UNION ' + rightQuery, [userId, userId], function (error, results, fields) {
+    var leftQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, b.description, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + leftjoinQuery + whereCondition + ' order by a.id desc)'
+    // var rightjoinQuery = ' inner join tbl_user b on a.other_user_id=b.id inner join tbl_user d on a.main_user_id=d.id right join tbl_video c on a.other_user_id=c.user_id'
+    // var rightQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + rightjoinQuery + whereCondition + ' order by a.id desc)'
+    dbConn.query(leftQuery, [userId], function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         return res.send({ error: false, data: results, message: 'All match data' });
     });
@@ -528,7 +548,7 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
         var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
 
         var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
-        var whereCondition = ' (e.cdn_filtered_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
+        var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
 
         if (req.body.distance) {
             distance = parseInt(req.body.distance);
@@ -556,12 +576,12 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
 
         joinQuery += ' LEFT JOIN tbl_video as e ON a.id=e.user_id ';
 
-        var leftQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + joinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date DESC)';
-        var rightJoinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id RIGHT JOIN tbl_video as e ON a.id=e.user_id ';
-        var rightQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + rightJoinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date DESC)';
-        var totalQuery = leftQuery + ' UNION ' + rightQuery + ' ORDER BY last_loggedin_date DESC LIMIT ? OFFSET ? ';
-
-        dbConn.query(totalQuery, [userId, userId, userId, userId, perPageCount, offSet], function (error, results, fields) {
+        var leftQuery = 'SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + joinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date DESC LIMIT ? OFFSET ? ';
+        // var rightJoinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id RIGHT JOIN tbl_video as e ON a.id=e.user_id ';
+        // var rightQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + rightJoinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date DESC)';
+        // var totalQuery = leftQuery + ' UNION ' + rightQuery + ' ORDER BY last_loggedin_date DESC LIMIT ? OFFSET ? ';
+        // console.log(totalQuery);
+        dbConn.query(leftQuery, [userId, userId, perPageCount, offSet], function (error, results, fields) {
             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
             if (!results.length)
                 return res.send({ error: false, message: 'Not found.' });
@@ -591,14 +611,14 @@ matchApi.post('/discover', checkAuth, function (req, res) {
 
         //age, gender, ethnicity, country, distance, language
         var distance = 0;
-        var selectQuery = 'a.id, a.birth_date, a.name, a.gender, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, b.ethnicity_name, c.country_name, d.language_name, ';
+        var selectQuery = 'a.id, a.birth_date, a.name, a.gender, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, b.ethnicity_name, c.country_name, d.language_name, ';
 
         var getOtherMatchInfo = 'select other_user_id from tbl_match where main_user_id=? and status != 0';
 
         var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
 
         var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
-        var whereCondition = ' a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
+        var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
 
         if (req.body.distance) {
             distance = req.body.distance;
@@ -627,11 +647,11 @@ matchApi.post('/discover', checkAuth, function (req, res) {
         joinQuery += ' LEFT JOIN tbl_video as e ON a.id=e.user_id ';
 
         var leftQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + joinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date desc limit 1)';
-        var rightJoinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id RIGHT JOIN tbl_video as e ON a.id=e.user_id ';
-        var rightQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + rightJoinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date desc limit 1)';
-        var totalQuery = leftQuery + ' UNION ' + rightQuery + 'ORDER BY last_loggedin_date DESC LIMIT 1';
+        // var rightJoinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id RIGHT JOIN tbl_video as e ON a.id=e.user_id ';
+        // var rightQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + rightJoinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date desc limit 1)';
+        // var totalQuery = leftQuery + ' UNION ' + rightQuery + 'ORDER BY last_loggedin_date DESC LIMIT 1';
         
-        dbConn.query(totalQuery, [userId, userId, userId, userId], function (error, results, fields) {
+        dbConn.query(leftQuery, [userId, userId], function (error, results, fields) {
             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
             if (!results.length)
                 return res.send({ error: false, message: 'Not found.' });
