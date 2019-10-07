@@ -670,7 +670,7 @@ matchApi.post('/discover', checkAuth, function (req, res) {
                     updated_date: new Date()
                 };
                 if (otherUser.last_loggedin_date) {
-                    otherUser.last_activity = commonFunc.timeAgo(otherUser.last_loggedin_date);
+                    otherUser.last_loggedin_date = commonFunc.timeAgo(otherUser.last_loggedin_date);
                 }
                 if (results.length) return res.status(403).send({ error: false, data: otherUser, message: 'A New Lovely User found.' });
                 dbConn.query('INSERT INTO tbl_match SET ? ', [newMatchData], function (error, newMatch, fields) {
