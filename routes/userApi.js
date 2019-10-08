@@ -11,11 +11,12 @@ const common = require('../config/common');
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const fromEmail = process.env.SERVER_EMAIL_ADDRESS;
 
-const ACCOUNT_UNVERIFIED_STATUS = 0;
+// We don't want this status according to Sam : const ACCOUNT_UNVERIFIED_STATUS = 0;
+const ACCOUNT_BANNED_STATUS = 0;
 const ACCOUNT_ACTIVE_STATUS = 1;
 const ACCOUNT_DEACTIVE_STATUS = 2;
 const ACCOUNT_CLOSED_STATUS = 3;
-const ACCOUNT_BANNED_STATUS = 4;
+
 
 // #1 === Retrieve all users 
 userApi.get('/all', checkAuth, function (req, res) {
@@ -100,7 +101,7 @@ userApi.post('/signup', function (req, res) {
                 fcm_id: fcmId,
                 device_id: deviceId,
                 description: description,
-                account_status: ACCOUNT_UNVERIFIED_STATUS,
+                account_status: ACCOUNT_ACTIVE_STATUS,
                 last_loggedin_date: new Date()
             };
 
@@ -386,6 +387,7 @@ userApi.post('/activateAccount', checkAuth, function (req, res) {
     });
 });
 
+/* We are going to disable it for now, According to Sam, he will manually ban/activate user based on tbl_record
 // Admin to update user account status, ban user / activate user based on status parameter
 userApi.post('/updateUserAccountStatus', checkAuth, function (req, res) {
     let admin_id = req.userData.userId;
@@ -408,7 +410,7 @@ userApi.post('/updateUserAccountStatus', checkAuth, function (req, res) {
         });
     });
 });
-
+*/ 
 //#7 === uc5.2 display filter gender/ location/ age
 userApi.post('/filter', checkAuth, function (req, res) {
     let gender = req.body.gender;
@@ -487,7 +489,7 @@ userApi.post('/sendConfirmEmail', checkAuth, function (req, res) {
     var toEmail = req.userData.email;
     var name = req.userData.name;
 
-    dbConn.query('SELECT * FROM tbl_user WHERE id=? AND (email_status=0 or email_status=2) AND account_status=' + ACCOUNT_UNVERIFIED_STATUS, userId, function (error, emailResults, fields) {
+    dbConn.query('SELECT * FROM tbl_user WHERE id=? AND (email_status=0 or email_status=2) AND account_status=' + ACCOUNT_ACTIVE_STATUS, userId, function (error, emailResults, fields) {
         if (error)
             return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
 
@@ -519,7 +521,7 @@ userApi.post('/sendConfirmEmail', checkAuth, function (req, res) {
                         updated_date: new Date(),
                         email_status: 2
                     };
-                    dbConn.query('UPDATE tbl_user SET ? WHERE id=? AND email_status=0 AND account_status=' + ACCOUNT_UNVERIFIED_STATUS, [userUpdateData, userId], function (error1, updateResult, fields) {
+                    dbConn.query('UPDATE tbl_user SET ? WHERE id=? AND email_status=0 AND account_status=' + ACCOUNT_ACTIVE_STATUS, [userUpdateData, userId], function (error1, updateResult, fields) {
                         if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
 
                         res.send({
@@ -540,7 +542,7 @@ userApi.post('/emailVerify', checkAuth, function (req, res) {
 
     if (!confirmCode) return res.status(403).send({ error: true, message: 'Confirmation Code Not Found.' });
 
-    dbConn.query('SELECT * from tbl_user WHERE email_address=? AND account_status=? AND (email_status=2 OR email_status=0)', [userEmail, ACCOUNT_UNVERIFIED_STATUS], function (error, getResult, fields) {
+    dbConn.query('SELECT * from tbl_user WHERE email_address=? AND account_status=? AND (email_status=2 OR email_status=0)', [userEmail, ACCOUNT_ACTIVE_STATUS], function (error, getResult, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
 
         if (!getResult.length) return res.status(403).send({ error: true, message: 'User is not registered!' });
