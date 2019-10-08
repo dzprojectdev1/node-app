@@ -213,7 +213,7 @@ userApi.get('/checkLoginStatus', checkAuth, function (req, res) {
 });
 
 // #4 ===  Add a new user  
-userApi.post('/login', function (req, res) {
+userApi.post('a', function (req, res) {
     let useremail = req.body.useremail;
     let userpassword = req.body.userpassword;
     let deviceId = req.body.deviceId;
@@ -391,6 +391,7 @@ userApi.post('/updateUserAccountStatus', checkAuth, function (req, res) {
     let admin_id = req.userData.userId;
     let user_id = req.body.user_id;
     let status = req.body.status;
+
     // TODO FIRST check if the requester is Admin, need to adjust the sql query
     dbConn.query('SELECT * FROM tbl_user WHERE id=?', [admin_id], function (error1, adminResults, fields) {
         if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
@@ -399,10 +400,10 @@ userApi.post('/updateUserAccountStatus', checkAuth, function (req, res) {
         // check the target user id is existing, if yes, ban them.
         dbConn.query('SELECT * FROM tbl_user WHERE id=?', [user_id], function (error1, userResults, fields) {
             if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
-            if (!userResults.length) return res.send({ error: true, message: 'User not found.' });
+            if (!userResults.length) return res.send({ error: true, user_id: user_id, message: 'User not found.' });
             dbConn.query('UPDATE tbl_user SET account_status=? WHERE id=?', [status, user_id], function (error2, results, fields) {
                 if (error2) return res.status(400).send({ error: true, detail: error2.code, message: error2.sqlMessage });
-                return res.send({ error: false, data: results, message: 'User has been banned successfully.' });
+                return res.send({ error: false, data: results, message: 'User status has been changed by Admin successfully.' });
             });
         });
     });
