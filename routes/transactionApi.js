@@ -1,6 +1,7 @@
 var express = require('express');
 var transactionApi = express.Router();
 var dbConnect = require('../config/dbConfig');
+const checkAuth = require('../middleware/check_auth');
 
 /**
  * return transaction lists for selected user
@@ -188,6 +189,103 @@ transactionApi.post('/gemRemove/:user_id', function(req, res) {
             return res.send({error: false, coin_count: -1, message: 'You need 1 diamond to send a heart.'});
         }
     })
+})
+
+transactionApi.post('/freeDiamonds/:user_id', checkAuth, function(req, res) {
+    let user_id = req.params.user_id;
+    let current_date = new Date();
+    let cd_timestamp = current_date.getTime();
+
+    cd_timestamp = Math.round(cd_timestamp / 1000);
+
+    let query = 'select * from tbl_user where id = ?';
+    dbConnect.query(query, user_id, function(error, results, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if(!results || !results.length) return res.send({error: false, message: 'There is no matched user.'});
+
+        let coin_count = results[0].coin_count;
+
+        query = 'select * from tbl_free_diamonds where user_id = ? order by date desc';
+        dbConnect.query(query, user_id, function(error, results, fields) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+            if(!results || !results.length) {
+
+                query = 'insert into tbl_free_diamonds (user_id, date) values (?, ?)';
+                dbConnect.query(query, [user_id, current_date], function(error, results, fields) {
+                    if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+                    coin_count = coin_count + 50;
+
+                    let result_data = {
+                        success: true,
+                        hours: 0,
+                        minutes: 0,
+                        seconds: 0,
+                        coin_count: coin_count
+                    }
+
+                    query = 'update tbl_user set coin_count = ? where id = ?';
+                    dbConnect.query(query, [coin_count, user_id], function(error, results, fields) {
+                        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+                        return res.send({error: false, data: result_data, message: 'Free diamonds are added successfully.'});
+                    })
+                })
+            } else {
+
+                let saved_date = results[0].date;
+                let sd_timestamp = new Date(saved_date).getTime();
+
+                sd_timestamp = Math.round(sd_timestamp / 1000);
+
+                let one_day_timestamp = 24 * 60 * 60;
+
+                let _timestamp = cd_timestamp - sd_timestamp;
+
+                if (_timestamp < one_day_timestamp) {
+
+                    let send_date_timestamp = one_day_timestamp - _timestamp;
+
+                    let hours = Math.floor(send_date_timestamp / 3600);
+                    let minutes = Math.floor((send_date_timestamp - (hours * 3600)) / 60);
+                    let seconds = send_date_timestamp - (hours * 3600) - (minutes * 60);
+
+                    let result_data = {
+                        success: false,
+                        hours: hours,
+                        minutes: minutes,
+                        seconds: seconds,
+                        coin_count: coin_count
+                    }
+                    return res.send({error: false, data: result_data, message: 'You have already claimed your diamonds for the day. Next 50 diamonds will unlock in: '})
+                } else {                    
+
+                    query = 'insert into tbl_free_diamonds (user_id, date) values (?, ?)';
+                    dbConnect.query(query, [user_id, current_date], function(error, results, fields) {
+                        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+                        coin_count = coin_count + 50;
+
+                        let result_data = {
+                            success: true,
+                            hours: 0,
+                            minutes: 0,
+                            seconds: 0,
+                            coin_count: coin_count
+                        }
+
+                        query = 'update tbl_user set coin_count = ? where id = ?';
+                        dbConnect.query(query, [coin_count, user_id], function(error, results, fields) {
+                            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+    
+                            return res.send({error: false, data: result_data, message: 'Free diamonds are added successfully.'});
+                        })
+                    })
+                }
+            }
+        })
+    })
+
 })
 
 module.exports = transactionApi;
