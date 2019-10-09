@@ -11,6 +11,13 @@ const common = require('../config/common');
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const fromEmail = process.env.SERVER_EMAIL_ADDRESS;
 
+// We don't want this status according to Sam : const ACCOUNT_UNVERIFIED_STATUS = 0;
+const ACCOUNT_BANNED_STATUS = 0;
+const ACCOUNT_ACTIVE_STATUS = 1;
+const ACCOUNT_DEACTIVE_STATUS = 2;
+const ACCOUNT_CLOSED_STATUS = 3;
+
+
 // #1 === Retrieve all users 
 userApi.get('/all', checkAuth, function (req, res) {
     dbConn.query('SELECT * FROM tbl_user', function (error, results, fields) {
@@ -37,7 +44,7 @@ userApi.get('/one/:id', checkAuth, function (req, res) {
 // get loggedin user detail information
 userApi.get('/getMyDetailInfo', checkAuth, function(req, res) {
     var userId = req.userData.userId;
-    dbConn.query('SELECT * FROM tbl_user WHERE id=? AND account_status=1', userId, function(userErr, userResults, fields) {
+    dbConn.query('SELECT * FROM tbl_user WHERE id=? AND account_status=' + ACCOUNT_ACTIVE_STATUS, userId, function(userErr, userResults, fields) {
         if (userErr) return res.status(400).send({error: true, detail: userErr.code, message: userErr.sqlMessage});
         if (!userResults.length) return res.status(403).send({error: true, message: 'user not found'});
         return res.send({error: false, data: userResults[0], message: 'user data found.'})
@@ -94,7 +101,7 @@ userApi.post('/signup', function (req, res) {
                 fcm_id: fcmId,
                 device_id: deviceId,
                 description: description,
-                account_status: 1,
+                account_status: ACCOUNT_ACTIVE_STATUS,
                 last_loggedin_date: new Date()
             };
 
@@ -142,7 +149,7 @@ userApi.put('/checkDeviceUniqueId/:deviceId', function (req, res) {
     if (!fcmId) return res.status(403).send({error: true, message: 'please provide fcm token'});
 
     var joinQuery = 'INNER JOIN tbl_language b on a.language_id=b.id INNER JOIN tbl_ethnicity c ON c.id=a.ethnicity_id INNER JOIN tbl_country d ON a.country_id=d.id';
-    dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE a.device_id=? AND account_status=1', deviceId, function (error, results, fields) {
+    dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE a.device_id=? AND account_status=' + ACCOUNT_ACTIVE_STATUS, deviceId, function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         if (!results || !results.length) return res.send({ error: false, message: 'User does not exist.' });       
         dbConn.query('UPDATE tbl_user SET last_loggedin_date=?, fcm_id=? WHERE id=?', [new Date(), fcmId, results[0].id], function(updateErr, updateRow, updateFields) {
@@ -186,9 +193,9 @@ userApi.get('/checkLoginStatus', checkAuth, function (req, res) {
 
         var userData = results[0];
         var accountStatus = userData.account_status;
-        if (accountStatus === 8)
+        if (accountStatus === ACCOUNT_BANNED_STATUS)
             return res.send({ error: true, message: 'You have been banned' });
-        if (accountStatus === 9)
+        if (accountStatus === ACCOUNT_CLOSED_STATUS)
             return res.send({ error: true, message: 'Your account is closed' });
 
         var outputResult = {
@@ -207,7 +214,7 @@ userApi.get('/checkLoginStatus', checkAuth, function (req, res) {
 });
 
 // #4 ===  Add a new user  
-userApi.post('/login', function (req, res) {
+userApi.post('a', function (req, res) {
     let useremail = req.body.useremail;
     let userpassword = req.body.userpassword;
     let deviceId = req.body.deviceId;
@@ -227,9 +234,9 @@ userApi.post('/login', function (req, res) {
 
         var userData = results[0];
         var accountStatus = userData.account_status;
-        if (accountStatus === 8)
+        if (accountStatus === ACCOUNT_BANNED_STATUS)
             return res.send({ error: true, message: 'You have been banned' });
-        if (accountStatus === 9)
+        if (accountStatus === ACCOUNT_CLOSED_STATUS)
             return res.send({ error: true, message: 'Your account is closed' })
 
         if (!bcrypt.compareSync(userpassword, results[0].password))
@@ -285,7 +292,7 @@ userApi.post('/logout', checkAuth, function (req, res) {
 userApi.put('/updateSetting', checkAuth, function (req, res) {
     var userId = req.userData.userId;
 
-    dbConn.query('SELECT * FROM tbl_user WHERE id=? AND account_status=1', userId, function(userErr, userResult, userField) {
+    dbConn.query('SELECT * FROM tbl_user WHERE id=? AND account_status=' + ACCOUNT_ACTIVE_STATUS, userId, function(userErr, userResult, userField) {
         if (userErr) return res.status(400).send({error: true, detail: userErr.code, message: userErr.sqlMessage});
         if (!userResult.length) return res.status(403).send({error: true, message: 'user not found.'});
         var updateData = {};
@@ -330,7 +337,7 @@ userApi.put('/updateSetting', checkAuth, function (req, res) {
 });
 
 
-// #6 ===  Delete user
+// #6 ===  Close Account by the user itself.
 userApi.post('/removeAccount', checkAuth, function (req, res) {
     let user_id = req.userData.userId;
 
@@ -339,13 +346,71 @@ userApi.post('/removeAccount', checkAuth, function (req, res) {
 
         if (!oldResults.length) return res.send({ error: false, message: 'User not found.' });
 
-        dbConn.query('UPDATE tbl_user SET account_status=9 WHERE id=?', user_id, function (error2, results, fields) {
+        dbConn.query('UPDATE tbl_user SET account_status=? WHERE id=?', [ACCOUNT_CLOSED_STATUS, user_id], function (error2, results, fields) {
             if (error2) return res.status(400).send({ error: true, detail: error2.code, message: error2.sqlMessage });
             return res.send({ error: false, data: results, message: 'User has been removed successfully.' });
         });
     });
 });
 
+
+// # ===  DeActivate user
+userApi.post('/deactivateAccount', checkAuth, function (req, res) {
+    let user_id = req.userData.userId;
+
+    dbConn.query('SELECT * FROM tbl_user WHERE id=? AND account_status=?', [user_id, ACCOUNT_ACTIVE_STATUS], function (error1, oldResults, fields) {
+        if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+
+        if (!oldResults.length) return res.send({ error: false, message: 'User not found.' });
+
+        dbConn.query('UPDATE tbl_user SET account_status=? WHERE id=?', [ACCOUNT_DEACTIVE_STATUS, user_id], function (error2, results, fields) {
+            if (error2) return res.status(400).send({ error: true, detail: error2.code, message: error2.sqlMessage });
+            return res.send({ error: false, data: results, message: 'Your account has been deactivated successfully.' });
+        });
+    });
+});
+
+
+// # ===  Activate user
+userApi.post('/activateAccount', checkAuth, function (req, res) {
+    let user_id = req.userData.userId;
+
+    dbConn.query('SELECT * FROM tbl_user WHERE id=? AND account_status=?', [user_id, ACCOUNT_DEACTIVE_STATUS], function (error1, oldResults, fields) {
+        if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+
+        if (!oldResults.length) return res.send({ error: false, message: 'User not found.' });
+
+        dbConn.query('UPDATE tbl_user SET account_status=? WHERE id=?', [ACCOUNT_ACTIVE_STATUS, user_id], function (error2, results, fields) {
+            if (error2) return res.status(400).send({ error: true, detail: error2.code, message: error2.sqlMessage });
+            return res.send({ error: false, data: results, message: 'Your account has been activated successfully.' });
+        });
+    });
+});
+
+/* We are going to disable it for now, According to Sam, he will manually ban/activate user based on tbl_record
+// Admin to update user account status, ban user / activate user based on status parameter
+userApi.post('/updateUserAccountStatus', checkAuth, function (req, res) {
+    let admin_id = req.userData.userId;
+    let user_id = req.body.user_id;
+    let status = req.body.status;
+
+    // TODO FIRST check if the requester is Admin, need to adjust the sql query
+    dbConn.query('SELECT * FROM tbl_user WHERE id=?', [admin_id], function (error1, adminResults, fields) {
+        if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+        if (!adminResults.length) return res.send({ error: true, message: 'Admin not found.' });
+
+        // check the target user id is existing, if yes, ban them.
+        dbConn.query('SELECT * FROM tbl_user WHERE id=?', [user_id], function (error1, userResults, fields) {
+            if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+            if (!userResults.length) return res.send({ error: true, user_id: user_id, message: 'User not found.' });
+            dbConn.query('UPDATE tbl_user SET account_status=? WHERE id=?', [status, user_id], function (error2, results, fields) {
+                if (error2) return res.status(400).send({ error: true, detail: error2.code, message: error2.sqlMessage });
+                return res.send({ error: false, data: results, message: 'User status has been changed by Admin successfully.' });
+            });
+        });
+    });
+});
+*/ 
 //#7 === uc5.2 display filter gender/ location/ age
 userApi.post('/filter', checkAuth, function (req, res) {
     let gender = req.body.gender;
@@ -424,7 +489,7 @@ userApi.post('/sendConfirmEmail', checkAuth, function (req, res) {
     var toEmail = req.userData.email;
     var name = req.userData.name;
 
-    dbConn.query('SELECT * FROM tbl_user WHERE id=? AND (email_status=0 or email_status=2) AND account_status=0', userId, function (error, emailResults, fields) {
+    dbConn.query('SELECT * FROM tbl_user WHERE id=? AND (email_status=0 or email_status=2) AND account_status=' + ACCOUNT_ACTIVE_STATUS, userId, function (error, emailResults, fields) {
         if (error)
             return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
 
@@ -456,7 +521,7 @@ userApi.post('/sendConfirmEmail', checkAuth, function (req, res) {
                         updated_date: new Date(),
                         email_status: 2
                     };
-                    dbConn.query('UPDATE tbl_user SET ? WHERE id=? AND email_status=0 AND account_status=0', [userUpdateData, userId], function (error1, updateResult, fields) {
+                    dbConn.query('UPDATE tbl_user SET ? WHERE id=? AND email_status=0 AND account_status=' + ACCOUNT_ACTIVE_STATUS, [userUpdateData, userId], function (error1, updateResult, fields) {
                         if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
 
                         res.send({
@@ -477,7 +542,7 @@ userApi.post('/emailVerify', checkAuth, function (req, res) {
 
     if (!confirmCode) return res.status(403).send({ error: true, message: 'Confirmation Code Not Found.' });
 
-    dbConn.query('SELECT * from tbl_user WHERE email_address=? AND account_status=0 AND (email_status=2 OR email_status=0)', userEmail, function (error, getResult, fields) {
+    dbConn.query('SELECT * from tbl_user WHERE email_address=? AND account_status=? AND (email_status=2 OR email_status=0)', [userEmail, ACCOUNT_ACTIVE_STATUS], function (error, getResult, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
 
         if (!getResult.length) return res.status(403).send({ error: true, message: 'User is not registered!' });
@@ -487,7 +552,7 @@ userApi.post('/emailVerify', checkAuth, function (req, res) {
             var updateData = {
                 updated_date: new Date(),
                 email_status: 1,
-                account_status: 1,
+                account_status: ACCOUNT_ACTIVE_STATUS,
                 confirmation_code: getRndInteger(100000, 999999)
             };
 
