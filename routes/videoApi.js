@@ -125,7 +125,7 @@ videoApi.get('/othervideo/:otherId', checkAuth, function(req, res) {
         } else {
             searchFields = 'cdn_filtered_id';
         }
-        dbConn.query('SELECT '+searchFields+' from tbl_video where user_id= ? and is_reply=0 and publish=1 order by created_date desc', [otherId], function (error, results, fields){
+        dbConn.query('SELECT cdn_id, cdn_filtered_id from tbl_video where user_id= ? and is_reply=0 and publish=1 order by created_date desc', [otherId], function (error, results, fields){
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
             return res.send({ error: false, data: results, message: "list other videos for the user"});
         });
