@@ -112,6 +112,7 @@ chatApi.post('/create', checkAuth, function(req, res) {
                                 notification: {
                                     title: 'New Message',
                                     body: messageText,
+                                    sender: userId
                                 },
                                 data: {  //you can send only notification or only data(or include both)
                                     type: 'ChatDetail'
