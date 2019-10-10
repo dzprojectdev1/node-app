@@ -142,7 +142,7 @@ userApi.put('/checkDeviceUniqueId/:deviceId', function (req, res) {
     if (!fcmId) return res.status(403).send({error: true, message: 'please provide fcm token'});
 
     var joinQuery = 'INNER JOIN tbl_language b on a.language_id=b.id INNER JOIN tbl_ethnicity c ON c.id=a.ethnicity_id INNER JOIN tbl_country d ON a.country_id=d.id';
-    dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE a.device_id=? AND account_status=1', deviceId, function (error, results, fields) {
+    dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE a.device_id=? AND account_status in (1, 2, 3)', deviceId, function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         if (!results || !results.length) return res.send({ error: false, message: 'User does not exist.' });       
         dbConn.query('UPDATE tbl_user SET last_loggedin_date=?, fcm_id=? WHERE id=?', [new Date(), fcmId, results[0].id], function(updateErr, updateRow, updateFields) {
@@ -169,7 +169,9 @@ userApi.put('/checkDeviceUniqueId/:deviceId', function (req, res) {
                 country: results[0].country_name,
                 description: results[0].description,
                 last_loggedin_date: results[0].last_loggedin_date,
-                coin_count: results[0].coin_count
+                coin_count: results[0].coin_count,
+                account_status: results[0].account_status,
+                confirmation_code: results[0].confirmation_code
             };
             return res.send({error: false, user: outputResult, message: 'User already exist!'});
         });      
@@ -330,8 +332,8 @@ userApi.put('/updateSetting', checkAuth, function (req, res) {
 });
 
 
-// #6 ===  Delete user
-userApi.post('/removeAccount', checkAuth, function (req, res) {
+// #2.1 === Deactivate User
+userApi.post('/deactivateAccount', checkAuth, function (req, res) {
     let user_id = req.userData.userId;
 
     dbConn.query('SELECT * FROM tbl_user WHERE id=?', [user_id], function (error1, oldResults, fields) {
@@ -339,9 +341,46 @@ userApi.post('/removeAccount', checkAuth, function (req, res) {
 
         if (!oldResults.length) return res.send({ error: false, message: 'User not found.' });
 
-        dbConn.query('UPDATE tbl_user SET account_status=9 WHERE id=?', user_id, function (error2, results, fields) {
+        dbConn.query('UPDATE tbl_user SET account_status=2 WHERE id=?', user_id, function (error2, results, fields) {
             if (error2) return res.status(400).send({ error: true, detail: error2.code, message: error2.sqlMessage });
-            return res.send({ error: false, data: results, message: 'User has been removed successfully.' });
+            return res.send({ error: false, data: results, message: 'Your account is deactivated.' });
+        });
+    });
+});
+
+// #2.2 ===  Activate user
+userApi.post('/activateAccount', checkAuth, function (req, res) {
+    let user_id = req.userData.userId;
+
+    dbConn.query('SELECT * FROM tbl_user WHERE id=?', [user_id], function (error1, oldResults, fields) {
+        if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+
+        if (!oldResults.length) return res.send({ error: false, message: 'User not found.' });
+
+        dbConn.query('UPDATE tbl_user SET account_status=1 WHERE id=?', user_id, function (error2, results, fields) {
+            if (error2) return res.status(400).send({ error: true, detail: error2.code, message: error2.sqlMessage });
+            return res.send({ error: false, data: results, message: 'Your account is activated.' });
+        });
+    });
+});
+
+// #3 ===  Closed Permanently User
+userApi.post('/closeAccount', checkAuth, function (req, res) {
+    let user_id = req.userData.userId;
+
+    dbConn.query('SELECT * FROM tbl_user WHERE id=?', [user_id], function (error1, oldResults, fields) {
+        if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+
+        if (!oldResults.length) return res.send({ error: false, message: 'User not found.' });
+
+        dbConn.query('UPDATE tbl_user SET account_status=3 WHERE id=?', user_id, function (error2, results, fields) {
+            if (error2) return res.status(400).send({ error: true, detail: error2.code, message: error2.sqlMessage });
+
+            let resultData = {
+                user_id: oldResults[0].id,
+                confirmation_code: oldResults[0].confirmation_code
+            }
+            return res.send({ error: false, data: resultData, message: 'Your account is closed.' });
         });
     });
 });
