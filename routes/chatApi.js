@@ -177,8 +177,7 @@ chatApi.post('/create', checkAuth, function(req, res) {
         } else {
             return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active."});
         }
-
-    })
+    });
 });
 
 //#32 UC 10.1 Report - hide from display once blocked
