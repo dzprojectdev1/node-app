@@ -57,9 +57,6 @@ chatApi.post('/create', checkAuth, function(req, res) {
     var userId = req.userData.userId;
     var matchId = req.body.matchId;
 
-    console.log('user id is ' + userId);
-    console.log('match id is ' + matchId);
-
     var messageText = req.body.messageText;
     const serverKey = process.env.FIREBASE_SERVER_KEY;
     const fcm = new FCM(serverKey);
@@ -88,8 +85,6 @@ chatApi.post('/create', checkAuth, function(req, res) {
 
                 if (publish == 1) {
 
-                    console.log('success 1 ...');
-
                     dbConn.query('select publish from tbl_match where id=?', mutualMatchId, function(err, otherMatchResults, fields) {
 
                         if (err) return res.status(400).send({error: true, detail: err.code, message: err.sqlMessage});;
@@ -99,8 +94,6 @@ chatApi.post('/create', checkAuth, function(req, res) {
                         var otherPublish = otherMatchResults[0].publish;
 
                         if (otherPublish == 1) {
-
-                            console.log('success 2 ...');
 
                             var sendMsg = {
                                 match_id: matchId,
@@ -152,15 +145,15 @@ chatApi.post('/create', checkAuth, function(req, res) {
                                                         type: 'ChatDetail'
                                                     }
                                                 };
-                                                // fcm.send(message, function(notiErr, notiRes){
-                                                //     if (notiErr) {
-                                                //         console.log("Notification Sending is failed", notiErr);
-                                                //         return res.send({ error: false, data: {sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created."});
-                                                //     } else {
-                                                //         console.log("Successfully sent with response: ", notiRes);
+                                                fcm.send(message, function(notiErr, notiRes){
+                                                    if (notiErr) {
+                                                        console.log("Notification Sending is failed", notiErr);
                                                         return res.send({ error: false, data: {sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created."});
-                                                //     }                                   
-                                                // });                           
+                                                    } else {
+                                                        console.log("Successfully sent with response: ", notiRes);
+                                                        return res.send({ error: false, data: {sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created."});
+                                                    }                                   
+                                                });                           
                                             });
                                         });
                                     });
