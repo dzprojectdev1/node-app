@@ -89,6 +89,7 @@ userApi.post('/signup', function (req, res) {
                 birth_date: userBirthData,
                 lat_geo: parseFloat(userlat),
                 long_geo: parseFloat(userlong),
+                coin_count: 250,
                 confirmation_code: getRndInteger(100000, 999999),
                 created_date: new Date(),
                 fcm_id: fcmId,
@@ -121,6 +122,7 @@ userApi.post('/signup', function (req, res) {
                         email: results[0].email_address,
                         age: results[0].age,
                         gender: results[0].gender,
+                        coin_count: results[0].coin_count,
                         language: results[0].language_name,
                         ethnicity: results[0].ethnicity_name,
                         country: results[0].country_name,
@@ -142,7 +144,7 @@ userApi.put('/checkDeviceUniqueId/:deviceId', function (req, res) {
     if (!fcmId) return res.status(403).send({error: true, message: 'please provide fcm token'});
 
     var joinQuery = 'INNER JOIN tbl_language b on a.language_id=b.id INNER JOIN tbl_ethnicity c ON c.id=a.ethnicity_id INNER JOIN tbl_country d ON a.country_id=d.id';
-    dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE a.device_id=? AND account_status in (1, 2, 3)', deviceId, function (error, results, fields) {
+    dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE a.device_id=? AND account_status in (0, 1, 2, 3)', deviceId, function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         if (!results || !results.length) return res.send({ error: false, message: 'User does not exist.' });       
         dbConn.query('UPDATE tbl_user SET last_loggedin_date=?, fcm_id=? WHERE id=?', [new Date(), fcmId, results[0].id], function(updateErr, updateRow, updateFields) {
