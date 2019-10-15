@@ -138,11 +138,11 @@ chatApi.post('/create', checkAuth, function(req, res) {
                                                     to: deviceId,                                
                                                     notification: {
                                                         title: 'New Message',
-                                                        body: messageText,
-                                                        sender: userId
+                                                        body: messageText,                                                        
                                                     },
                                                     data: {  //you can send only notification or only data(or include both)
-                                                        type: 'ChatDetail'
+                                                        type: 'ChatDetail',
+                                                        sender: userId
                                                     }
                                                 };
                                                 fcm.send(message, function(notiErr, notiRes){
