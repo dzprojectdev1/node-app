@@ -136,13 +136,13 @@ matchApi.post('/like', checkAuth, function (req, res) {
                                                         fcm.send(message, function(notiErr, notiRes){
                                                             if (notiErr) {
                                                                 console.log("Something has gone wrong!");
-                                                                return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: 'New match has been created.' });
+                                                                // return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: 'New match has been created.' });
                                                             } else {
                                                                 console.log("Successfully sent with response: ", notiRes);
-                                                                return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: 'New match has been created.' });
                                                             }
                                                         });
-                                                    })
+                                                        return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: 'New match has been created.' });
+                                                    });
                                                 });
                                             });
                                         });
@@ -653,12 +653,12 @@ matchApi.post('/requestInstantMatch', checkAuth, function (req, res) {
                                                         fcm.send(message, function(notiErr, notiRes){
                                                             if (notiErr) {
                                                                 console.log("Something has gone wrong!");
-                                                                return res.send({ error: false, data: { ability: true, match_id: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: "New match is created." });
                                                             } else {
                                                                 console.log("Successfully sent with response: ");
-                                                                return res.send({ error: false, data: { ability: true, match_id: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: "New match is created." });
+                                                                // return res.send({ error: false, data: { ability: true, match_id: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: "New match is created." });
                                                             }
                                                         });
+                                                        return res.send({ error: false, data: { ability: true, match_id: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: "New match is created." });
                                                     });                                                                                     
                                                 });                                        
                                             });
