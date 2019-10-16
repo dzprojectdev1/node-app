@@ -26,19 +26,25 @@ transactionApi.get('/user/:user_id', function(req, res) {
  */
 transactionApi.post('/putCoin', function(req, res) {
 
-    let user_id = req.body.user_id;
+    let user_id     = req.body.user_id;
     let coin_number = req.body.coin_number;
-    let coin_price = req.body.coin_price;
-    let currency = req.body.currency;
+    let coin_price  = req.body.coin_price;
+    let currency    = req.body.currency;
 
-    let package_name = req.body.package_name;
-    let acknowledge = req.body.acknowledge;
-    let order_id = req.body.order_id;
-    let product_id = req.body.product_id;
+    let package_name      = req.body.package_name;
+    let acknowledge       = req.body.acknowledge;
+    let order_id          = req.body.order_id;
+    let product_id        = req.body.product_id;
     let developer_payload = req.body.developer_payload;
-    let purchase_time = req.body.purchase_time;
-    let purchase_state = req.body.purchase_state;
-    let purchase_token = req.body.purchase_token;
+    let purchase_time     = req.body.purchase_time;
+    let purchase_state    = req.body.purchase_state;
+    let purchase_token    = req.body.purchase_token;
+    let dist              = req.body.dist;
+    let days              = req.body.days;
+
+    let current_date = new Date();
+    let cd_timestamp = current_date.getTime();
+    cd_timestamp     = Math.round(cd_timestamp / 1000);
 
     dbConnect.query('select * from tbl_user where id = ?', user_id, function(error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error, message: error.sqlMessage});
@@ -48,16 +54,29 @@ transactionApi.post('/putCoin', function(req, res) {
         coin_count = coin_count + parseInt(coin_number);
 
         let query = 'insert into tbl_transaction';
-        query += ' (user_id, coin, amount, currency, package_name, acknowledge, order_id, product_id, developer_payload, purchase_time, purchase_state, purchase_token, created_at)';
-        query += ' values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+        query += ' (user_id, coin, amount, currency, package_name, acknowledge, order_id, product_id, developer_payload, purchase_time, purchase_state, purchase_token, dist, days, created_at)';
+        query += ' values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
             
-        dbConnect.query(query, [user_id, coin_number, coin_price, currency, package_name, acknowledge, order_id, product_id, developer_payload, purchase_time, purchase_state, purchase_token, new Date()], function(error, row, fields) {
+        dbConnect.query(query, [user_id, coin_number, coin_price, currency, package_name, acknowledge, order_id, product_id, developer_payload, purchase_time, purchase_state, purchase_token, dist, days, new Date()], function(error, insertResult, fields) {
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
             dbConnect.query('update tbl_user set coin_count = ? where id = ?', [coin_count, user_id], function(error, row, fields) {
                 if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
-                return res.send({error: false, coin_count: coin_count, message: 'Successfully added coins.'});
+                if (dist == 'pass') {
+
+                    let days_timestamp      = days * 24 * 60 * 60;
+
+                    let result_data = {
+                        validation: true,
+                        remain_timestamp: days_timestamp,
+                        coin_count: coin_count,
+                    }
+                    
+                    return res.send({error: false, data: result_data, message: 'You have already claimed your diamonds for the day. Next 50 diamonds will unlock in: '})
+                }
+
+                return res.send({error: false, data: {validation: false, coin_count: coin_count}, message: 'Successfully added coins.'});
             })
         })
     })
@@ -166,6 +185,9 @@ transactionApi.put('/txn_id/:txn_id', function(req, res) {
     })
 })
 
+/**
+ * remove gem count with user_id
+ */
 transactionApi.post('/gemRemove/:user_id', function(req, res) {
     let user_id = req.params.user_id;
 
@@ -191,6 +213,9 @@ transactionApi.post('/gemRemove/:user_id', function(req, res) {
     })
 })
 
+/**
+ * get free diamonds daily with user_id
+ */
 transactionApi.post('/freeDiamonds/:user_id', checkAuth, function(req, res) {
     let user_id = req.params.user_id;
     let current_date = new Date();
@@ -286,6 +311,51 @@ transactionApi.post('/freeDiamonds/:user_id', checkAuth, function(req, res) {
         })
     })
 
+})
+
+/**
+ * get validation time with user id for unlimited instant chat (1_day_pass, 3_day_pass, 7_day_pass)
+ */
+transactionApi.post('/validatePass/:user_id', checkAuth, function(req, res) {
+    var user_id = req.params.user_id;
+
+    let current_date = new Date();
+    let cd_timestamp = current_date.getTime();
+    cd_timestamp     = Math.round(cd_timestamp / 1000);
+
+    let query = 'select * from tbl_user where id = ?';
+    dbConnect.query(query, user_id, function(error, results, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if(!results || !results.length) return res.send({error: false, message: 'There is no matched user.'});
+
+        query = "select * from tbl_transaction where user_id = ? and dist = 'pass' order by created_at desc";
+        dbConnect.query(query, user_id, function(error, transactionResults, fields) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+            if(!transactionResults || !transactionResults.length) return res.send({error: false, data: {validation: false}, message: 'There is no unlimited pass day.'});
+
+            let saved_date = transactionResults[0].created_at;
+            let days       = transactionResults[0].days;
+
+            let sd_timestamp = new Date(saved_date).getTime();
+            sd_timestamp     = Math.round(sd_timestamp / 1000);
+
+            let days_timestamp = days * 24 * 60 * 60;
+            let _timestamp     = cd_timestamp - sd_timestamp;
+
+            if (_timestamp < days_timestamp) {
+
+                let send_date_timestamp = days_timestamp - _timestamp;
+                let result_data = {
+                    validation: true,
+                    remain_timestamp: send_date_timestamp,
+                }
+                return res.send({error: false, data: result_data, message: 'You have pass days.'})
+            } else {
+                return res.send({error: false, data: { validation: false }, message: 'Your unlimited feature was expired.'})
+            }
+
+        })
+    })
 })
 
 module.exports = transactionApi;
