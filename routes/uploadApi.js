@@ -7,7 +7,7 @@ const multer = require('multer');
 const dbConn = require('../config/dbConfig');
 const { deleteFiles } = require('../utils/fileSystem');
 
-const TEMP_UPLOAD_FOLDER = './uploads'
+const TEMP_UPLOAD_FOLDER = '/tmp';
 const DESIRED_FILE_EXTENSION = 'jpg';
 
 const upload = multer({
