@@ -5,6 +5,7 @@ const checkAuth = require('../middleware/check_auth');
 const blockFunction = require("./matchApi").blockFunction;
 const commonFunc = require('../config/common').commonFunc;
 var FCM = require('fcm-node');
+const { bucket, sideBucket } = require('../config/storageConfig');
 
 //#29 UC9 Chat Api == UC9.1 Display Chat - Main list
 chatApi.get('/all', checkAuth, function (req, res) {
@@ -65,13 +66,15 @@ chatApi.post('/create', checkAuth, function (req, res) {
         return res.status(400).send({ error: true, message: 'Invalid Params.' });
     }
 
-    let query = 'select * from tbl_user where id = ?';
+    let query = 'select * from tbl_user as a left join tbl_video as b where (b.cdn_id IS NULL OR b.is_primary = 1) and a.id = ?';
     dbConn.query(query, userId, function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });;
         if (!results.length)
             return res.status(400).send({ error: true, message: 'No Match Found' });
 
         var account_status = results[0].account_status;
+        const username = result[0].name;
+        const userphotoId = result[0].cdn_id;
 
         if (account_status !== 1)
             return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
@@ -137,6 +140,29 @@ chatApi.post('/create', checkAuth, function (req, res) {
                                     const receiverData = receiver[0];
                                     if (!receiverData.fcm_id) return res.status(400).send({ error: true, message: 'firebase token not found' });
                                     const deviceId = receiverData.fcm_id;
+                                    let userPhotoUrl;
+                                    if (userphotoId) {
+                                        userPhotoUrl = sideBucket.getFiles(function (err, files) {
+                                            if (err)
+                                                return null;
+
+                                            const match = files.find(file => file.id === userphotoId);
+
+                                            if (!match)
+                                                return null;
+                                            match.getSignedUrl({
+                                                action: 'read',
+                                                expires: '03-17-2025'
+                                            }, (err, url) => {
+                                                if (err) {
+                                                } else {
+                                                    return url;
+                                                }
+                                            });
+
+                                        });
+                                    }
+
                                     var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
                                         to: deviceId,
                                         notification: {
@@ -145,7 +171,8 @@ chatApi.post('/create', checkAuth, function (req, res) {
                                         },
                                         data: {  //you can send only notification or only data(or include both)
                                             type: 'ChatDetail',
-                                            sender: userId
+                                            senderId: userId,
+                                            senderImg: userPhotoUrl
                                         }
                                     };
                                     fcm.send(message, function (notiErr, notiRes) {
