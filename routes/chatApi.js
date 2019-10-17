@@ -66,15 +66,15 @@ chatApi.post('/create', checkAuth, function (req, res) {
         return res.status(400).send({ error: true, message: 'Invalid Params.' });
     }
 
-    let query = 'select * from tbl_user as a left join tbl_video as b where (b.cdn_id IS NULL OR b.is_primary = 1) and a.id = ?';
+    let query = 'select * from tbl_user as a left join tbl_video as b on a.id = b.user_id where (b.cdn_id IS NULL OR b.is_primary = 1) and a.id = ?';
     dbConn.query(query, userId, function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });;
         if (!results.length)
             return res.status(400).send({ error: true, message: 'No Match Found' });
 
         var account_status = results[0].account_status;
-        const username = result[0].name;
-        const userphotoId = result[0].cdn_id;
+        const username = results[0].name;
+        const userphotoId = results[0].cdn_id;
 
         if (account_status !== 1)
             return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
@@ -172,7 +172,8 @@ chatApi.post('/create', checkAuth, function (req, res) {
                                         data: {  //you can send only notification or only data(or include both)
                                             type: 'ChatDetail',
                                             senderId: userId,
-                                            senderImg: userPhotoUrl
+                                            senderImg: userPhotoUrl,
+                                            senderName: username
                                         }
                                     };
                                     fcm.send(message, function (notiErr, notiRes) {
