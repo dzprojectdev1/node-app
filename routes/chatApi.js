@@ -5,55 +5,56 @@ const checkAuth = require('../middleware/check_auth');
 const blockFunction = require("./matchApi").blockFunction;
 const commonFunc = require('../config/common').commonFunc;
 var FCM = require('fcm-node');
+const { bucket, sideBucket } = require('../config/storageConfig');
 
 //#29 UC9 Chat Api == UC9.1 Display Chat - Main list
-chatApi.get('/all', checkAuth, function(req, res) {
+chatApi.get('/all', checkAuth, function (req, res) {
     var userId = req.userData.userId;
 
     var leftJoinQuery = 'inner join tbl_chat d on c.chat_id=d.id inner join tbl_user e on c.other_user_id=e.id left join tbl_video g on g.user_id=e.id WHERE (g.is_primary=1 or g.cdn_id IS NULL) order by d.created_date desc';
     // var matchWhereCondition = ' a.main_user_id=? and a.status in (6,7) and a.publish=1 group by a.id ';
     var matchWhereCondition = ' a.main_user_id=? and a.status in (6,7) and a.publish in (1, 2) group by a.id ';
     var leftMatchJoinQuery = ' inner join tbl_chat b on a.id=b.match_id';
-    var matchQuery = 'SELECT a.id as match_id, max(b.id) as chat_id, a.publish as publish, a.other_user_id as other_user_id FROM `tbl_match` a '+leftMatchJoinQuery+' where ' +matchWhereCondition;
-    var leftQueryString = '(select c.*, d.message_text, d.created_date as created_date, e.id, e.name, e.gender, e.description, e.birth_date, TIMESTAMPDIFF(YEAR, e.birth_date, CURDATE()) AS age, g.cdn_id, g.cdn_filtered_id, g.is_primary from ('+matchQuery+') c ' + leftJoinQuery + ')';
+    var matchQuery = 'SELECT a.id as match_id, max(b.id) as chat_id, a.publish as publish, a.other_user_id as other_user_id FROM `tbl_match` a ' + leftMatchJoinQuery + ' where ' + matchWhereCondition;
+    var leftQueryString = '(select c.*, d.message_text, d.created_date as created_date, e.id, e.name, e.gender, e.description, e.birth_date, TIMESTAMPDIFF(YEAR, e.birth_date, CURDATE()) AS age, g.cdn_id, g.cdn_filtered_id, g.is_primary from (' + matchQuery + ') c ' + leftJoinQuery + ')';
     // return res.send({query: leftQueryString});
 
-    dbConn.query(leftQueryString, [userId], function(error, results, fields){
-        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+    dbConn.query(leftQueryString, [userId], function (error, results, fields) {
+        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
 
         results.forEach(chat => {
             chat.time_ago = commonFunc.timeAgo(chat.created_date);
         });
-        return res.send({ error: false, data: results, message: "Get All Chat List"});
+        return res.send({ error: false, data: results, message: "Get All Chat List" });
     });
 });
 
 //30 UC9.2  Display Chat - display chat content for the selected match_id
-chatApi.get('/getChatWithMatchId/:matchId', checkAuth, function(req,res) {
+chatApi.get('/getChatWithMatchId/:matchId', checkAuth, function (req, res) {
     var userId = req.userData.userId;
     var matchId = req.params.matchId;
 
     if (!matchId)
-        return res.send({error: true, message: 'Invalid Match Param.'});
+        return res.send({ error: true, message: 'Invalid Match Param.' });
 
     var whereCondition = 'a.match_id=? and (b.main_user_id=? or b.other_user_id=?)';
-    
-    dbConn.query('Select a.*, b.mutual_match_id from tbl_chat as a inner join tbl_match as b on a.match_id=b.id where '+whereCondition+' order by created_date asc', [matchId, userId, userId], function(error, results, fields){
-        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-        
+
+    dbConn.query('Select a.*, b.mutual_match_id from tbl_chat as a inner join tbl_match as b on a.match_id=b.id where ' + whereCondition + ' order by created_date asc', [matchId, userId, userId], function (error, results, fields) {
+        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+
         //get other user detail information from match id
-        dbConn.query('SELECT a.name, a.gender, a.birth_date, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age from tbl_user as a inner join tbl_match as b on a.id=b.other_user_id where b.id=? and (b.main_user_id=? or b.other_user_id=?) and a.account_status=1', [matchId, userId, userId], function(error1, userResults, fields) {
-            if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
-            if (!userResults.length) return res.status(403).send({error: false, message: 'Match Data not found'});
+        dbConn.query('SELECT a.name, a.gender, a.birth_date, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age from tbl_user as a inner join tbl_match as b on a.id=b.other_user_id where b.id=? and (b.main_user_id=? or b.other_user_id=?) and a.account_status=1', [matchId, userId, userId], function (error1, userResults, fields) {
+            if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+            if (!userResults.length) return res.status(403).send({ error: false, message: 'Match Data not found' });
             var matchedOtherUser = userResults[0];
 
-            return res.send({ error: false, data: {user: matchedOtherUser, content: results}, message: "Get All Chat List With Match Id: " + matchId});
+            return res.send({ error: false, data: { user: matchedOtherUser, content: results }, message: "Get All Chat List With Match Id: " + matchId });
         });
     });
 });
 
 //31 UC9.3 Create a new Chat Text 
-chatApi.post('/create', checkAuth, function(req, res) {
+chatApi.post('/create', checkAuth, function (req, res) {
     var userId = req.userData.userId;
     var matchId = req.body.matchId;
 
@@ -62,134 +63,154 @@ chatApi.post('/create', checkAuth, function(req, res) {
     const fcm = new FCM(serverKey);
 
     if (!matchId || !messageText) {
-        return res.status(400).send({ error:true, message: 'Invalid Params.'}); 
+        return res.status(400).send({ error: true, message: 'Invalid Params.' });
     }
 
-    let query = 'select * from tbl_user where id = ?';
-    dbConn.query(query, userId, function(error, results, fields) {
-        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});;
+    let query = 'select * from tbl_user as a left join tbl_video as b on a.id = b.user_id where (b.cdn_id IS NULL OR b.is_primary = 1) and a.id = ?';
+    dbConn.query(query, userId, function (error, results, fields) {
+        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });;
         if (!results.length)
-            return res.status(400).send({ error:true, message: 'No Match Found'});
-        
+            return res.status(400).send({ error: true, message: 'No Match Found' });
+
         var account_status = results[0].account_status;
+        const username = results[0].name;
+        const userphotoId = results[0].cdn_id;
 
-        if (account_status == 1) {
+        if (account_status !== 1)
+            return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
 
-            dbConn.query('Select mutual_match_id, publish from tbl_match where id=?', [matchId], function(err, matchResults, fields) {
-                if (err) return res.status(400).send({error: true, detail: err.code, message: err.sqlMessage});;
-                if (!matchResults.length)
-                    return res.status(400).send({ error:true, message: 'No Match Found'});
-        
-                var mutualMatchId = matchResults[0].mutual_match_id;
-                var publish = matchResults[0].publish;
+        dbConn.query('Select mutual_match_id, publish from tbl_match where id=?', [matchId], function (err, matchResults, fields) {
+            if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });;
+            if (!matchResults.length)
+                return res.status(400).send({ error: true, message: 'No Match Found' });
 
-                if (publish == 1) {
+            var mutualMatchId = matchResults[0].mutual_match_id;
+            var publish = matchResults[0].publish;
 
-                    dbConn.query('select publish from tbl_match where id=?', mutualMatchId, function(err, otherMatchResults, fields) {
+            if (publish !== 1)
+                return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
 
-                        if (err) return res.status(400).send({error: true, detail: err.code, message: err.sqlMessage});;
-                        if (!otherMatchResults.length)
-                            return res.status(400).send({ error:true, message: 'No Match Found'});
+            dbConn.query('select publish from tbl_match where id=?', mutualMatchId, function (err, otherMatchResults, fields) {
 
-                        var otherPublish = otherMatchResults[0].publish;
+                if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });;
+                if (!otherMatchResults.length)
+                    return res.status(400).send({ error: true, message: 'No Match Found' });
 
-                        if (otherPublish == 1) {
+                var otherPublish = otherMatchResults[0].publish;
 
-                            var sendMsg = {
-                                match_id: matchId,
-                                message_type: 1,
-                                message_text: messageText,
-                                created_date: new Date()
-                            };
-                            dbConn.beginTransaction(function(error){
-                                if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-                                dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function(error, sendResult) {
-                                    if (error) {
-                                        dbConn.rollback(function(){
-                                            return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                if (otherPublish !== 1)
+                    return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
+
+                var sendMsg = {
+                    match_id: matchId,
+                    message_type: 1,
+                    message_text: messageText,
+                    created_date: new Date()
+                };
+                dbConn.beginTransaction(function (error) {
+                    if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                    dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function (error, sendResult) {
+                        if (error) {
+                            dbConn.rollback(function () {
+                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                            });
+                        }
+                        var receiveMsg = {
+                            match_id: mutualMatchId,
+                            message_type: 2,
+                            message_text: messageText,
+                            created_date: new Date()
+                        };
+                        dbConn.query('INSERT INTO tbl_chat set ? ', [receiveMsg], function (error, receiveResult) {
+                            if (error) {
+                                dbConn.rollback(function () {
+                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                });
+                            }
+                            dbConn.commit(function (error) {
+                                if (error) {
+                                    dbConn.rollback(function () {
+                                        return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                    });
+                                }
+
+                                dbConn.query('SELECT * FROM tbl_user a INNER JOIN tbl_match b ON a.id=b.main_user_id WHERE b.id=?', mutualMatchId, function (error1, receiver, receiverFields) {
+                                    if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+                                    if (!receiver.length) res.status(400).send({ error: true, message: 'Receiver data not found.' });
+                                    const receiverData = receiver[0];
+                                    if (!receiverData.fcm_id) return res.status(400).send({ error: true, message: 'firebase token not found' });
+                                    const deviceId = receiverData.fcm_id;
+                                    let userPhotoUrl;
+                                    if (userphotoId) {
+                                        userPhotoUrl = sideBucket.getFiles(function (err, files) {
+                                            if (err)
+                                                return null;
+
+                                            const match = files.find(file => file.id === userphotoId);
+
+                                            if (!match)
+                                                return null;
+                                            match.getSignedUrl({
+                                                action: 'read',
+                                                expires: '03-17-2025'
+                                            }, (err, url) => {
+                                                if (err) {
+                                                } else {
+                                                    return url;
+                                                }
+                                            });
+
                                         });
                                     }
-                                    var receiveMsg = {
-                                        match_id: mutualMatchId,
-                                        message_type: 2,
-                                        message_text: messageText,
-                                        created_date: new Date()
-                                    };
-                                    dbConn.query('INSERT INTO tbl_chat set ? ', [receiveMsg], function(error, receiveResult) {
-                                        if (error) {
-                                            dbConn.rollback(function() {
-                                                return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-                                            });
+
+                                    var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                                        to: deviceId,
+                                        notification: {
+                                            title: 'New Message',
+                                            body: messageText,
+                                        },
+                                        data: {  //you can send only notification or only data(or include both)
+                                            type: 'ChatDetail',
+                                            senderId: userId,
+                                            senderImg: userPhotoUrl,
+                                            senderName: username
                                         }
-                                        dbConn.commit(function(error) {
-                                            if (error) {
-                                                dbConn.rollback(function() {
-                                                    return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-                                                });
-                                            }
-                    
-                                            dbConn.query('SELECT * FROM tbl_user a INNER JOIN tbl_match b ON a.id=b.main_user_id WHERE b.id=?', mutualMatchId, function(error1, receiver, receiverFields) {
-                                                if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
-                                                if (!receiver.length) res.status(400).send({ error:true, message: 'Receiver data not found.'});
-                                                const receiverData = receiver[0];
-                                                if (!receiverData.fcm_id) return res.status(400).send({error: true, message: 'firebase token not found'});
-                                                const deviceId = receiverData.fcm_id;
-                                                var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
-                                                    to: deviceId,                                
-                                                    notification: {
-                                                        title: 'New Message',
-                                                        body: messageText,                                                        
-                                                    },
-                                                    data: {  //you can send only notification or only data(or include both)
-                                                        type: 'ChatDetail',
-                                                        sender: userId
-                                                    }
-                                                };
-                                                fcm.send(message, function(notiErr, notiRes){
-                                                    if (notiErr) {
-                                                        console.log("Notification Sending is failed", notiErr);
-                                                        return res.send({ error: false, data: {sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created."});
-                                                    } else {
-                                                        console.log("Successfully sent with response: ", notiRes);
-                                                        return res.send({ error: false, data: {sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created."});
-                                                    }                                   
-                                                });                           
-                                            });
-                                        });
+                                    };
+                                    fcm.send(message, function (notiErr, notiRes) {
+                                        if (notiErr) {
+                                            console.log("Notification Sending is failed", notiErr);
+                                        } else {
+                                            console.log("Successfully sent with response: ", notiRes);
+                                        }
                                     });
+                                    return res.send({ error: false, data: { sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created." });
                                 });
                             });
-                        } else {
-                            return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active."});
-                        }
-                    })
-                } else {
-                    return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active."});
-                }
-            });    
-        } else {
-            return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active."});
-        }
+                        });
+                    });
+                });
+            })
+        });
     });
 });
 
 //#32 UC 10.1 Report - hide from display once blocked
-chatApi.post('/reportUser', checkAuth, blockFunction, function(req, res) {
+chatApi.post('/reportUser', checkAuth, blockFunction, function (req, res) {
     var userId = req.userData.userId;
     var otherId = req.body.otherId;
     var matchId = req.oldData ? req.oldData.id : req.matchId;
-    
+
     var reportDescription = req.body.reportDescription;
-    
+
     if (!otherId) {
-        return res.status(400).send({ error:true, message: 'Invalid Other Id.'});  
+        return res.status(400).send({ error: true, message: 'Invalid Other Id.' });
     };
     if (!reportDescription) {
-        return res.status(400).send({ error:true, message: 'Invalid Report Description.'});
+        return res.status(400).send({ error: true, message: 'Invalid Report Description.' });
     }
-    dbConn.query("SELECT * FROM tbl_report WHERE user_id_submitted=? AND user_id_violated=? AND tbl_match_id=? ", [userId, otherId, matchId], function(error, results, feilds) {
-        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-        if (results.length) return res.status(403).send({error: true, data: results[0], message: 'Report data already exist.'});
+    dbConn.query("SELECT * FROM tbl_report WHERE user_id_submitted=? AND user_id_violated=? AND tbl_match_id=? ", [userId, otherId, matchId], function (error, results, feilds) {
+        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+        if (results.length) return res.status(403).send({ error: true, data: results[0], message: 'Report data already exist.' });
 
         var sendReportData = {
             user_id_submitted: userId,
@@ -200,13 +221,13 @@ chatApi.post('/reportUser', checkAuth, blockFunction, function(req, res) {
             created_date: new Date(),
             admin_comment: ''
         };
-    
-        dbConn.beginTransaction(function(error){
-            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-            dbConn.query('INSERT INTO tbl_report set ? ', [sendReportData], function(error, sendResult) {
+
+        dbConn.beginTransaction(function (error) {
+            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+            dbConn.query('INSERT INTO tbl_report set ? ', [sendReportData], function (error, sendResult) {
                 if (error) {
-                    dbConn.rollback(function(){
-                        return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                    dbConn.rollback(function () {
+                        return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                     });
                 }
                 var receiveReportData = {
@@ -218,36 +239,36 @@ chatApi.post('/reportUser', checkAuth, blockFunction, function(req, res) {
                     created_date: new Date(),
                     admin_comment: ''
                 };
-                dbConn.query('INSERT INTO tbl_report set ? ', [receiveReportData], function(error, receiveResult) {
+                dbConn.query('INSERT INTO tbl_report set ? ', [receiveReportData], function (error, receiveResult) {
                     if (error) {
-                        dbConn.rollback(function() {
-                            return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                        dbConn.rollback(function () {
+                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                         });
                     };
-    
-                    dbConn.commit(function(error) {
+
+                    dbConn.commit(function (error) {
                         if (error) {
-                            dbConn.rollback(function() {
-                                return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                            dbConn.rollback(function () {
+                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                             });
                         };
-    
-                        return res.send({ error: false, data: {sender_report_id: sendResult.insertId, receiver_report_id: receiveResult.insertId}, message: "New Report is Created."});
+
+                        return res.send({ error: false, data: { sender_report_id: sendResult.insertId, receiver_report_id: receiveResult.insertId }, message: "New Report is Created." });
                     });
                 });
             });
         });
-    });    
+    });
 });
 
 //#33 UC 11 = block user from chat
-chatApi.post('/blockChat', checkAuth, function(req, res) {
+chatApi.post('/blockChat', checkAuth, function (req, res) {
     var userId = req.userData.userId;
     var otherId = req.body.otherId;
 
     if (!otherId) {
-		return res.status(400).send({ error:true, message: 'Please provide other user id' });
-    }  
+        return res.status(400).send({ error: true, message: 'Please provide other user id' });
+    }
 
     var userBlockData = {
         main_user_id: userId,
@@ -258,12 +279,12 @@ chatApi.post('/blockChat', checkAuth, function(req, res) {
         updated_date: new Date()
     };
 
-    dbConn.beginTransaction(function(error){
-        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});;
-        dbConn.query('INSERT INTO tbl_match set ? ', [userBlockData], function(error, sendResult) {
+    dbConn.beginTransaction(function (error) {
+        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });;
+        dbConn.query('INSERT INTO tbl_match set ? ', [userBlockData], function (error, sendResult) {
             if (error) {
-                dbConn.rollback(function(){
-                    return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                dbConn.rollback(function () {
+                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                 });
             }
             var blockReplyData = {
@@ -275,64 +296,64 @@ chatApi.post('/blockChat', checkAuth, function(req, res) {
                 created_date: new Date(),
                 updated_date: new Date()
             }
-            dbConn.query('INSERT INTO tbl_match set ? ', [blockReplyData], function(error, receiveResult) {
+            dbConn.query('INSERT INTO tbl_match set ? ', [blockReplyData], function (error, receiveResult) {
                 if (error) {
-                    dbConn.rollback(function() {
-                        return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                    dbConn.rollback(function () {
+                        return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                     });
                 };
                 dbConn.query("UPDATE tbl_match SET mutual_match_id = ? WHERE main_user_id = ? and other_user_id=? and status=8", [receiveResult.insertId, userId, otherId], function (error, results, fields) {
                     if (error) {
-                        dbConn.rollback(function() {
-                            return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                        dbConn.rollback(function () {
+                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                         });
                     };
-                    dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=?", [userId, otherId, 1], function(error, results, fields) {
+                    dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=?", [userId, otherId, 1], function (error, results, fields) {
                         if (error) {
-                            dbConn.rollback(function() {
-                                return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                            dbConn.rollback(function () {
+                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                             });
                         };
                         if (!results.length)
-                            return res.status(400).send({ error:true, message: 'Match data cannot be found.'});
+                            return res.status(400).send({ error: true, message: 'Match data cannot be found.' });
                         var matchId = results[0].id;
-                        dbConn.query("UPDATE tbl_match SET publish=0 WHERE id=?", [matchId], function(error, results, fields) {
+                        dbConn.query("UPDATE tbl_match SET publish=0 WHERE id=?", [matchId], function (error, results, fields) {
                             if (error) {
-                                dbConn.rollback(function() {
-                                    return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                                dbConn.rollback(function () {
+                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                 });
                             }
-                            dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=?", [otherId, userId, 1], function(error, results, fields) {
+                            dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=?", [otherId, userId, 1], function (error, results, fields) {
                                 if (error) {
-                                    dbConn.rollback(function() {
-                                        return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                                    dbConn.rollback(function () {
+                                        return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                     });
                                 }
                                 if (!results.length)
-                                    return res.status(400).send({ error:true, message: 'Match data cannot be found.'});
+                                    return res.status(400).send({ error: true, message: 'Match data cannot be found.' });
                                 var otherMatchId = results[0].id
-                                dbConn.query("UPDATE tbl_match SET publish=0 WHERE id=?", [otherMatchId], function(error, results, fields) {
+                                dbConn.query("UPDATE tbl_match SET publish=0 WHERE id=?", [otherMatchId], function (error, results, fields) {
                                     if (error) {
-                                        dbConn.rollback(function() {
-                                            return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                                        dbConn.rollback(function () {
+                                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                         });
                                     }
-                                    dbConn.commit(function(error) {
+                                    dbConn.commit(function (error) {
                                         if (error) {
-                                            dbConn.rollback(function() {
-                                                return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                                            dbConn.rollback(function () {
+                                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                             });
                                         };
-                                        return res.send({ error: false, data: {sendResult, receiveResult}, message: "New Block Created"});
+                                        return res.send({ error: false, data: { sendResult, receiveResult }, message: "New Block Created" });
                                     });
                                 });
                             });
                         });
-                    });                    
+                    });
                 });
             });
         });
-    });    
+    });
 });
 
 module.exports = chatApi;
