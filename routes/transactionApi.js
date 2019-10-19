@@ -64,19 +64,74 @@ transactionApi.post('/putCoin', function(req, res) {
                 if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
                 if (dist == 'pass') {
-
-                    let days_timestamp      = days * 24 * 60 * 60;
-
-                    let result_data = {
-                        validation: true,
-                        remain_timestamp: days_timestamp,
-                        coin_count: coin_count,
-                    }
                     
-                    return res.send({error: false, data: result_data, message: 'You have already claimed your diamonds for the day. Next 50 diamonds will unlock in: '})
-                }
+                    dbConnect.query('select * from tbl_pass_transaction where user_id = ? order by created_at desc', user_id, function(error, transactionResults, fields) {
+                        if (error) return res.status(400).send({error: true, detail: error, message: error.sqlMessage});
+                        if (!transactionResults || !transactionResults.length || transactionResults.length == 0) {
+                            
+                            dbConnect.query('insert into tbl_pass_transaction (user_id, days, created_at) values (?, ?, ?)', [user_id, days, new Date()], function(error, insertResult, fields) {
+                                if (error) return res.status(400).send({error: true, detail: error, message: error.sqlMessage});
 
-                return res.send({error: false, data: {validation: false, coin_count: coin_count}, message: 'Successfully added coins.'});
+                                let days_timestamp      = days * 24 * 60 * 60;
+            
+                                let result_data = {
+                                    validation: true,
+                                    remain_timestamp: days_timestamp,
+                                    coin_count: coin_count,
+                                }
+                                
+                                return res.send({error: false, data: result_data, message: ' You have ' + days + ' days for unlimited instant chat.'})
+                            })
+                        } else {
+
+                            let pass_transaction_id = transactionResults[0].id;
+                            let saved_date          = transactionResults[0].created_at;
+                            let saved_days          = transactionResults[0].days;
+
+                            let sd_timestamp = new Date(saved_date).getTime();
+                            sd_timestamp     = Math.round(sd_timestamp / 1000);
+
+                            let days_timestamp = saved_days * 24 * 60 * 60;
+                            let _timestamp     = cd_timestamp - sd_timestamp;
+
+                            if (_timestamp < days_timestamp) {
+
+                                let save_days = parseInt(days) + parseInt(saved_days);
+
+                                dbConnect.query('update tbl_pass_transaction set days = ? where id = ?', [save_days, pass_transaction_id], function(error, updateResults, fields) {
+                                    if (error) return res.status(400).send({error: true, detail: error, message: error.sqlMessage});
+
+                                    days_timestamp = save_days * 24 * 60 * 60;
+
+                                    let send_date_timestamp = days_timestamp - _timestamp;
+                                    let result_data = {
+                                        validation: true,
+                                        remain_timestamp: send_date_timestamp,
+                                        coin_count: coin_count,
+                                    }
+                                    return res.send({error: false, data: result_data, message: ' You added ' + days + ' days for unlimited instant chat.'})
+                                })
+                            } else {
+
+                                dbConnect.query('insert into tbl_pass_transaction (user_id, days, created_at) values (?, ?, ?)', [user_id, days, new Date()], function(error, insertResult, fields) {
+                                    if (error) return res.status(400).send({error: true, detail: error, message: error.sqlMessage});
+    
+                                    let days_timestamp      = days * 24 * 60 * 60;
+                
+                                    let result_data = {
+                                        validation: true,
+                                        remain_timestamp: days_timestamp,
+                                        coin_count: coin_count,
+                                    }
+                                    
+                                    return res.send({error: false, data: result_data, message: ' You have ' + days + ' days for unlimited instant chat.'})
+                                })
+                            }
+                        }
+                    })
+                } else {
+                    return res.send({error: false, data: {validation: false, coin_count: coin_count}, message: 'Successfully added coins.'});
+                }
             })
         })
     })
@@ -328,7 +383,7 @@ transactionApi.post('/validatePass/:user_id', checkAuth, function(req, res) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         if(!results || !results.length) return res.send({error: false, message: 'There is no matched user.'});
 
-        query = "select * from tbl_transaction where user_id = ? and dist = 'pass' order by created_at desc";
+        query = "select * from tbl_pass_transaction where user_id = ? order by created_at desc";
         dbConnect.query(query, user_id, function(error, transactionResults, fields) {
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
             if(!transactionResults || !transactionResults.length) return res.send({error: false, data: {validation: false}, message: 'There is no unlimited pass day.'});
