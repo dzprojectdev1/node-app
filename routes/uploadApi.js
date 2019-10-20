@@ -38,7 +38,6 @@ function createNewVideoInDatabase({
   userId,
   cdnId,
   cdnFilteredId,
-  cdnId_256,
   cdnId_128,
   cdnId_64,
   // isPrimary = 1,
@@ -57,7 +56,6 @@ function createNewVideoInDatabase({
         user_id: userId,
         cdn_id: cdnId,
         cdn_filtered_id: cdnFilteredId,
-        cdn_id_256: cdnId_256,
         cdn_id_128: cdnId_128,
         cdn_id_64: cdnId_64,
         created_date: new Date(),
@@ -80,7 +78,7 @@ uploadApi.post('/userPhoto', checkAuth, upload.single('fileData'), (req, res) =>
   // const originalFilePath = path.join(TEMP_UPLOAD_FOLDER, file.filename);
   // const processedFilePath = path.join(TEMP_UPLOAD_FOLDER, `${file.filename}.${DESIRED_FILE_EXTENSION}`);
 
-  const sizes = [64, 128, 256, 512];
+  const sizes = [64, 128, 512];
 
   const uploadPromises = sizes.map(async size => {
 
@@ -143,7 +141,6 @@ uploadApi.post('/userPhoto', checkAuth, upload.single('fileData'), (req, res) =>
       userId: req.userData.userId,
       cdnId: file.filename,
       cdnFilteredId: file.filename,
-      cdnId_256: 'thumb_256_' + file.filename,
       cdnId_128: 'thumb_128_' + file.filename,
       cdnId_64: 'thumb_64_' + file.filename,
     })
