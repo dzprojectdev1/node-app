@@ -23,7 +23,7 @@ const upload = multer({
 });
 
 const checkAuth = require('../middleware/check_auth');
-const { bucket, sideBucket } = require('../config/storageConfig');
+const { bucket } = require('../config/storageConfig');
 
 /**
  * Based on old version of app where we were storing videos.
@@ -79,7 +79,7 @@ uploadApi.post('/userPhoto', checkAuth, upload.single('fileData'), (req, res) =>
     .then(() => {
       const photoIdInBucket = `${file.filename}-screenshot`;
 
-      return sideBucket.upload(processedFilePath, {
+      return bucket.upload(processedFilePath, {
         destination: photoIdInBucket,
       })
         .then(storageResponse => {

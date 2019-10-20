@@ -6,10 +6,8 @@ const storage = new Storage({
 });
 
 const bucket = storage.bucket(process.env.BUCKET_NAME);
-const sideBucket = storage.bucket(process.env.SIDE_BUCKET_NAME);
 
 module.exports = {
   storage,
   bucket,
-  sideBucket,
 };

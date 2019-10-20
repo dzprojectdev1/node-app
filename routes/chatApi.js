@@ -5,7 +5,7 @@ const checkAuth = require('../middleware/check_auth');
 const blockFunction = require("./matchApi").blockFunction;
 const commonFunc = require('../config/common').commonFunc;
 var FCM = require('fcm-node');
-const { bucket, sideBucket } = require('../config/storageConfig');
+const { bucket } = require('../config/storageConfig');
 
 //#29 UC9 Chat Api == UC9.1 Display Chat - Main list
 chatApi.get('/all', checkAuth, function (req, res) {
@@ -142,7 +142,7 @@ chatApi.post('/create', checkAuth, function (req, res) {
                                     const deviceId = receiverData.fcm_id;
                                     let userPhotoUrl;
                                     if (userphotoId) {
-                                        userPhotoUrl = sideBucket.getFiles(function (err, files) {
+                                        userPhotoUrl = bucket.getFiles(function (err, files) {
                                             if (err)
                                                 return null;
 

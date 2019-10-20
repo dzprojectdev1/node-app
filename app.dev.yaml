@@ -25,9 +25,8 @@ env_variables:
   CHARSET: "utf8mb4"
 
   # Google Cloud Storage values
-  PROJECT_ID: "dazzled-date-246123"
-  BUCKET_NAME: "fireblast-begonia-maxwell-dev"
-  SIDE_BUCKET_NAME: "fireblast-begonia-maxwell-side-dev"
+  PROJECT_ID: "dazzled-date-dev"
+  BUCKET_NAME: "dazzled-date-dev"
 
   # SendGrid Email Api_key
   SENDGRID_API_KEY: "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"
