@@ -23,7 +23,7 @@ const upload = multer({
 });
 
 const checkAuth = require('../middleware/check_auth');
-const { bucket, sideBucket } = require('../config/storageConfig');
+const { bucket } = require('../config/storageConfig');
 
 /**
  * Based on old version of app where we were storing videos.
@@ -38,21 +38,26 @@ function createNewVideoInDatabase({
   userId,
   cdnId,
   cdnFilteredId,
+  cdnId_128,
+  cdnId_64,
   // isPrimary = 1,
 }) {
   
 
   return new Promise((resolve, reject) => {
     dbConn.query('SELECT * FROM tbl_video WHERE user_id=? AND is_primary=1', userId, function(error, results, fields) {
-      if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+      // if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+      if (error) reject(error);
       var isPrimary = 1;
-      if (results.length) {
+      if (results && results.length) {
         isPrimary = 0;
       }
       const videoData = {
         user_id: userId,
         cdn_id: cdnId,
         cdn_filtered_id: cdnFilteredId,
+        cdn_id_128: cdnId_128,
+        cdn_id_64: cdnId_64,
         created_date: new Date(),
         updated_date: new Date(),
         is_reply: 0,
@@ -70,42 +75,115 @@ function createNewVideoInDatabase({
 
 uploadApi.post('/userPhoto', checkAuth, upload.single('fileData'), (req, res) => {
   const file = req.file;
-  const originalFilePath = path.join(TEMP_UPLOAD_FOLDER, file.filename);
-  const processedFilePath = path.join(TEMP_UPLOAD_FOLDER, `${file.filename}.${DESIRED_FILE_EXTENSION}`);
+  // const originalFilePath = path.join(TEMP_UPLOAD_FOLDER, file.filename);
+  // const processedFilePath = path.join(TEMP_UPLOAD_FOLDER, `${file.filename}.${DESIRED_FILE_EXTENSION}`);
 
-  sharp(file.path)
-    .jpeg()
-    .toFile(processedFilePath)
-    .then(() => {
-      const photoIdInBucket = `${file.filename}-screenshot`;
+  const sizes = [64, 128, 512];
 
-      return sideBucket.upload(processedFilePath, {
-        destination: photoIdInBucket,
-      })
-        .then(storageResponse => {
-          return createNewVideoInDatabase({
-            userId: req.userData.userId,
-            cdnId: file.filename,
-            cdnFilteredId: file.filename,
-          })
-            .then(videoRecord => {
-              res.send(videoRecord);
+  const uploadPromises = sizes.map(async size => {
 
-              deleteFiles([
-                originalFilePath,
-                processedFilePath,
-              ]);
-            });
-        })
+    var thumbName = '';
+    if (size == 512) {
+      thumbName = `${file.filename}.${DESIRED_FILE_EXTENSION}`;
+    } else {
+      thumbName = `thumb_${size}_${file.filename}.${DESIRED_FILE_EXTENSION}`;
+    }
+    const processedFilePath = path.join(TEMP_UPLOAD_FOLDER, thumbName);
+
+    console.log(processedFilePath);
+
+    // Resize source image
+    if (size == 512) {
+      await sharp(file.path)
+        .jpeg()
+        .toFile(processedFilePath);
+    } else {
+      await sharp(file.path)
+        .jpeg()
+        .resize(size, size)
+        .toFile(processedFilePath);
+    }
+
+    var photoIdInBucket='';
+    if (size == 512) {
+      photoIdInBucket = `${file.filename}-screenshot`;
+    } else {
+      photoIdInBucket = `thumb_${size}_${file.filename}-screenshot`;
+    }
+
+    // Upload to GCS
+    return bucket.upload(processedFilePath, {
+      destination: photoIdInBucket,
+      metadata: {
+        // Enable long-lived HTTP caching headers
+        // Use only if the contents of the file will never change
+        // (If the contents will change, use cacheControl: 'no-cache')
+        cacheControl: 'public, max-age=4133869200',
+      },
+    }).then(responseUpload => {
+      bucket.file(photoIdInBucket)
+        .makePublic();
+
+      deleteFiles([
+        processedFilePath,
+      ]);
     })
     .catch(err => {
       deleteFiles([
-        originalFilePath,
         processedFilePath,
       ]);
-
-      res.status(500).send(err);
     });
+  });
+  
+  // 4. Run the upload operations
+  Promise.all(uploadPromises).then(storageResponse => {
+    return createNewVideoInDatabase({
+      userId: req.userData.userId,
+      cdnId: file.filename,
+      cdnFilteredId: file.filename,
+      cdnId_128: 'thumb_128_' + file.filename,
+      cdnId_64: 'thumb_64_' + file.filename,
+    })
+    .then(videoRecord => {
+      res.send(videoRecord);
+    })
+    .catch(err => {
+    });
+  })
+
+  // sharp(file.path)
+  //   .jpeg()
+  //   .toFile(processedFilePath)
+  //   .then(() => {
+  //     const photoIdInBucket = `${file.filename}-screenshot`;
+
+  //     return bucket.upload(processedFilePath, {
+  //       destination: photoIdInBucket,
+  //     })
+  //       .then(storageResponse => {
+  //         return createNewVideoInDatabase({
+  //           userId: req.userData.userId,
+  //           cdnId: file.filename,
+  //           cdnFilteredId: file.filename,
+  //         })
+  //           .then(videoRecord => {
+  //             res.send(videoRecord);
+
+  //             deleteFiles([
+  //               originalFilePath,
+  //               processedFilePath,
+  //             ]);
+  //           });
+  //       })
+  //   })
+  //   .catch(err => {
+  //     deleteFiles([
+  //       originalFilePath,
+  //       processedFilePath,
+  //     ]);
+
+  //     res.status(500).send(err);
+  //   });
 });
 
 module.exports = uploadApi;
