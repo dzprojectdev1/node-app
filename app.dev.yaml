@@ -23,6 +23,7 @@ env_variables:
   DB_USER: "root"
   DB_PASSWORD: "IE@9f1t6q#Ie"
   CHARSET: "utf8mb4"
+  SERVICE_ACCOUNT_CRED_FILE: "creds.json"
 
   # Google Cloud Storage values
   PROJECT_ID: "dazzled-date-dev"

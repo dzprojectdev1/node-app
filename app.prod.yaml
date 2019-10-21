@@ -18,15 +18,16 @@ runtime: nodejs10
 env_variables:
   JWT_KEY: "secret"
   PORT: "8080"
-  CLOUD_SQL_CONNECTION_NAME: "dazzled-date-dev:us-central1:dazzled-date-sql-dev"
+  CLOUD_SQL_CONNECTION_NAME: "dazzled-date-prod:us-central1:dazzled-date-sql-prod"
   DB_NAME: "dzproject"
   DB_USER: "root"
-  DB_PASSWORD: "IE@9f1t6q#Ie"
+  DB_PASSWORD: "31WUQCN#6RqV"
   CHARSET: "utf8mb4"
+  SERVICE_ACCOUNT_CRED_FILE: "credsprod.json"
 
   # Google Cloud Storage values
-  PROJECT_ID: "dazzled-date-dev"
-  BUCKET_NAME: "dazzled-date-dev"
+  PROJECT_ID: "dazzled-date-prod"
+  BUCKET_NAME: "dazzled-date-prod"
 
   # SendGrid Email Api_key
   SENDGRID_API_KEY: "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"
