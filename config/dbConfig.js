@@ -12,7 +12,9 @@ if (process.env.CLOUD_SQL_CONNECTION_NAME) {
   console.log(`This is App Engine. Proceeding to configure mysql with socketPath "/cloudsql/${process.env.CLOUD_SQL_CONNECTION_NAME}".`)
   mysqlConfig.socketPath = `/cloudsql/${process.env.CLOUD_SQL_CONNECTION_NAME}`;
 }
-// connection configurations
-var dbConn = mysql.createPool(mysqlConfig);
+
+var dbConn = mysql.createConnection(mysqlConfig);
+
+dbConn.connect(); 
 
 module.exports = dbConn;
