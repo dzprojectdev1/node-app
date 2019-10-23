@@ -142,25 +142,28 @@ chatApi.post('/create', checkAuth, function (req, res) {
                                     const deviceId = receiverData.fcm_id;
                                     let userPhotoUrl;
                                     if (userphotoId) {
-                                        userPhotoUrl = bucket.getFiles(function (err, files) {
-                                            if (err)
-                                                return null;
+                                        // userPhotoUrl = bucket.getFiles(function (err, files) {
+                                        //     if (err)
+                                        //         return null;
 
-                                            const match = files.find(file => file.id === userphotoId);
+                                        //     const match = files.find(file => file.id === userphotoId);
 
-                                            if (!match)
-                                                return null;
-                                            match.getSignedUrl({
-                                                action: 'read',
-                                                expires: '03-17-2025'
-                                            }, (err, url) => {
-                                                if (err) {
-                                                } else {
-                                                    return url;
-                                                }
-                                            });
+                                        //     if (!match)
+                                        //         return null;
+                                        //     match.getSignedUrl({
+                                        //         action: 'read',
+                                        //         expires: '03-17-2025'
+                                        //     }, (err, url) => {
+                                        //         if (err) {
+                                        //         } else {
+                                        //             return url;
+                                        //         }
+                                        //     });
 
-                                        });
+                                        // });
+                                        userPhotoUrl = 'https://storage.googleapis.com/' + process.env.BUCKET_NAME + '/' + userphotoId + '-screenshot';
+                                    } else {
+                                        userPhotoUrl = '';
                                     }
 
                                     var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
