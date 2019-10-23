@@ -153,7 +153,7 @@ matchApi.post('/like', checkAuth, function (req, res) {
                     });
                 });
             } else {
-                return res.send({error: false, data: { sentDataId: -1, receiveDataId: -1, coin_count: -1, account_status: account_status }, message: 'You need 1 diamond to send a heart.'});
+                return res.send({error: false, data: { sentDataId: -1, receiveDataId: -1, coin_count: coin_count, account_status: account_status }, message: 'You need 1 diamond to send a heart.'});
             }
         } else {
             return res.send({error: false, data: { sentDataId: -1, receiveDataId: -1, coin_count: coin_count, account_status: account_status  }, message: 'Your Account Is Not Active.'});
