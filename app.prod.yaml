@@ -20,8 +20,10 @@ env_variables:
   PORT: "8080"
   CLOUD_SQL_CONNECTION_NAME: "dazzled-date-prod:us-central1:dazzled-date-sql-prod"
   DB_NAME: "dzproject"
-  DB_USER: "root"
-  DB_PASSWORD: "31WUQCN#6RqV"
+  # DB_USER: "root"
+  # DB_PASSWORD: "31WUQCN#6RqV"
+  DB_USER: "app_user"
+  DB_PASSWORD: "23lSDFJ843"
   CHARSET: "utf8mb4"
   SERVICE_ACCOUNT_CRED_FILE: "credsprod.json"
 
