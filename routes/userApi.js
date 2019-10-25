@@ -99,6 +99,8 @@ userApi.post('/signup', function (req, res) {
                 last_loggedin_date: new Date()
             };
 
+            console.log('New user information ' + JSON.stringify(newUserData));
+
             dbConn.query("INSERT INTO tbl_user SET ? ", newUserData, function (error, results, fields) {
                 if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                 var joinQuery = 'INNER JOIN tbl_language b on a.language_id=b.id INNER JOIN tbl_ethnicity c ON c.id=a.ethnicity_id INNER JOIN tbl_country d ON a.country_id=d.id';
