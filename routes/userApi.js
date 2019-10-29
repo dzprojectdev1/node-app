@@ -71,11 +71,11 @@ userApi.post('/signup', function (req, res) {
         return res.status(400).send({ error: true, message: 'Please provide all params' });
     }
 
-    // dbConn.query('SELECT * FROM tbl_user where email_address=?', useremail, function (error, results, fields) {
-    //     if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-    //     if (results.length) {
-    //         return res.status(400).send({ error: true, message: 'Email is already taken.' });
-    //     } else {
+    dbConn.query('SELECT * FROM tbl_user where device_id=?', deviceId, function (error, results, fields) {
+        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+        if (results.length) {
+            return res.status(400).send({ error: true, message: 'User exists!' });
+        } else {
             var newUserData = {
                 // email_address: useremail,
                 // password: bcrypt.hashSync(userpassword, 10, (err, hash) => {
@@ -135,8 +135,8 @@ userApi.post('/signup', function (req, res) {
                 });
                 // return res.send({ error: false, data: results.insertId, message: 'New user has been created successfully.' });
             });
-//         }
-//     });
+        }
+    });
 });
 
 userApi.put('/checkDeviceUniqueId/:deviceId', function (req, res) {
