@@ -189,7 +189,11 @@ matchApi.post('/dislike', checkAuth, function (req, res) {
         dbConn.query("INSERT INTO tbl_match SET ? ", notInterestData, function (error, results, fields) {
             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
 
-            return res.send({ error: false, data: results, message: 'Dislike data is created.' });
+            dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=?', [new Date(), userId], function(actErr, actRows, actFields) {
+                if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
+
+                return res.send({ error: false, data: results, message: 'Dislike data is created.' });
+            });
         });
     });
 });
@@ -1136,7 +1140,27 @@ matchApi.post('/discover', checkAuth, function (req, res) {
     });
 });
 
+var updateLastLoggedInDate = (req, res, next) => {
+    try {
+        var userId = req.userData.userId;
+
+        dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=?', [new Date(), userId], function(actErr, actRows, actFields) {
+            if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
+
+            next();
+        });
+    } catch (error) {
+        return res.status(401).json({
+            message: error
+        });
+    }
+}
+
+matchApi.post('/updateLastLoggedInDate', checkAuth, updateLastLoggedInDate, function (req, res) {
+    return res.send({ error: false, message: 'Last logged-in date was updated successfully.' });
+});
 
 module.exports.matchApi = matchApi;
 module.exports.blockFunction = blockFunction;
+module.exports.updateLastLoggedInDate = updateLastLoggedInDate;
 
