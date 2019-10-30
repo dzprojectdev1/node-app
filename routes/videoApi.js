@@ -300,37 +300,43 @@ videoApi.put('/removeMyVideo/:videoId', checkAuth, function(req, res) {
         if (primaryStatus == 1) {
             dbConn.query('SELECT * FROM tbl_video WHERE user_id=? AND id!=? AND publish=1', [userId, videoId], function(error2, otherResults, otherFields) {
                 if (error2) return res.status(400).send({error: true, detail: error2.code, message: error2.sqlMessage});
-                if (!otherResults.length) return res.send({error: true, message: 'Remove Failed! This video is primary video. And User doesn`t have any other video. User must have one primary video, at least'});
-                var findNextVideos = otherResults.filter(video => video.id > videoId);
-                var nextVideo;
-                if (findNextVideos.length > 0) {
-                    nextVideo = findNextVideos[0];
-                } else {
-                    nextVideo = otherResults[0];
-                }
-                var nextVideoId = nextVideo.id;
-                var updateData = {
-                    is_primary: 1,
-                    is_reply: 0,
-                    updated_date: new Date()
-                };
-                dbConn.query('UPDATE tbl_video SET publish=0, is_primary=0 WHERE id=? ', videoId, function(error2, newResult) {
-                    if (error2) return res.status(400).send({error: true, detail: error2.code, message: error2.sqlMessage});
-                    
-                    dbConn.query("UPDATE tbl_video SET ? WHERE id=?", [updateData, nextVideoId], function(error3, newPrimaryResult, newPrimaryFields) {
-                        if (error3) return res.status(403).send({error: true, detail: error3.code, message: error3.sqlMessage});
+                if (!otherResults.length)  {
+                    dbConn.query('UPDATE tbl_video SET publish=0, is_primary=0 WHERE id=? ', videoId, function(error3, newResult) {
+                        if (error3) return res.status(400).send({error: true, detail: error3.code, message: error3.sqlMessage});
+                        return res.send({error: false, message: 'Photo was removed successfully.'}); 
+                    });
+                } else {                    
+                    var findNextVideos = otherResults.filter(video => video.id > videoId);
+                    var nextVideo;
+                    if (findNextVideos.length > 0) {
+                        nextVideo = findNextVideos[0];
+                    } else {
+                        nextVideo = otherResults[0];
+                    }
+                    var nextVideoId = nextVideo.id;
+                    var updateData = {
+                        is_primary: 1,
+                        is_reply: 0,
+                        updated_date: new Date()
+                    };
+                    dbConn.query('UPDATE tbl_video SET publish=0, is_primary=0 WHERE id=? ', videoId, function(error2, newResult) {
+                        if (error2) return res.status(400).send({error: true, detail: error2.code, message: error2.sqlMessage});
                         
-                        dbConn.query('SELECT * FROM tbl_video WHERE id=?', nextVideoId, function(error4, getResult, getFields) {
-                            if (error4) return res.status(403).send({error: true, detail: error4.code, message: error4.sqlMessage});
-                            return res.send({error: false, data: getResult, message: 'Video was removed successfully. And next video was set into primary video.'});
-                        });   
-                    });          
-                });                
+                        dbConn.query("UPDATE tbl_video SET ? WHERE id=?", [updateData, nextVideoId], function(error3, newPrimaryResult, newPrimaryFields) {
+                            if (error3) return res.status(403).send({error: true, detail: error3.code, message: error3.sqlMessage});
+                            
+                            dbConn.query('SELECT * FROM tbl_video WHERE id=?', nextVideoId, function(error4, getResult, getFields) {
+                                if (error4) return res.status(403).send({error: true, detail: error4.code, message: error4.sqlMessage});
+                                return res.send({error: false, data: getResult, message: 'Photo was removed successfully. And next video was set into primary video.'});
+                            });   
+                        });          
+                    });   
+                }                             
             });
         } else {
             dbConn.query('UPDATE tbl_video SET publish=0, is_primary=0 WHERE id=? ', videoId, function(error2, newResult) {
                 if (error2) return res.status(400).send({error: true, detail: error2.code, message: error2.sqlMessage});
-                return res.send({error: false, message: 'Video was removed successfully.'});   
+                return res.send({error: false, message: 'Photo was removed successfully.'});   
             });
         }        
     });
