@@ -1146,7 +1146,8 @@ var updateLastLoggedInDate = (req, res, next) => {
 
         dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=?', [new Date(), userId], function(actErr, actRows, actFields) {
             if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
-
+            
+            console.log('Last logged-in date was updated successfully.');
             next();
         });
     } catch (error) {
@@ -1157,6 +1158,7 @@ var updateLastLoggedInDate = (req, res, next) => {
 }
 
 matchApi.post('/updateLastLoggedInDate', checkAuth, updateLastLoggedInDate, function (req, res) {
+    console.log('Last logged-in date was updated successfully.');
     return res.send({ error: false, message: 'Last logged-in date was updated successfully.' });
 });
 
