@@ -294,7 +294,7 @@ transactionApi.post('/freeDiamonds/:user_id', checkAuth, function(req, res) {
                 dbConnect.query(query, [user_id, current_date], function(error, results, fields) {
                     if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
-                    coin_count = coin_count + 50;
+                    coin_count = coin_count + 90;
 
                     let result_data = {
                         success: true,
@@ -344,7 +344,7 @@ transactionApi.post('/freeDiamonds/:user_id', checkAuth, function(req, res) {
                     dbConnect.query(query, [user_id, current_date], function(error, results, fields) {
                         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
-                        coin_count = coin_count + 50;
+                        coin_count = coin_count + 90;
 
                         let result_data = {
                             success: true,
