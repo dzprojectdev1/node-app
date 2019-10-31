@@ -974,7 +974,8 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
         }
         var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
 
-        var defaultDistance = 3959 * Math.acos(Math.cos(myLat) * Math.cos(myLong));
+        var pi = Math.PI;
+        var defaultDistance = 3959 * Math.acos(Math.cos(myLat * (pi / 180)) * Math.cos(myLong * (pi / 180)));
 
         console.log('DefaultDistance is ' + defaultDistance);
 
