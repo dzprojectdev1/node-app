@@ -1054,7 +1054,7 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
         var pi = Math.PI;
         var defaultDistance = 3959 * Math.acos(Math.cos(myLat * (pi / 180)) * Math.cos(myLong * (pi / 180)));
 
-        console.log('DefaultDistance is ' + defaultDistance);
+        console.log('DefaultDistance Other user is ' + defaultDistance);
         
         joinQuery += ' LEFT JOIN tbl_video as e ON a.id=e.user_id ';
 
