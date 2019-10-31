@@ -1071,6 +1071,8 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
                     item.distance = 0;
                 }
             });
+
+            console.log('Result[0].distance is ' + results[0].distance);
             return res.send({error: false, data: results[0], message: 'discover list updated'});
         });
     });
