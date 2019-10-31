@@ -946,8 +946,6 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
     var userId = req.userData.userId;
     var perPageCount = req.body.count;
     var offSet = req.body.offset;
-
-    console.log('User id is ' + userId);
     
     if (!perPageCount || !offSet) 
         return res.status(403).send({error: true, message: 'invalid params'});
@@ -962,14 +960,13 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
 
         var myLat = loggedUser.lat_geo;
         var myLong = loggedUser.long_geo;
-        if (!myLat || !myLong) return res.status(403).send({error: true, message: 'user location information is invalid'});
+        if (myLat != 0 && myLong != 0 && (!myLat || !myLong)) return res.status(403).send({error: true, message: 'user location information is invalid'});
 
         var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
         var getOtherMatchInfo = 'select other_user_id from tbl_match where main_user_id=? and status != 0';
 
         var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
 
-        console.log('Lat is ' + myLat + ' : Long is ' + myLong);
         if (myLat == 0 && myLong == 0) {
             console.log('Lat 0, Long 0 user ...');
             var distanceQuery = 0;
