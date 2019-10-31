@@ -968,10 +968,8 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
         var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
 
         if (myLat == 0 && myLong == 0) {
-            console.log('Lat 0, Long 0 user ...');
-            var distanceQuery = 0;
+            var distanceQuery = 'undefined';
         } else {
-            console.log('2 ---- Lat is ' + myLat + ' : Long is ' + myLong);
             var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
         }
         var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
@@ -1007,7 +1005,6 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
         // var rightQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + rightJoinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date DESC)';
         // var totalQuery = leftQuery + ' UNION ' + rightQuery + ' ORDER BY last_loggedin_date DESC LIMIT ? OFFSET ? ';
         // console.log(totalQuery);
-        console.log('getAllDiscovers query is ' + leftQuery);
         dbConn.query(leftQuery, [userId, userId, perPageCount, offSet], function (error, results, fields) {
             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
             if (!results.length)
