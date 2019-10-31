@@ -968,8 +968,10 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
         var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
 
         if (myLat == 0 && myLong == 0) {
+            console.log('Lat 0, Long 0 user ...');
             var distanceQuery = 0;
         } else {
+            console.log('Lat 0, Long 0 user ...');
             var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
         }
         var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
