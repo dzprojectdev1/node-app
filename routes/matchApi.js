@@ -968,7 +968,7 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
         var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
 
         if (myLat == 0 && myLong == 0) {
-            var distanceQuery = 'undefined';
+            var distanceQuery = 0;
         } else {
             var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
         }
