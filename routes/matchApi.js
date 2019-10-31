@@ -1050,6 +1050,11 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
             var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
         }
         var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id=?';
+
+        var pi = Math.PI;
+        var defaultDistance = 3959 * Math.acos(Math.cos(myLat * (pi / 180)) * Math.cos(myLong * (pi / 180)));
+
+        console.log('DefaultDistance is ' + defaultDistance);
         
         joinQuery += ' LEFT JOIN tbl_video as e ON a.id=e.user_id ';
 
@@ -1062,6 +1067,9 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
             
             results.map(item => {
                 item.last_loggedin_date = commonFunc.timeAgo(item.last_loggedin_date);
+                if (defaultDistance == item.distance) {
+                    item.distance = 0;
+                }
             });
             return res.send({error: false, data: results[0], message: 'discover list updated'});
         });
