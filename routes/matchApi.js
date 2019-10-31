@@ -1030,13 +1030,17 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
 
         var myLat = loggedUser.lat_geo;
         var myLong = loggedUser.long_geo;
-        if (!myLat || !myLong) return res.status(403).send({error: true, message: 'user location information is invalid'});
+        if (myLong != 0 && myLat != 0 && (!myLat || !myLong)) return res.status(403).send({error: true, message: 'user location information is invalid'});
 
         var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
 
         var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
 
-        var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
+        if (myLat == 0 && myLong ==0) {
+            var distanceQuery = 0;
+        } else {
+            var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
+        }
         var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id=?';
         
         joinQuery += ' LEFT JOIN tbl_video as e ON a.id=e.user_id ';
