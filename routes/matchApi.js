@@ -1017,7 +1017,7 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
             
             results.map(item => {
                 item.last_loggedin_date = commonFunc.timeAgo(item.last_loggedin_date);
-                if (defaultDistance == item.distance) {
+                if ((defaultDistance == 0) || (defaultDistance == item.distance)) {
                     item.distance = 0;
                 }
             });
@@ -1067,7 +1067,7 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
             
             results.map(item => {
                 item.last_loggedin_date = commonFunc.timeAgo(item.last_loggedin_date);
-                if (defaultDistance == item.distance) {
+                if ((defaultDistance == 0) || (defaultDistance == item.distance)) {
                     item.distance = 0;
                 }
             });
