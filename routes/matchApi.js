@@ -976,6 +976,8 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
 
         var defaultDistance = 3959 * Math.acos(Math.cos(myLat) * Math.cos(myLong));
 
+        console.log('DefaultDistance is ' + defaultDistance);
+
         if (req.body.distance && myLat !=0 && myLong != 0) {
             distance = parseInt(req.body.distance);
             whereCondition += ' AND ((' + distanceQuery + ') < ' + distance + ')';
