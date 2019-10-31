@@ -946,6 +946,8 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
     var userId = req.userData.userId;
     var perPageCount = req.body.count;
     var offSet = req.body.offset;
+
+    console.log('User id is ' + userId);
     
     if (!perPageCount || !offSet) 
         return res.status(403).send({error: true, message: 'invalid params'});
