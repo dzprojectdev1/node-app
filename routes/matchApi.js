@@ -974,6 +974,8 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
         }
         var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
 
+        var defaultDistance = 3959 * Math.acos(Math.cos(myLat) * Math.cos(myLong));
+
         if (req.body.distance && myLat !=0 && myLong != 0) {
             distance = parseInt(req.body.distance);
             whereCondition += ' AND ((' + distanceQuery + ') < ' + distance + ')';
@@ -1012,6 +1014,9 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
             
             results.map(item => {
                 item.last_loggedin_date = commonFunc.timeAgo(item.last_loggedin_date);
+                if (defaultDistance == item.distance) {
+                    item.distance = 0;
+                }
             });
             
             return res.send({error: false, data: results, message: 'discover list updated'});
