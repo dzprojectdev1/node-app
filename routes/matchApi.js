@@ -1100,8 +1100,15 @@ matchApi.post('/discover', checkAuth, function (req, res) {
 
         var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
 
-        var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
+        if (myLat == 0 && myLong == 0) {
+            var distanceQuery = 0;
+        } else {
+            var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
+        }
         var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
+        
+        var pi = Math.PI;
+        var defaultDistance = 3959 * Math.acos(Math.cos(myLat * (pi / 180)) * Math.cos(myLong * (pi / 180)));
 
         if (req.body.distance) {
             distance = req.body.distance;
@@ -1154,6 +1161,9 @@ matchApi.post('/discover', checkAuth, function (req, res) {
                 };
                 if (otherUser.last_loggedin_date) {
                     otherUser.last_loggedin_date = commonFunc.timeAgo(otherUser.last_loggedin_date);
+                }
+                if ((defaultDistance == 0) || (defaultDistance == otherUser.distance)) {
+                    otherUser.distance = 0;
                 }
                 if (results.length) return res.status(403).send({ error: false, data: otherUser, message: 'A New Lovely User found.' });
                 dbConn.query('INSERT INTO tbl_match SET ? ', [newMatchData], function (error, newMatch, fields) {
