@@ -2,6 +2,9 @@ var express = require('express');
 var transactionApi = express.Router();
 var dbConnect = require('../config/dbConfig');
 const checkAuth = require('../middleware/check_auth');
+var FCM = require('fcm-node');
+const serverKey = process.env.FIREBASE_SERVER_KEY;
+const fcm = new FCM(serverKey);
 
 /**
  * return transaction lists for selected user
@@ -366,6 +369,55 @@ transactionApi.post('/freeDiamonds/:user_id', checkAuth, function(req, res) {
         })
     })
 
+})
+
+transactionApi.post('/pushNotification', function(req, res) {
+
+    var senderId = req.body.senderId;
+    var messageText = req.body.messageText;
+    var senderName = req.body.userName;
+
+    var num_user = 0;
+    var message_sent = 0;
+
+    var query = 'select * from tbl_user where account_status = 1';
+    dbConnect.query(query, function(error, results, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+        if(!results || !results.length) return res.send({error: false, message: 'There is no user.'});
+
+        results.map(item => {
+            var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                to: item.fcm_id,
+                notification: {
+                    title: 'New Message',
+                    body: messageText,
+                },
+                data: {  //you can send only notification or only data(or include both)
+                    type: 'PushNotification',
+                    senderId: senderId,
+                    senderImg: '',
+                    senderName: senderName
+                }
+            };
+            fcm.send(message, function (notiErr, notiRes) {
+                if (notiErr) {
+                } else {
+                    num_user ++;
+                }
+            });
+        });
+
+        if (num_user > 0) {
+            message_sent = 1;
+        }
+
+        query = "insert into tbl_message (message, message_sent, num_user, created_date) values (?, ?, ?, ?)";
+        dbConnect.query(query, [messageText, message_sent, num_user, new Date()], function(error, results, fields) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        })
+    })
+    return res.send({ error: false, message: "New push notification sent " + num_user + " users." });
 })
 
 /**
