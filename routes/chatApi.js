@@ -182,11 +182,12 @@ chatApi.post('/create', checkAuth, function (req, res) {
                                     fcm.send(message, function (notiErr, notiRes) {
                                         if (notiErr) {
                                             console.log("Notification Sending is failed", notiErr);
+                                            return res.send({ error: false, data: { sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created." });
                                         } else {
                                             console.log("Successfully sent with response: ", notiRes);
+                                            return res.send({ error: false, data: { sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created." });
                                         }
                                     });
-                                    return res.send({ error: false, data: { sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created." });
                                 });
                             });
                         });
