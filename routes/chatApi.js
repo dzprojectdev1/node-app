@@ -101,38 +101,38 @@ chatApi.post('/create', checkAuth, function (req, res) {
                 if (otherPublish !== 1)
                     return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
 
-                // var sendMsg = {
-                //     match_id: matchId,
-                //     message_type: 1,
-                //     message_text: messageText,
-                //     created_date: new Date()
-                // };
-                // dbConn.beginTransaction(function (error) {
-                //     if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                //     dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function (error, sendResult) {
-                //         if (error) {
-                //             dbConn.rollback(function () {
-                //                 return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                //             });
-                //         }
-                //         var receiveMsg = {
-                //             match_id: mutualMatchId,
-                //             message_type: 2,
-                //             message_text: messageText,
-                //             created_date: new Date()
-                //         };
-                //         dbConn.query('INSERT INTO tbl_chat set ? ', [receiveMsg], function (error, receiveResult) {
-                //             if (error) {
-                //                 dbConn.rollback(function () {
-                //                     return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                //                 });
-                //             }
-                //             dbConn.commit(function (error) {
-                //                 if (error) {
-                //                     dbConn.rollback(function () {
-                //                         return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                //                     });
-                //                 }
+                var sendMsg = {
+                    match_id: matchId,
+                    message_type: 1,
+                    message_text: messageText,
+                    created_date: new Date()
+                };
+                dbConn.beginTransaction(function (error) {
+                    if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                    dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function (error, sendResult) {
+                        if (error) {
+                            dbConn.rollback(function () {
+                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                            });
+                        }
+                        var receiveMsg = {
+                            match_id: mutualMatchId,
+                            message_type: 2,
+                            message_text: messageText,
+                            created_date: new Date()
+                        };
+                        dbConn.query('INSERT INTO tbl_chat set ? ', [receiveMsg], function (error, receiveResult) {
+                            if (error) {
+                                dbConn.rollback(function () {
+                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                });
+                            }
+                            dbConn.commit(function (error) {
+                                if (error) {
+                                    dbConn.rollback(function () {
+                                        return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                    });
+                                }
 
                                 dbConn.query('SELECT * FROM tbl_user a INNER JOIN tbl_match b ON a.id=b.main_user_id WHERE b.id=?', mutualMatchId, function (error1, receiver, receiverFields) {
                                     if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
@@ -186,13 +186,12 @@ chatApi.post('/create', checkAuth, function (req, res) {
                                             console.log("Successfully sent with response: ", notiRes);
                                         }
                                     });
-                                    // return res.send({ error: false, data: { sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created." });
-                                    return res.send({ error: false, data: { account_status: account_status, sending_available: true }, message: "New Message is Created." });
+                                    return res.send({ error: false, data: { sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created." });
                                 });
-                //             });
-                //         });
-                //     });
-                // });
+                            });
+                        });
+                    });
+                });
             })
         });
     });
