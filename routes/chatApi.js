@@ -186,7 +186,8 @@ chatApi.post('/create', checkAuth, function (req, res) {
                                             console.log("Successfully sent with response: ", notiRes);
                                         }
                                     });
-                                    return res.send({ error: false, data: { sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created." });
+                                    // return res.send({ error: false, data: { sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created." });
+                                    return res.send({ error: false, data: { account_status: account_status, sending_available: true }, message: "New Message is Created." });
                                 });
                 //             });
                 //         });
