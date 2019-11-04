@@ -389,54 +389,60 @@ transactionApi.post('/pushNotification', massPushNotification, function(req, res
     })
 })
 
-var massPushNotification = function(req, res, next) {
-    var senderId = req.body.senderId;
-    var messageText = req.body.messageText;
-    var senderName = req.body.userName;
+var massPushNotification = (req, res, next) => {
+    try {
+        var senderId = req.body.senderId;
+        var messageText = req.body.messageText;
+        var senderName = req.body.userName;
 
-    var num_user = 0;
-    var total_user = 0;
-    var i = 0;
+        var num_user = 0;
+        var total_user = 0;
+        var i = 0;
 
-    var query = 'select * from tbl_user where account_status = 1';
-    dbConnect.query(query, function(error, results, fields) {
-        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        var query = 'select * from tbl_user where account_status = 1';
+        dbConnect.query(query, function(error, results, fields) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
-        if(!results || !results.length) return res.send({error: false, message: 'There is no user.'});
+            if(!results || !results.length) return res.send({error: false, message: 'There is no user.'});
 
-        total_user = results.length;
+            total_user = results.length;
 
-        results.map(item => {
-            i ++;
-            if (i == total_user) {
-                req.resultData = {
-                    messageText: messageText,
-                    num_user: num_user,
-                };
-                next();
-            } else {
-                var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
-                    to: item.fcm_id,
-                    notification: {
-                        title: 'New Notification',
-                        body: messageText,
-                    },
-                    data: {  //you can send only notification or only data(or include both)
-                        type: 'PushNotification',
-                        senderId: senderId,
-                        senderImg: '',
-                        senderName: senderName
-                    }
-                };
-                fcm.send(message, function (notiErr, notiRes) {
-                    if (notiErr) {
-                    } else {
-                        num_user = parseInt(num_user) + 1;
-                    }
-                });
-            }
+            results.map(item => {
+                i ++;
+                if (i == total_user) {
+                    req.resultData = {
+                        messageText: messageText,
+                        num_user: num_user,
+                    };
+                    next();
+                } else {
+                    var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                        to: item.fcm_id,
+                        notification: {
+                            title: 'New Notification',
+                            body: messageText,
+                        },
+                        data: {  //you can send only notification or only data(or include both)
+                            type: 'PushNotification',
+                            senderId: senderId,
+                            senderImg: '',
+                            senderName: senderName
+                        }
+                    };
+                    fcm.send(message, function (notiErr, notiRes) {
+                        if (notiErr) {
+                        } else {
+                            num_user = parseInt(num_user) + 1;
+                        }
+                    });
+                }
+            });
+        })
+    } catch (error) {
+        return res.status(401).json({
+            message: error
         });
-    })
+    }
 }
 
 /**
