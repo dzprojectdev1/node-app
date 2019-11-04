@@ -13,6 +13,7 @@
 
 # [START gae_quickstart_yaml]
 runtime: nodejs10
+instance_class: F4_HIGHMEM
 # [END gae_quickstart_yaml]
 
 env_variables:
