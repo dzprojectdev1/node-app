@@ -373,15 +373,9 @@ transactionApi.post('/freeDiamonds/:user_id', checkAuth, function(req, res) {
 
 transactionApi.post('/pushNotification', function(req, res) {
 
-    console.log(JSON.stringify(req.body));
-
     var senderId = req.body.senderId;
     var messageText = req.body.messageText;
     var senderName = req.body.userName;
-
-    console.log('senderId is ' + messageText);
-
-    console.log('messageText is ' + messageText);
 
     var num_user = 0;
     var message_sent = 0;
@@ -409,7 +403,8 @@ transactionApi.post('/pushNotification', function(req, res) {
             fcm.send(message, function (notiErr, notiRes) {
                 if (notiErr) {
                 } else {
-                    num_user ++;
+                    console.log('sent num user count is ' + num_user);
+                    num_user = parseInt(num_user) + 1;
                 }
             });
         });
