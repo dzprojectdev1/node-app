@@ -373,9 +373,9 @@ transactionApi.post('/freeDiamonds/:user_id', checkAuth, function(req, res) {
 
 transactionApi.post('/pushNotification', function(req, res) {
 
-    var senderId = req.body.senderId;
-    var messageText = req.body.messageText;
-    var senderName = req.body.userName;
+    var senderId = req.params.senderId;
+    var messageText = req.params.messageText;
+    var senderName = req.params.userName;
 
     console.log('senderId is ' + senderId);
 
