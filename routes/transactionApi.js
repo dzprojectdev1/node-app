@@ -392,6 +392,8 @@ transactionApi.post('/pushNotification', function(req, res) {
 
         total_user = results.length;
 
+        console.log(JSON.stringify(results));
+
         results.map(item => {
 
             i ++;
