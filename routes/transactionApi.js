@@ -396,6 +396,7 @@ transactionApi.post('/pushNotification', function(req, res) {
         results.map(item => {
 
             i ++;
+            console.log(i);
             if (i > total_user) {
                 if (success_user > 0) {
                     message_sent = 1;
