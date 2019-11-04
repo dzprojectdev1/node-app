@@ -377,6 +377,8 @@ transactionApi.post('/pushNotification', function(req, res) {
     var messageText = req.body.messageText;
     var senderName = req.body.userName;
 
+    console.log('messageText is ' + messageText);
+
     var num_user = 0;
     var message_sent = 0;
 
