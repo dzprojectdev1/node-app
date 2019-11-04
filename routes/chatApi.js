@@ -174,9 +174,9 @@ chatApi.post('/create', checkAuth, function (req, res) {
                                         },
                                         data: {  //you can send only notification or only data(or include both)
                                             type: 'ChatDetail',
-                                            senderId: userId,
-                                            senderImg: userPhotoUrl,
-                                            senderName: username
+                                            // senderId: userId,
+                                            // senderImg: userPhotoUrl,
+                                            // senderName: username
                                         }
                                     };
                                     fcm.send(message, function (notiErr, notiRes) {
