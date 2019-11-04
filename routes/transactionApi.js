@@ -389,6 +389,8 @@ transactionApi.post('/pushNotification', function(req, res) {
 
         if(!results || !results.length) return res.send({error: false, message: 'There is no user.'});
 
+        total_user = results.length;
+
         results.map(item => {
 
             i ++;
