@@ -425,6 +425,7 @@ transactionApi.post('/pushNotification', function(req, res) {
                             
                             return res.send({ error: false, message: "New push notification sent " + num_user + " users." });
                         })
+                        break;
                     }
                 }
             });
