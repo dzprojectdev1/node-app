@@ -378,13 +378,12 @@ transactionApi.post('/pushNotification', function(req, res) {
     var senderName = req.body.userName;
 
     var num_user = 0;
-    var success_user = 0;
     var message_sent = 0;
 
     var total_user = 0;
     var i = 0;
 
-    var query = 'select * from tbl_user where account_status = 1';
+    var query = 'select fcm_id from tbl_user where account_status = 1';
     dbConnect.query(query, function(error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
@@ -392,7 +391,7 @@ transactionApi.post('/pushNotification', function(req, res) {
 
         total_user = results.length;
 
-        console.log(JSON.stringify(results));
+        console.log(total_user);
 
         results.map(item => {
 
@@ -409,26 +408,25 @@ transactionApi.post('/pushNotification', function(req, res) {
                     return res.send({ error: false, message: "New push notification sent " + success_user + " users." });
                 })
             } else {
-                // var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
-                //     to: item.fcm_id,
-                //     notification: {
-                //         title: 'New Notification',
-                //         body: messageText,
-                //     },
-                //     data: {  //you can send only notification or only data(or include both)
-                //         type: 'PushNotification',
-                //         senderId: senderId,
-                //         senderImg: '',
-                //         senderName: senderName
-                //     }
-                // };
-                // fcm.send(message, function (notiErr, notiRes) {
-                //     if (notiErr) {
-                //     } else {
-                //         success_user = parseInt(success_user) + 1;
-                //     }
-                // });
-                // num_user ++;
+                var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                    to: item.fcm_id,
+                    notification: {
+                        title: 'New Notification',
+                        body: messageText,
+                    },
+                    data: {  //you can send only notification or only data(or include both)
+                        type: 'PushNotification',
+                        senderId: senderId,
+                        senderImg: '',
+                        senderName: senderName
+                    }
+                };
+                fcm.send(message, function (notiErr, notiRes) {
+                    if (notiErr) {
+                    } else {
+                        num_user = parseInt(num_user) + 1;
+                    }
+                });
             }
         });
     })
