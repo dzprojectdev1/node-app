@@ -392,7 +392,7 @@ transactionApi.post('/pushNotification', function(req, res) {
             var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
                 to: item.fcm_id,
                 notification: {
-                    title: 'New Message',
+                    title: 'New Notification',
                     body: messageText,
                 },
                 data: {  //you can send only notification or only data(or include both)
