@@ -3,9 +3,41 @@ var chatApi = express.Router();
 var dbConn = require("../config/dbConfig");
 const checkAuth = require('../middleware/check_auth');
 const blockFunction = require("./matchApi").blockFunction;
+const autoBlockFunction = require("./matchApi").autoBlockFunction;
 const commonFunc = require('../config/common').commonFunc;
 var FCM = require('fcm-node');
 const { bucket } = require('../config/storageConfig');
+var illegalWords = [
+    'sex',
+    'pussy',
+    'fuck',
+    'fucking',
+    'lick',
+    'boob',
+    'boobs',
+    'tit',
+    'tits',
+    'nude',
+    'blowjob',
+    'cum',
+    'porn',
+    'naked',
+    'cock',
+    'dildo',
+    'horny',
+    'dick',
+    'sexting',
+    'sexchat',
+    'penis',
+    'pennis',
+    'vagina',
+];
+var illegalWordsCombine = [
+    'call girl',
+    'sex chat',
+    'suck my',
+    'suck your',
+];
 
 //#29 UC9 Chat Api == UC9.1 Display Chat - Main list
 chatApi.get('/all', checkAuth, function (req, res) {
@@ -58,6 +90,17 @@ chatApi.post('/create', checkAuth, function (req, res) {
     var userId = req.userData.userId;
     var matchId = req.body.matchId;
 
+    var otherId = 0;
+
+    let query = 'select other_user_id from tbl_match where id =?';
+    dbConn.query(query, matchId, function(error, results, fields) {
+        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+
+        otherId = results[0].other_user_id;
+    })
+
+    console.log('Create message: Receiver user id (otherId) is ' + otherId);
+
     var messageText = req.body.messageText;
     const serverKey = process.env.FIREBASE_SERVER_KEY;
     const fcm = new FCM(serverKey);
@@ -66,9 +109,9 @@ chatApi.post('/create', checkAuth, function (req, res) {
         return res.status(400).send({ error: true, message: 'Invalid Params.' });
     }
 
-    let query = 'select * from tbl_user as a left join tbl_video as b on a.id = b.user_id where (b.cdn_id IS NULL OR b.is_primary = 1) and a.id = ?';
+    query = 'select * from tbl_user as a left join tbl_video as b on a.id = b.user_id where (b.cdn_id IS NULL OR b.is_primary = 1) and a.id = ?';
     dbConn.query(query, userId, function (error, results, fields) {
-        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });;
+        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         if (!results.length)
             return res.status(400).send({ error: true, message: 'No Match Found' });
 
@@ -78,6 +121,63 @@ chatApi.post('/create', checkAuth, function (req, res) {
 
         if (account_status !== 1)
             return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
+
+        query = "select * from tbl_user where id = ?";
+        dbConn.query(query, otherId, function(error, otherResults, fields) {
+            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+            if (!otherResults || !otherResults.length) return res.status(400).send({ error: true, message: 'No Match Found' });
+
+            var auto_block = otherResults[0].auto_block;
+
+            console.log('Auto block status is ' + auto_block);
+
+            if (auto_block == 1) {
+                // check whether messageText contains illegal word or not
+                var flag = 0;
+                var messageTextArray = messageText.split(' ');
+                messageTextArray.every(function(word, index) {
+                    if (illegalWords.includes(word)) {
+                        flag = 1;
+                        var resultAutoBlock = autoBlockFunction(userId, other_user_id);
+                        if (resultAutoBlock == 1) {
+
+                            console.log('Message contains illegal word ' + word);
+                            return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
+                        } else if (resultAutoBlock == 2) {
+
+                            console.log('This user was blocked automatically over 15 times');
+                            return res.send({ error: false, data: { account_status: 9, sending_available: false }, message: "Your Account Is Not Active." });
+                        } else {
+
+                            console.log('SQL Error Occurred');
+                            return res.status(400).send({ error: true, detail: resultAutoBlock.code, message: resultAutoBlock.sqlMessage });
+                        }
+                    }
+                })
+
+                if (flag == 0) {
+                    illegalWordsCombine.every(function(combine, index) {
+                        if (messageTextArray.indexOf(combine) != -1) {
+                            flag = 1;                        
+                            var resultAutoBlock = autoBlockFunction(userId, other_user_id);
+                            if (resultAutoBlock == 1) {
+
+                                console.log('Message contains illegal Combine word ' + combine);
+                                return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
+                            } else if (resultAutoBlock == 2) {
+
+                                console.log('This user was blocked automatically over 15 times (combine)');
+                                return res.send({ error: false, data: { account_status: 9, sending_available: false }, message: "Your Account Is Not Active." });
+                            } else {
+
+                                console.log('SQL Error Occurred (combine)');
+                                return res.status(400).send({ error: true, detail: resultAutoBlock.code, message: resultAutoBlock.sqlMessage });
+                            }
+                        }
+                    })
+                }
+            }
+        })
 
         dbConn.query('Select mutual_match_id, publish from tbl_match where id=?', [matchId], function (err, matchResults, fields) {
             if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });;

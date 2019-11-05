@@ -298,6 +298,113 @@ var blockFunction = (req, res, next) => {
     }
 }
 
+var autoBlockFunction = (userId, otherId) => {
+    try {
+        let query = "select count(id) as count from tbl_match where other_user_id = ? and status_description = 'block_received_auto'";
+        dbConn.query(query, otherId, function(error, results, fields) {
+            if (error) return error;
+            if (!results || !results.length) return error;
+
+            var auto_blocked_count = results[0].count;
+            if (auto_blocked_count >= 15) {
+
+                console.log('AutoBlockFunctio runs: this user has over 15 auto bocked times');
+                query = "update tbl_user set account_status = 9 where id = ?";
+                dbConn.query(query, otherId, function(error, uptResults, fields) {
+                    if (error) return error;
+                    return 2;
+                })
+            }
+            dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=8", [userId, otherId], function (error, results, fields) {
+                if (error) return error;
+                if (results.length) {
+                } else {
+                    //get status 2,6,7 match data,
+                    dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [userId, otherId], function (error, results, fields) {
+                        if (error) return error;
+
+                        if (results.length) {
+                            var resultIdArr = results.map(one => {
+                                return one.id;
+                            });
+                            dbConn.query("UPDATE tbl_match SET publish=0 WHERE id IN (?)", resultIdArr.join(), function (error, updateResults, updateFields) {
+                                if (error) return error;
+                            });
+                        }
+
+                        dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [otherId, userId], function (error, otherResults, fields) {
+                            if (error) return error;
+        
+                            if (otherResults.length) {
+                                var otherResultIdArr = otherResults.map(one => {
+                                    return one.id;
+                                });
+                                dbConn.query("UPDATE tbl_match SET publish=2 WHERE id IN (?)", otherResultIdArr.join(), function (error, updateResults, updateFields) {
+                                    if (error) return error;
+                                });
+                            }
+
+                            var blockCreateData = {
+                                main_user_id: userId,
+                                other_user_id: otherId,
+                                status: 8,
+                                status_description: "block_created_auto",
+                                publish: 1,
+                                created_date: new Date(),
+                                updated_date: new Date()
+                            };
+
+                            dbConn.beginTransaction(function (err) {
+                                if (err) return error;
+                                dbConn.query("INSERT INTO tbl_match SET ? ", blockCreateData, function (error, results, fields) {
+                                    if (error) {
+                                        dbConn.rollback(function () {
+                                            return error;
+                                        });
+                                    }
+
+                                    req.matchId = results.insertId;
+
+                                    var blockRecieveData = {
+                                        main_user_id: otherId,
+                                        other_user_id: userId,
+                                        status: 9,
+                                        status_description: "block_received_auto",
+                                        publish: 1,
+                                        created_date: new Date(),
+                                        updated_date: new Date()
+                                    };
+
+                                    dbConn.query('INSERT INTO tbl_match SET ? ', blockRecieveData, function (error1, receiveResult, fields) {
+                                        if (error1) {
+                                            dbConn.rollback(function () {
+                                                return error;
+                                            });
+                                        }
+
+                                        dbConn.commit(function (error) {
+                                            if (error) {
+                                                dbConn.rollback(function () {
+                                                    return error;
+                                                });
+                                            };
+
+                                            console.log('AutoBlockFunctio runs: this user was auto blocked successfully.');
+                                            return 1;
+                                        });
+                                    });
+                                });
+                            });
+                        });
+                    });
+                }
+            });
+        })
+    } catch (error) {
+        return false;
+    }
+}
+
 //#14 uc4.3 === user set other user with block
 matchApi.post('/block', checkAuth, blockFunction, function (req, res) {
     if (req.oldData) return res.send({ error: true, data: req.oldData, message: 'Block Data Already exist' });
@@ -1200,5 +1307,6 @@ matchApi.post('/updateLastLoggedInDate', checkAuth, updateLastLoggedInDate, func
 
 module.exports.matchApi = matchApi;
 module.exports.blockFunction = blockFunction;
+module.exports.autoBlockFunction = autoBlockFunction;
 module.exports.updateLastLoggedInDate = updateLastLoggedInDate;
 

@@ -7,6 +7,37 @@ const checkAuth = require('../middleware/check_auth');
 const sgMail = require('@sendgrid/mail');
 const async = require('async');
 const common = require('../config/common');
+var illegalWords = [
+    'sex',
+    'pussy',
+    'fuck',
+    'fucking',
+    'lick',
+    'boob',
+    'boobs',
+    'tit',
+    'tits',
+    'nude',
+    'blowjob',
+    'cum',
+    'porn',
+    'naked',
+    'cock',
+    'dildo',
+    'horny',
+    'dick',
+    'sexting',
+    'sexchat',
+    'penis',
+    'pennis',
+    'vagina',
+];
+var illegalWordsCombine = [
+    'call girl',
+    'sex chat',
+    'suck my',
+    'suck your',
+];
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const fromEmail = process.env.SERVER_EMAIL_ADDRESS;
@@ -71,6 +102,46 @@ userApi.post('/signup', function (req, res) {
         return res.status(400).send({ error: true, message: 'Please provide all params' });
     }
 
+    var flag = 0;
+    var account_status = 1;
+    var usernameArray = username.split(' ');
+    usernameArray.every(function(word, index) {
+        if (illegalWords.includes(word)) {
+            flag = 1;
+            account_status = 10;
+        }
+    })
+
+    if (flag == 0) {
+        illegalWordsCombine.every(function(combine, index) {
+            if (username.indexOf(combine) != -1) {
+                flag = 1; 
+                account_status = 10;
+            }
+        })
+    }
+
+    var descriptionArray = description.split(' ');
+    if (flag == 0) {
+        descriptionArray.every(function(word, index) {
+            if (illegalWords.includes(word)) {
+                flag = 1;
+                account_status = 10;
+            }
+        })
+    }
+
+    if (flag == 0) {
+        illegalWordsCombine.every(function(combine, index) {
+            if (description.indexOf(combine) != -1) {
+                flag = 1; 
+                account_status = 10;
+            }
+        })
+    }
+
+    console.log('Account status is ' + account_status);
+
     dbConn.query('SELECT * FROM tbl_user where device_id=?', deviceId, function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         if (results.length) {
@@ -95,8 +166,9 @@ userApi.post('/signup', function (req, res) {
                 fcm_id: fcmId,
                 device_id: deviceId,
                 description: description,
-                account_status: 1,
-                last_loggedin_date: new Date()
+                account_status: account_status,
+                last_loggedin_date: new Date(),
+                auto_block: 1,
             };
 
             console.log('New user information ' + JSON.stringify(newUserData));
@@ -129,7 +201,9 @@ userApi.post('/signup', function (req, res) {
                         ethnicity: results[0].ethnicity_name,
                         country: results[0].country_name,
                         description: results[0].description,
-                        last_loggedin_date: results[0].last_loggedin_date
+                        account_status: results[0].account_status,
+                        last_loggedin_date: results[0].last_loggedin_date,
+                        auto_block: results[0].auto_block,
                     };
                     return res.send({error: false, user: outputResult, message: 'User exist!'});
                 });
@@ -175,7 +249,8 @@ userApi.put('/checkDeviceUniqueId/:deviceId', function (req, res) {
                 last_loggedin_date: results[0].last_loggedin_date,
                 coin_count: results[0].coin_count,
                 account_status: results[0].account_status,
-                confirmation_code: results[0].confirmation_code
+                confirmation_code: results[0].confirmation_code,
+                auto_block: results[0].auto_block,
             };
             return res.send({error: false, user: outputResult, message: 'User already exist!'});
         });      
