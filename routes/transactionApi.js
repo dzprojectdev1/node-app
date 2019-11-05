@@ -380,17 +380,25 @@ transactionApi.post('/pushNotification', function(req, res) {
     var num_user = 0;
     var message_sent = 0;
 
-    var query = 'select * from tbl_user where account_status = 1';
+    var total_user = 0;
+    var i = 0;
+
+    var query = 'select fcm_id from tbl_user where account_status = 1';
     dbConnect.query(query, function(error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
         if(!results || !results.length) return res.send({error: false, message: 'There is no user.'});
 
+        total_user = results.length;
+
+        console.log(total_user);
+
         results.map(item => {
+            i ++;
             var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
                 to: item.fcm_id,
                 notification: {
-                    title: 'New Message',
+                    title: 'New Notification',
                     body: messageText,
                 },
                 data: {  //you can send only notification or only data(or include both)
@@ -403,20 +411,20 @@ transactionApi.post('/pushNotification', function(req, res) {
             fcm.send(message, function (notiErr, notiRes) {
                 if (notiErr) {
                 } else {
-                    num_user ++;
+                    num_user = parseInt(num_user) + 1;
                 }
             });
         });
 
-        if (num_user > 0) {
+        if (total_user > 0) {
             message_sent = 1;
         }
 
         query = "insert into tbl_message (message, message_sent, num_user, created_date) values (?, ?, ?, ?)";
-        dbConnect.query(query, [messageText, message_sent, num_user, new Date()], function(error, results, fields) {
+        dbConnect.query(query, [messageText, message_sent, total_user, new Date()], function(error, results, fields) {
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
             
-            return res.send({ error: false, message: "New push notification sent " + num_user + " users." });
+            return res.send({ error: false, message: "New push notification sent " + total_user + " users." });
         })
     })
 })
