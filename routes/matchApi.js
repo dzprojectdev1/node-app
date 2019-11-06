@@ -871,7 +871,7 @@ matchApi.post('/requestInstantMatch', checkAuth, function (req, res) {
                                                                         // return res.send({ error: false, data: { ability: true, match_id: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: "New match is created." });
                                                                     }
                                                                 });
-                                                                return res.send({ error: false, data: { ability: true, match_id: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: "New match is created." });
+                                                                return res.send({ error: false, data: { ability: true, match_id: sendResult.insertId, coin_count: coin_count, account_status: account_status }, message: "New match is created." });
                                                             });                                                                                     
                                                         });                                        
                                                     });
