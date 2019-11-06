@@ -90,6 +90,8 @@ chatApi.post('/create', checkAuth, function (req, res) {
     var userId = req.userData.userId;
     var matchId = req.body.matchId;
 
+    console.log('Match id is ' + matchId);
+
     var otherId = 0;
 
     let query = 'select * from tbl_match where id =?';
