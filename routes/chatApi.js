@@ -55,7 +55,7 @@ chatApi.get('/getChatWithMatchId/:matchId', checkAuth, function (req, res) {
 });
 
 //31 UC9.3 Create a new Chat Text 
-chatApi.post('/create', checkAuth, function (req, res) {
+chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
     var userId = req.userData.userId;
     var matchId = req.body.matchId;
     var messageText = req.body.messageText;
