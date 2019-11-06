@@ -7,37 +7,6 @@ const autoBlockFunction = require("./matchApi").autoBlockFunction;
 const commonFunc = require('../config/common').commonFunc;
 var FCM = require('fcm-node');
 const { bucket } = require('../config/storageConfig');
-var illegalWords = [
-    'sex',
-    'pussy',
-    'fuck',
-    'fucking',
-    'lick',
-    'boob',
-    'boobs',
-    'tit',
-    'tits',
-    'nude',
-    'blowjob',
-    'cum',
-    'porn',
-    'naked',
-    'cock',
-    'dildo',
-    'horny',
-    'dick',
-    'sexting',
-    'sexchat',
-    'penis',
-    'pennis',
-    'vagina',
-];
-var illegalWordsCombine = [
-    'call girl',
-    'sex chat',
-    'suck my',
-    'suck your',
-];
 
 //#29 UC9 Chat Api == UC9.1 Display Chat - Main list
 chatApi.get('/all', checkAuth, function (req, res) {
@@ -89,214 +58,143 @@ chatApi.get('/getChatWithMatchId/:matchId', checkAuth, function (req, res) {
 chatApi.post('/create', checkAuth, function (req, res) {
     var userId = req.userData.userId;
     var matchId = req.body.matchId;
+    var messageText = req.body.messageText;
+    const serverKey = process.env.FIREBASE_SERVER_KEY;
+    const fcm = new FCM(serverKey);
 
-    console.log('Match id is ' + matchId);
+    if (!matchId || !messageText) {
+        return res.status(400).send({ error: true, message: 'Invalid Params.' });
+    }
 
-    var otherId = 0;
+    let query = 'select * from tbl_user as a left join tbl_video as b on a.id = b.user_id where (b.cdn_id IS NULL OR b.is_primary = 1) and a.id = ?';
+    dbConn.query(query, userId, function (error, results, fields) {
+        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });;
+        if (!results.length)
+            return res.status(400).send({ error: true, message: 'No Match Found' });
 
-    let query = 'select * from tbl_match where id =?';
-    dbConn.query(query, matchId, function(error, results, fields) {
-        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+        var account_status = results[0].account_status;
+        const username = results[0].name;
+        const userphotoId = results[0].cdn_id;
 
-        otherId = results[0].other_user_id;
-        
-        console.log('Create message: Receiver user id (otherId) is ' + otherId);
+        if (account_status !== 1)
+            return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
 
-        var messageText = req.body.messageText;
-        const serverKey = process.env.FIREBASE_SERVER_KEY;
-        const fcm = new FCM(serverKey);
-    
-        if (!matchId || !messageText) {
-            return res.status(400).send({ error: true, message: 'Invalid Params.' });
-        }
-    
-        query = 'select * from tbl_user as a left join tbl_video as b on a.id = b.user_id where (b.cdn_id IS NULL OR b.is_primary = 1) and a.id = ?';
-        dbConn.query(query, userId, function (error, results, fields) {
-            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-            if (!results.length)
+        dbConn.query('Select mutual_match_id, publish from tbl_match where id=?', [matchId], function (err, matchResults, fields) {
+            if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });;
+            if (!matchResults.length)
                 return res.status(400).send({ error: true, message: 'No Match Found' });
-    
-            var account_status = results[0].account_status;
-            const username = results[0].name;
-            const userphotoId = results[0].cdn_id;
-    
-            if (account_status !== 1)
+
+            var mutualMatchId = matchResults[0].mutual_match_id;
+            var publish = matchResults[0].publish;
+
+            if (publish !== 1)
                 return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
-    
-            query = "select * from tbl_user where id = ?";
-            dbConn.query(query, otherId, function(error, otherResults, fields) {
-                if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                if (!otherResults || !otherResults.length) return res.status(400).send({ error: true, message: 'No Match Found' });
-    
-                var auto_block = otherResults[0].auto_block;
-    
-                console.log('Auto block status is ' + auto_block);
-    
-                if (auto_block == 1) {
-                    // check whether messageText contains illegal word or not
-                    var flag = 0;
-                    var messageTextArray = messageText.split(' ');
-                    messageTextArray.every(function(word, index) {
-                        if (illegalWords.includes(word)) {
-                            flag = 1;
-                            var resultAutoBlock = autoBlockFunction(userId, otherId);
-                            if (resultAutoBlock == 1) {
-    
-                                console.log('Message contains illegal word ' + word);
-                                return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
-                            } else if (resultAutoBlock == 2) {
-    
-                                console.log('This user was blocked automatically over 15 times');
-                                return res.send({ error: false, data: { account_status: 9, sending_available: false }, message: "Your Account Is Not Active." });
-                            } else {
-    
-                                console.log('SQL Error Occurred');
-                                return res.status(400).send({ error: true, detail: resultAutoBlock.code, message: resultAutoBlock.sqlMessage });
-                            }
+
+            dbConn.query('select publish from tbl_match where id=?', mutualMatchId, function (err, otherMatchResults, fields) {
+
+                if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });;
+                if (!otherMatchResults.length)
+                    return res.status(400).send({ error: true, message: 'No Match Found' });
+
+                var otherPublish = otherMatchResults[0].publish;
+
+                if (otherPublish !== 1)
+                    return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
+
+                var sendMsg = {
+                    match_id: matchId,
+                    message_type: 1,
+                    message_text: messageText,
+                    created_date: new Date()
+                };
+                dbConn.beginTransaction(function (error) {
+                    if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                    dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function (error, sendResult) {
+                        if (error) {
+                            dbConn.rollback(function () {
+                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                            });
                         }
-                    })
-    
-                    if (flag == 0) {
-                        illegalWordsCombine.every(function(combine, index) {
-                            if (messageTextArray.indexOf(combine) != -1) {
-                                flag = 1;                        
-                                var resultAutoBlock = autoBlockFunction(userId, otherId);
-                                if (resultAutoBlock == 1) {
-    
-                                    console.log('Message contains illegal Combine word ' + combine);
-                                    return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
-                                } else if (resultAutoBlock == 2) {
-    
-                                    console.log('This user was blocked automatically over 15 times (combine)');
-                                    return res.send({ error: false, data: { account_status: 9, sending_available: false }, message: "Your Account Is Not Active." });
-                                } else {
-    
-                                    console.log('SQL Error Occurred (combine)');
-                                    return res.status(400).send({ error: true, detail: resultAutoBlock.code, message: resultAutoBlock.sqlMessage });
-                                }
+                        var receiveMsg = {
+                            match_id: mutualMatchId,
+                            message_type: 2,
+                            message_text: messageText,
+                            created_date: new Date()
+                        };
+                        dbConn.query('INSERT INTO tbl_chat set ? ', [receiveMsg], function (error, receiveResult) {
+                            if (error) {
+                                dbConn.rollback(function () {
+                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                });
                             }
-                        })
-                    }
-                } else {    
-                    dbConn.query('Select mutual_match_id, publish from tbl_match where id=?', [matchId], function (err, matchResults, fields) {
-                        if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });;
-                        if (!matchResults.length)
-                            return res.status(400).send({ error: true, message: 'No Match Found' });
-            
-                        var mutualMatchId = matchResults[0].mutual_match_id;
-                        var publish = matchResults[0].publish;
-            
-                        if (publish !== 1)
-                            return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
-            
-                        dbConn.query('select publish from tbl_match where id=?', mutualMatchId, function (err, otherMatchResults, fields) {
-            
-                            if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });;
-                            if (!otherMatchResults.length)
-                                return res.status(400).send({ error: true, message: 'No Match Found' });
-            
-                            var otherPublish = otherMatchResults[0].publish;
-            
-                            if (otherPublish !== 1)
-                                return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
-            
-                            var sendMsg = {
-                                match_id: matchId,
-                                message_type: 1,
-                                message_text: messageText,
-                                created_date: new Date()
-                            };
-                            dbConn.beginTransaction(function (error) {
-                                if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function (error, sendResult) {
-                                    if (error) {
-                                        dbConn.rollback(function () {
-                                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                        });
-                                    }
-                                    var receiveMsg = {
-                                        match_id: mutualMatchId,
-                                        message_type: 2,
-                                        message_text: messageText,
-                                        created_date: new Date()
-                                    };
-                                    dbConn.query('INSERT INTO tbl_chat set ? ', [receiveMsg], function (error, receiveResult) {
-                                        if (error) {
-                                            dbConn.rollback(function () {
-                                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                            });
-                                        }
-                                        dbConn.commit(function (error) {
-                                            if (error) {
-                                                dbConn.rollback(function () {
-                                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                                });
-                                            }
-            
-                                            dbConn.query('SELECT * FROM tbl_user a INNER JOIN tbl_match b ON a.id=b.main_user_id WHERE b.id=?', mutualMatchId, function (error1, receiver, receiverFields) {
-                                                if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
-                                                if (!receiver.length) res.status(400).send({ error: true, message: 'Receiver data not found.' });
-                                                const receiverData = receiver[0];
-                                                if (!receiverData.fcm_id) return res.status(400).send({ error: true, message: 'firebase token not found' });
-                                                const deviceId = receiverData.fcm_id;
-                                                let userPhotoUrl;
-                                                if (userphotoId) {
-                                                    // userPhotoUrl = bucket.getFiles(function (err, files) {
-                                                    //     if (err)
-                                                    //         return null;
-            
-                                                    //     const match = files.find(file => file.id === userphotoId);
-            
-                                                    //     if (!match)
-                                                    //         return null;
-                                                    //     match.getSignedUrl({
-                                                    //         action: 'read',
-                                                    //         expires: '03-17-2025'
-                                                    //     }, (err, url) => {
-                                                    //         if (err) {
-                                                    //         } else {
-                                                    //             return url;
-                                                    //         }
-                                                    //     });
-            
-                                                    // });
-                                                    userPhotoUrl = 'https://storage.googleapis.com/' + process.env.BUCKET_NAME + '/' + userphotoId + '-screenshot';
-                                                } else {
-                                                    userPhotoUrl = '';
-                                                }
-            
-                                                var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
-                                                    to: deviceId,
-                                                    notification: {
-                                                        title: 'New Message',
-                                                        body: messageText,
-                                                    },
-                                                    data: {  //you can send only notification or only data(or include both)
-                                                        type: 'ChatDetail',
-                                                        senderId: userId,
-                                                        senderImg: userPhotoUrl,
-                                                        senderName: username
-                                                    }
-                                                };
-                                                fcm.send(message, function (notiErr, notiRes) {
-                                                    if (notiErr) {
-                                                        console.log("Notification Sending is failed: ", notiErr);
-                                                    } else {
-                                                        console.log("Successfully sent with response: ", notiRes);
-                                                    }
-                                                });
-                                                return res.send({ error: false, data: { sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created." });
-                                            });
-                                        });
+                            dbConn.commit(function (error) {
+                                if (error) {
+                                    dbConn.rollback(function () {
+                                        return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                     });
+                                }
+
+                                dbConn.query('SELECT * FROM tbl_user a INNER JOIN tbl_match b ON a.id=b.main_user_id WHERE b.id=?', mutualMatchId, function (error1, receiver, receiverFields) {
+                                    if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+                                    if (!receiver.length) res.status(400).send({ error: true, message: 'Receiver data not found.' });
+                                    const receiverData = receiver[0];
+                                    if (!receiverData.fcm_id) return res.status(400).send({ error: true, message: 'firebase token not found' });
+                                    const deviceId = receiverData.fcm_id;
+                                    let userPhotoUrl;
+                                    if (userphotoId) {
+                                        // userPhotoUrl = bucket.getFiles(function (err, files) {
+                                        //     if (err)
+                                        //         return null;
+
+                                        //     const match = files.find(file => file.id === userphotoId);
+
+                                        //     if (!match)
+                                        //         return null;
+                                        //     match.getSignedUrl({
+                                        //         action: 'read',
+                                        //         expires: '03-17-2025'
+                                        //     }, (err, url) => {
+                                        //         if (err) {
+                                        //         } else {
+                                        //             return url;
+                                        //         }
+                                        //     });
+
+                                        // });
+                                        userPhotoUrl = 'https://storage.googleapis.com/' + process.env.BUCKET_NAME + '/' + userphotoId + '-screenshot';
+                                    } else {
+                                        userPhotoUrl = '';
+                                    }
+
+                                    var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                                        to: deviceId,
+                                        notification: {
+                                            title: 'New Message',
+                                            body: messageText,
+                                        },
+                                        data: {  //you can send only notification or only data(or include both)
+                                            type: 'ChatDetail',
+                                            senderId: userId,
+                                            senderImg: userPhotoUrl,
+                                            senderName: username
+                                        }
+                                    };
+                                    fcm.send(message, function (notiErr, notiRes) {
+                                        if (notiErr) {
+                                            console.log("Notification Sending is failed: ", notiErr);
+                                        } else {
+                                            console.log("Successfully sent with response: ", notiRes);
+                                        }
+                                    });
+                                    return res.send({ error: false, data: { sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created." });
                                 });
                             });
-                        })
+                        });
                     });
-                }
+                });
             })
         });
-    })
+    });
 });
 
 //#32 UC 10.1 Report - hide from display once blocked
