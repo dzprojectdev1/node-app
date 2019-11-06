@@ -3,6 +3,7 @@ var chatApi = express.Router();
 var dbConn = require("../config/dbConfig");
 const checkAuth = require('../middleware/check_auth');
 const blockFunction = require("./matchApi").blockFunction;
+const autoBlockFunction = require("./matchApi").autoBlockFunction;
 const commonFunc = require('../config/common').commonFunc;
 var FCM = require('fcm-node');
 const { bucket } = require('../config/storageConfig');
@@ -54,10 +55,9 @@ chatApi.get('/getChatWithMatchId/:matchId', checkAuth, function (req, res) {
 });
 
 //31 UC9.3 Create a new Chat Text 
-chatApi.post('/create', checkAuth, function (req, res) {
+chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
     var userId = req.userData.userId;
     var matchId = req.body.matchId;
-
     var messageText = req.body.messageText;
     const serverKey = process.env.FIREBASE_SERVER_KEY;
     const fcm = new FCM(serverKey);

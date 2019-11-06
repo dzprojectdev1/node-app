@@ -7,6 +7,35 @@ const checkAuth = require('../middleware/check_auth');
 const sgMail = require('@sendgrid/mail');
 const async = require('async');
 const common = require('../config/common');
+var illegalWords = [
+    'sex',
+    'pussy',
+    'fuck',
+    'fucking',
+    'lick',
+    'boob',
+    'boobs',
+    'tit',
+    'tits',
+    'nude',
+    'blowjob',
+    'cum',
+    'porn',
+    'naked',
+    'cock',
+    'dildo',
+    'horny',
+    'dick',
+    'sexting',
+    'sexchat',
+    'penis',
+    'pennis',
+    'vagina',
+    'call girl',
+    'sex chat',
+    'suck my',
+    'suck your',
+];
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const fromEmail = process.env.SERVER_EMAIL_ADDRESS;
@@ -51,6 +80,18 @@ function getRndInteger(min, max) {
     return Math.floor(Math.random() * (max - min)) + min;
 }
 
+var findSubarray = (arr, subarr) => {
+    for (var i = 0; i < 1 + (arr.length - subarr.length); i++) {
+        var j = 0;
+        for (; j < subarr.length; j++)
+            if (arr[i + j] !== subarr[j])
+                break;
+        if (j == subarr.length)
+            return i;
+    }
+    return -1;
+}
+
 // #3 === login user
 userApi.post('/signup', function (req, res) {
     // let useremail = req.body.useremail;
@@ -69,6 +110,27 @@ userApi.post('/signup', function (req, res) {
 
     if (!fcmId || !deviceId || !username || !usergender || !userlanguage || !country || !ethnicity || !userBirthData || !userlat || !userlong || !description) {
         return res.status(400).send({ error: true, message: 'Please provide all params' });
+    }
+
+    var usernameArr = username.split(" ");
+    var descriptionArr = description.split(" ");
+                    
+    var booleanValue1 = illegalWords.every(function(words, index) {
+        var wordsArr = words.split(" ");
+
+        return findSubarray(usernameArr, wordsArr) === -1;
+    })
+                    
+    var booleanValue2 = illegalWords.every(function(words, index) {
+        var wordsArr = words.split(" ");
+
+        return findSubarray(descriptionArr, wordsArr) === -1;
+    })
+
+    let account_status = 1;
+
+    if (!booleanValue1 || !booleanValue2 ) {
+        account_status = 10;
     }
 
     dbConn.query('SELECT * FROM tbl_user where device_id=?', deviceId, function (error, results, fields) {
@@ -95,8 +157,9 @@ userApi.post('/signup', function (req, res) {
                 fcm_id: fcmId,
                 device_id: deviceId,
                 description: description,
-                account_status: 1,
-                last_loggedin_date: new Date()
+                account_status: account_status,
+                last_loggedin_date: new Date(),
+                auto_block: 1,
             };
 
             console.log('New user information ' + JSON.stringify(newUserData));
@@ -129,7 +192,9 @@ userApi.post('/signup', function (req, res) {
                         ethnicity: results[0].ethnicity_name,
                         country: results[0].country_name,
                         description: results[0].description,
-                        last_loggedin_date: results[0].last_loggedin_date
+                        account_status: results[0].account_status,
+                        last_loggedin_date: results[0].last_loggedin_date,
+                        auto_block: results[0].auto_block,
                     };
                     return res.send({error: false, user: outputResult, message: 'User exist!'});
                 });
@@ -146,7 +211,7 @@ userApi.put('/checkDeviceUniqueId/:deviceId', function (req, res) {
     if (!fcmId) return res.status(403).send({error: true, message: 'please provide fcm token'});
 
     var joinQuery = 'INNER JOIN tbl_language b on a.language_id=b.id INNER JOIN tbl_ethnicity c ON c.id=a.ethnicity_id INNER JOIN tbl_country d ON a.country_id=d.id';
-    dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE a.device_id=? AND account_status in (0, 1, 2, 3)', deviceId, function (error, results, fields) {
+    dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE a.device_id=? AND account_status in (0, 1, 2, 3, 9, 10)', deviceId, function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         if (!results || !results.length) return res.send({ error: false, message: 'User does not exist.' });       
         dbConn.query('UPDATE tbl_user SET last_loggedin_date=?, fcm_id=? WHERE id=?', [new Date(), fcmId, results[0].id], function(updateErr, updateRow, updateFields) {
@@ -175,7 +240,8 @@ userApi.put('/checkDeviceUniqueId/:deviceId', function (req, res) {
                 last_loggedin_date: results[0].last_loggedin_date,
                 coin_count: results[0].coin_count,
                 account_status: results[0].account_status,
-                confirmation_code: results[0].confirmation_code
+                confirmation_code: results[0].confirmation_code,
+                auto_block: results[0].auto_block,
             };
             return res.send({error: false, user: outputResult, message: 'User already exist!'});
         });      
