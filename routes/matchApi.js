@@ -381,8 +381,8 @@ var autoBlockFunction = (req, res, next) => {
                         next();
                     } else {
 
-                        query = "select count(id) as count from tbl_match where other_user_id = ? and status_description = 'block_received_auto'";
-                        dbConn.query(query, otherId, function(error, results, fields) {
+                        query = "select count(id) as count from tbl_match where main_user_id = ? and status_description = 'block_received_auto'";
+                        dbConn.query(query, userId, function(error, results, fields) {
                             if (error) return error;
                             if (!results || !results.length) return error;
 
@@ -391,19 +391,19 @@ var autoBlockFunction = (req, res, next) => {
 
                                 console.log('AutoBlockFunctio runs: this user has over 15 auto bocked times');
                                 query = "update tbl_user set account_status = 9 where id = ?";
-                                dbConn.query(query, otherId, function(error, uptResults, fields) {
+                                dbConn.query(query, userId, function(error, uptResults, fields) {
                                     if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
 
                                     return res.send({ error: false, data: { account_status: 9, sending_available: false }, message: "Your Account Is Not Active." });
                                 })
                             } else {
-                                dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=8", [userId, otherId], function (error, results, fields) {
+                                dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=9", [userId, otherId], function (error, results, fields) {
                                     if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                     if (results.length) {
                                         return res.send({ error: true, message: 'Block Data Already exist' });
                                     } else {
                                         //get status 2,6,7 match data,
-                                        dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [userId, otherId], function (error, results, fields) {
+                                        dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [otherId, userId], function (error, results, fields) {
                                             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                         
                                             if (results.length) {
@@ -415,7 +415,7 @@ var autoBlockFunction = (req, res, next) => {
                                                 });
                                             }
                         
-                                            dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [otherId, userId], function (error, otherResults, fields) {
+                                            dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [userId, otherId], function (error, otherResults, fields) {
                                                 if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                             
                                                 if (otherResults.length) {
@@ -430,8 +430,8 @@ var autoBlockFunction = (req, res, next) => {
                                                 var blockCreateData = {
                                                     main_user_id: userId,
                                                     other_user_id: otherId,
-                                                    status: 8,
-                                                    status_description: "block_created_auto",
+                                                    status: 9,
+                                                    status_description: "block_received_auto",
                                                     publish: 1,
                                                     created_date: new Date(),
                                                     updated_date: new Date()
@@ -451,8 +451,8 @@ var autoBlockFunction = (req, res, next) => {
                                                         var blockRecieveData = {
                                                             main_user_id: otherId,
                                                             other_user_id: userId,
-                                                            status: 9,
-                                                            status_description: "block_received_auto",
+                                                            status: 8,
+                                                            status_description: "block_created_auto",
                                                             publish: 1,
                                                             created_date: new Date(),
                                                             updated_date: new Date()
