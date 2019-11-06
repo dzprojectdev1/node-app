@@ -302,8 +302,8 @@ var autoBlockFunction = (userId, otherId) => {
     try {
         let query = "select count(id) as count from tbl_match where other_user_id = ? and status_description = 'block_received_auto'";
         dbConn.query(query, otherId, function(error, results, fields) {
-            if (error) return error;
-            if (!results || !results.length) return error;
+            if (error) return 0;
+            if (!results || !results.length) return 0;
 
             var auto_blocked_count = results[0].count;
             if (auto_blocked_count >= 15) {
@@ -311,94 +311,95 @@ var autoBlockFunction = (userId, otherId) => {
                 console.log('AutoBlockFunctio runs: this user has over 15 auto bocked times');
                 query = "update tbl_user set account_status = 9 where id = ?";
                 dbConn.query(query, otherId, function(error, uptResults, fields) {
-                    if (error) return error;
+                    if (error) return 0;
                     return 2;
                 })
-            }
-            dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=8", [userId, otherId], function (error, results, fields) {
-                if (error) return error;
-                if (results.length) {
-                } else {
-                    //get status 2,6,7 match data,
-                    dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [userId, otherId], function (error, results, fields) {
-                        if (error) return error;
-
-                        if (results.length) {
-                            var resultIdArr = results.map(one => {
-                                return one.id;
-                            });
-                            dbConn.query("UPDATE tbl_match SET publish=0 WHERE id IN (?)", resultIdArr.join(), function (error, updateResults, updateFields) {
-                                if (error) return error;
-                            });
-                        }
-
-                        dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [otherId, userId], function (error, otherResults, fields) {
-                            if (error) return error;
-        
-                            if (otherResults.length) {
-                                var otherResultIdArr = otherResults.map(one => {
+            } else {
+                dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=8", [userId, otherId], function (error, results, fields) {
+                    if (error) return 0;
+                    if (results.length) {
+                    } else {
+                        //get status 2,6,7 match data,
+                        dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [userId, otherId], function (error, results, fields) {
+                            if (error) return 0;
+    
+                            if (results.length) {
+                                var resultIdArr = results.map(one => {
                                     return one.id;
                                 });
-                                dbConn.query("UPDATE tbl_match SET publish=2 WHERE id IN (?)", otherResultIdArr.join(), function (error, updateResults, updateFields) {
-                                    if (error) return error;
+                                dbConn.query("UPDATE tbl_match SET publish=0 WHERE id IN (?)", resultIdArr.join(), function (error, updateResults, updateFields) {
+                                    if (error) return 0;
                                 });
                             }
-
-                            var blockCreateData = {
-                                main_user_id: userId,
-                                other_user_id: otherId,
-                                status: 8,
-                                status_description: "block_created_auto",
-                                publish: 1,
-                                created_date: new Date(),
-                                updated_date: new Date()
-                            };
-
-                            dbConn.beginTransaction(function (err) {
-                                if (err) return error;
-                                dbConn.query("INSERT INTO tbl_match SET ? ", blockCreateData, function (error, results, fields) {
-                                    if (error) {
-                                        dbConn.rollback(function () {
-                                            return error;
-                                        });
-                                    }
-
-                                    req.matchId = results.insertId;
-
-                                    var blockRecieveData = {
-                                        main_user_id: otherId,
-                                        other_user_id: userId,
-                                        status: 9,
-                                        status_description: "block_received_auto",
-                                        publish: 1,
-                                        created_date: new Date(),
-                                        updated_date: new Date()
-                                    };
-
-                                    dbConn.query('INSERT INTO tbl_match SET ? ', blockRecieveData, function (error1, receiveResult, fields) {
-                                        if (error1) {
+    
+                            dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [otherId, userId], function (error, otherResults, fields) {
+                                if (error) return 0;
+            
+                                if (otherResults.length) {
+                                    var otherResultIdArr = otherResults.map(one => {
+                                        return one.id;
+                                    });
+                                    dbConn.query("UPDATE tbl_match SET publish=2 WHERE id IN (?)", otherResultIdArr.join(), function (error, updateResults, updateFields) {
+                                        if (error) return 0;
+                                    });
+                                }
+    
+                                var blockCreateData = {
+                                    main_user_id: userId,
+                                    other_user_id: otherId,
+                                    status: 8,
+                                    status_description: "block_created_auto",
+                                    publish: 1,
+                                    created_date: new Date(),
+                                    updated_date: new Date()
+                                };
+    
+                                dbConn.beginTransaction(function (err) {
+                                    if (err) return 0;
+                                    dbConn.query("INSERT INTO tbl_match SET ? ", blockCreateData, function (error, results, fields) {
+                                        if (error) {
                                             dbConn.rollback(function () {
-                                                return error;
+                                                return 0;
                                             });
                                         }
-
-                                        dbConn.commit(function (error) {
-                                            if (error) {
+    
+                                        req.matchId = results.insertId;
+    
+                                        var blockRecieveData = {
+                                            main_user_id: otherId,
+                                            other_user_id: userId,
+                                            status: 9,
+                                            status_description: "block_received_auto",
+                                            publish: 1,
+                                            created_date: new Date(),
+                                            updated_date: new Date()
+                                        };
+    
+                                        dbConn.query('INSERT INTO tbl_match SET ? ', blockRecieveData, function (error1, receiveResult, fields) {
+                                            if (error1) {
                                                 dbConn.rollback(function () {
-                                                    return error;
+                                                    return 0;
                                                 });
-                                            };
-
-                                            console.log('AutoBlockFunctio runs: this user was auto blocked successfully.');
-                                            return 1;
+                                            }
+    
+                                            dbConn.commit(function (error) {
+                                                if (error) {
+                                                    dbConn.rollback(function () {
+                                                        return 0;
+                                                    });
+                                                };
+    
+                                                console.log('AutoBlockFunctio runs: this user was auto blocked successfully.');
+                                                return 1;
+                                            });
                                         });
                                     });
                                 });
                             });
                         });
-                    });
-                }
-            });
+                    }
+                });
+            }
         })
     } catch (error) {
         return false;
