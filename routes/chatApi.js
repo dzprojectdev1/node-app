@@ -92,7 +92,7 @@ chatApi.post('/create', checkAuth, function (req, res) {
 
     var otherId = 0;
 
-    let query = 'select other_user_id from tbl_match where id =?';
+    let query = 'select * from tbl_match where id =?';
     dbConn.query(query, matchId, function(error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
 
