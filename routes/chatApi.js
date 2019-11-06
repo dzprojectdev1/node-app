@@ -138,7 +138,7 @@ chatApi.post('/create', checkAuth, function (req, res) {
                 messageTextArray.every(function(word, index) {
                     if (illegalWords.includes(word)) {
                         flag = 1;
-                        var resultAutoBlock = autoBlockFunction(userId, other_user_id);
+                        var resultAutoBlock = autoBlockFunction(userId, otherId);
                         if (resultAutoBlock == 1) {
 
                             console.log('Message contains illegal word ' + word);
@@ -159,7 +159,7 @@ chatApi.post('/create', checkAuth, function (req, res) {
                     illegalWordsCombine.every(function(combine, index) {
                         if (messageTextArray.indexOf(combine) != -1) {
                             flag = 1;                        
-                            var resultAutoBlock = autoBlockFunction(userId, other_user_id);
+                            var resultAutoBlock = autoBlockFunction(userId, otherId);
                             if (resultAutoBlock == 1) {
 
                                 console.log('Message contains illegal Combine word ' + combine);
