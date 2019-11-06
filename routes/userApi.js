@@ -31,8 +31,6 @@ var illegalWords = [
     'penis',
     'pennis',
     'vagina',
-];
-var illegalWordsCombine = [
     'call girl',
     'sex chat',
     'suck my',
@@ -82,6 +80,18 @@ function getRndInteger(min, max) {
     return Math.floor(Math.random() * (max - min)) + min;
 }
 
+var findSubarray = (arr, subarr) => {
+    for (var i = 0; i < 1 + (arr.length - subarr.length); i++) {
+        var j = 0;
+        for (; j < subarr.length; j++)
+            if (arr[i + j] !== subarr[j])
+                break;
+        if (j == subarr.length)
+            return i;
+    }
+    return -1;
+}
+
 // #3 === login user
 userApi.post('/signup', function (req, res) {
     // let useremail = req.body.useremail;
@@ -102,45 +112,26 @@ userApi.post('/signup', function (req, res) {
         return res.status(400).send({ error: true, message: 'Please provide all params' });
     }
 
-    var flag = 0;
-    var account_status = 1;
-    var usernameArray = username.split(' ');
-    usernameArray.every(function(word, index) {
-        if (illegalWords.includes(word)) {
-            flag = 1;
-            account_status = 10;
-        }
+    var usernameArr = username.split(" ");
+    var descriptionArr = description.split(" ");
+                    
+    var booleanValue1 = illegalWords.every(function(words, index) {
+        var wordsArr = words.split(" ");
+
+        return findSubarray(usernameArr, wordsArr) === -1;
+    })
+                    
+    var booleanValue2 = illegalWords.every(function(words, index) {
+        var wordsArr = words.split(" ");
+
+        return findSubarray(descriptionArr, wordsArr) === -1;
     })
 
-    if (flag == 0) {
-        illegalWordsCombine.every(function(combine, index) {
-            if (username.indexOf(combine) != -1) {
-                flag = 1; 
-                account_status = 10;
-            }
-        })
-    }
+    let account_status = 1;
 
-    var descriptionArray = description.split(' ');
-    if (flag == 0) {
-        descriptionArray.every(function(word, index) {
-            if (illegalWords.includes(word)) {
-                flag = 1;
-                account_status = 10;
-            }
-        })
+    if (!booleanValue1 || !booleanValue2 ) {
+        account_status = 10;
     }
-
-    if (flag == 0) {
-        illegalWordsCombine.every(function(combine, index) {
-            if (description.indexOf(combine) != -1) {
-                flag = 1; 
-                account_status = 10;
-            }
-        })
-    }
-
-    console.log('Account status is ' + account_status);
 
     dbConn.query('SELECT * FROM tbl_user where device_id=?', deviceId, function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
