@@ -344,6 +344,7 @@ var autoBlockFunction = (req, res, next) => {
         var userId = req.userData.userId;
         var matchId = req.body.matchId;
         var messageText = req.body.messageText;
+        console.log('Match id is ' + matchId);
 
         if (!matchId) {
             return res.status(400).send({ error: true, message: 'Please provide match id' });
@@ -356,6 +357,7 @@ var autoBlockFunction = (req, res, next) => {
             if (!otherResults || !otherResults.length) return res.status(403).send({ error: true, message: 'No match other id.' })
 
             otherId = otherResults[0].other_user_id;
+            console.log('Other user id is ' + otherId);
 
             query = "select * from tbl_user where id = ?";
             dbConn.query(query, otherId, function(error, otherResultRows, fields) {
