@@ -498,6 +498,7 @@ var autoBlockFunction = (req, res, next) => {
             });
         })
     } catch (error) {
+        console.log('autoBlockFunctioncatcherror ' + JSON.stringify(error));
         return res.status(401).json({
             message: error
         });
