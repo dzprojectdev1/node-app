@@ -367,11 +367,11 @@ userApi.put('/updateSetting', checkAuth, function (req, res) {
 
         if (req.body.name) {
             updateData.name = req.body.name;
-            usernameArr = req.body.name.split(" ")
+            usernameArr = req.body.name.toUpperCase().split(" ")
         }
         if (req.body.description) {
             updateData.description = req.body.description;
-            descriptionArr = req.body.description.split(" ");
+            descriptionArr = req.body.description.toUpperCase().split(" ");
         }
         if (req.body.languageId) {
             updateData.language_id = req.body.languageId;
@@ -393,13 +393,13 @@ userApi.put('/updateSetting', checkAuth, function (req, res) {
         }
                         
         var booleanValue1 = illegalWords.every(function(words, index) {
-            var wordsArr = words.split(" ");
+            var wordsArr = words.toUpperCase().split(" ");
 
             return findSubarray(usernameArr, wordsArr) === -1;
         })
                         
         var booleanValue2 = illegalWords.every(function(words, index) {
-            var wordsArr = words.split(" ");
+            var wordsArr = words.toUpperCase().split(" ");
 
             return findSubarray(descriptionArr, wordsArr) === -1;
         })

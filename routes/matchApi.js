@@ -368,10 +368,10 @@ var autoBlockFunction = (req, res, next) => {
 
                 if (auto_block == 1) {
 
-                    var messaegTextArr = messageText.split(" ");
+                    var messaegTextArr = messageText.toUpperCase().split(" ");
                     
                     var booleanValue = illegalWords.every(function(words, index) {
-                        var wordsArr = words.split(" ");
+                        var wordsArr = words.toUpperCase().split(" ");
 
                         return findSubarray(messaegTextArr, wordsArr) === -1;
                     })
