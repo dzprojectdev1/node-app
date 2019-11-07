@@ -112,17 +112,17 @@ userApi.post('/signup', function (req, res) {
         return res.status(400).send({ error: true, message: 'Please provide all params' });
     }
 
-    var usernameArr = username.split(" ");
-    var descriptionArr = description.split(" ");
+    var usernameArr = username.toUpperCase().split(" ");
+    var descriptionArr = description.toUpperCase().split(" ");
                     
     var booleanValue1 = illegalWords.every(function(words, index) {
-        var wordsArr = words.split(" ");
+        var wordsArr = words.toUpperCase().split(" ");
 
         return findSubarray(usernameArr, wordsArr) === -1;
     })
                     
     var booleanValue2 = illegalWords.every(function(words, index) {
-        var wordsArr = words.split(" ");
+        var wordsArr = words.toUpperCase().split(" ");
 
         return findSubarray(descriptionArr, wordsArr) === -1;
     })
