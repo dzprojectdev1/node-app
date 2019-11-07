@@ -62,7 +62,7 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
     const serverKey = process.env.FIREBASE_SERVER_KEY;
     const fcm = new FCM(serverKey);
 
-    console.log('chatapicreateuseridis ' + userId);
+    console.log('chatapicreateuseridis ' + messageText);
 
     if (!matchId || !messageText) {
         return res.status(400).send({ error: true, message: 'Invalid Params.' });
@@ -78,7 +78,7 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
         const username = results[0].name;
         const userphotoId = results[0].cdn_id;
 
-        console.log('chatapiaccount_status ' + account_status);
+        console.log('chatapiaccount_status ' + messageText);
 
         if (account_status !== 1)
             return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
@@ -91,7 +91,7 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
             var mutualMatchId = matchResults[0].mutual_match_id;
             var publish = matchResults[0].publish;
 
-            console.log('chatapimutualMatchId ' + mutualMatchId);
+            console.log('chatapimutualMatchId ' + messageText);
 
             if (publish !== 1)
                 return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
