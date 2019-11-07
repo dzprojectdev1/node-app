@@ -69,6 +69,7 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
     }
 
     let query = 'select * from tbl_user as a left join tbl_video as b on a.id = b.user_id where (b.cdn_id IS NULL OR b.is_primary = 1) and a.id = ?';
+    console.log('account_status_username_userphotoIdqueryis' + query);
     dbConn.query(query, userId, function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });;
         if (!results.length)
