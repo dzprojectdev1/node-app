@@ -357,7 +357,7 @@ var autoBlockFunction = (req, res, next) => {
             if (!otherResults || !otherResults.length) return res.status(403).send({ error: true, message: 'No match other id.' })
 
             otherId = otherResults[0].other_user_id;
-            console.log('Other user id is ' + otherId);
+            console.log('Otheruseridis ' + otherId);
 
             query = "select * from tbl_user where id = ?";
             dbConn.query(query, otherId, function(error, otherResultRows, fields) {
@@ -378,6 +378,7 @@ var autoBlockFunction = (req, res, next) => {
                     console.log('autoblockisthis ' + auto_block);
 
                     if (booleanValue) {
+                        console.log('passedillegalwords ' + otherId);
                         req.userData.userId = userId;
                         req.body.matchId = matchId;
                         req.body.messageText = messageText;
