@@ -520,7 +520,8 @@ matchApi.get('/getReceivedHearts', checkAuth, function (req, res) {
     var ageQuery = ' TIMESTAMPDIFF(YEAR, c.birth_date, CURDATE()) AS age ';
 
     var leftJoinQuery = ' Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id left join tbl_video b on a.other_user_id=b.user_id ';
-    var whereCondition = ' (b.cdn_id IS NULL or b.is_primary=1) and a.publish=1 and a.status=2 and a.main_user_id=? and c.account_status=1 order by a.id desc ';
+    // var whereCondition = ' (b.cdn_id IS NULL or b.is_primary=1) and a.publish=1 and a.status=2 and a.main_user_id=? and c.account_status=1 order by a.id desc ';
+    var whereCondition = ' a.publish=1 and a.status=2 and a.main_user_id=? and c.account_status=1 order by a.id desc ';
     var leftSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_id, b.cdn_filtered_id, b.is_primary, c.name, c.gender, c.description, ' + distanceQuery + ageQuery + 'FROM tbl_match a ' + leftJoinQuery + 'WHERE' + whereCondition + ')';
     
     // var rightJoinQuery = ' right join tbl_video b on a.other_user_id=b.user_id Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id '
@@ -1139,7 +1140,8 @@ matchApi.get('/matches', checkAuth, function (req, res) {
     var ageQuery = 'TIMESTAMPDIFF(YEAR, b.birth_date, CURDATE()) AS age ';
     var leftjoinQuery = ' inner join tbl_user b on a.other_user_id=b.id inner join tbl_user d on a.main_user_id=d.id left join tbl_video c on a.other_user_id=c.user_id';
     
-    var whereCondition = ' where (c.cdn_id IS NULL or c.is_primary=1) and a.main_user_id=? and a.status in (6,7) and a.publish=1 and b.account_status=1';
+    // var whereCondition = ' where (c.cdn_id IS NULL or c.is_primary=1) and a.main_user_id=? and a.status in (6,7) and a.publish=1 and b.account_status=1';
+    var whereCondition = ' where a.main_user_id=? and a.status in (6,7) and a.publish=1 and b.account_status=1';
     
     var leftQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, b.description, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + leftjoinQuery + whereCondition + ' order by a.id desc)'
     // var rightjoinQuery = ' inner join tbl_user b on a.other_user_id=b.id inner join tbl_user d on a.main_user_id=d.id right join tbl_video c on a.other_user_id=c.user_id'
@@ -1180,7 +1182,8 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
         } else {
             var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
         }
-        var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
+        // var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
+        var whereCondition = ' a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
 
         var pi = Math.PI;
         var defaultDistance = 3959 * Math.acos(Math.cos(myLat * (pi / 180)) * Math.cos(myLong * (pi / 180)));
@@ -1257,7 +1260,8 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
         } else {
             var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
         }
-        var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id=?';
+        // var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id=?';
+        var whereCondition = ' AND a.account_status=1 AND a.id=?';
 
         var pi = Math.PI;
         var defaultDistance = 3959 * Math.acos(Math.cos(myLat * (pi / 180)) * Math.cos(myLong * (pi / 180)));
@@ -1313,7 +1317,8 @@ matchApi.post('/discover', checkAuth, function (req, res) {
         } else {
             var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
         }
-        var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
+        // var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
+        var whereCondition = ' a.account_status=1 AND a.id NOT IN (' + getOtherMatchInfo + ') AND a.id!=?';
         
         var pi = Math.PI;
         var defaultDistance = 3959 * Math.acos(Math.cos(myLat * (pi / 180)) * Math.cos(myLong * (pi / 180)));
