@@ -375,6 +375,7 @@ var autoBlockFunction = (req, res, next) => {
 
                         return findSubarray(messaegTextArr, wordsArr) === -1;
                     })
+                    console.log('autoblockisthis ' + auto_block);
 
                     if (booleanValue) {
                         req.userData.userId = userId;
@@ -399,6 +400,7 @@ var autoBlockFunction = (req, res, next) => {
                                     return res.send({ error: false, data: { account_status: 9, sending_available: false }, message: "Your Account Is Not Active." });
                                 })
                             } else {
+                                console.log('Thismatchidisnotpassed ' + matchId);
                                 dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=9", [userId, otherId], function (error, results, fields) {
                                     if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                     if (results.length) {
@@ -487,6 +489,7 @@ var autoBlockFunction = (req, res, next) => {
                     }
 
                 } else {
+                    console.log('Thismatchidispassed ' + matchId);
                     req.userData.userId = userId;
                     req.body.matchId = matchId;
                     req.body.messageText = messageText;
