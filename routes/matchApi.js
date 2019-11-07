@@ -1218,6 +1218,7 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
         // var rightQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + rightJoinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date DESC)';
         // var totalQuery = leftQuery + ' UNION ' + rightQuery + ' ORDER BY last_loggedin_date DESC LIMIT ? OFFSET ? ';
         // console.log(totalQuery);
+        console.log('getAllDiscoversleftQuery ' + leftQuery);
         dbConn.query(leftQuery, [userId, userId, perPageCount, offSet], function (error, results, fields) {
             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
             if (!results.length)
