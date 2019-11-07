@@ -361,12 +361,17 @@ userApi.put('/updateSetting', checkAuth, function (req, res) {
         if (userErr) return res.status(400).send({error: true, detail: userErr.code, message: userErr.sqlMessage});
         if (!userResult.length) return res.status(403).send({error: true, message: 'user not found.'});
         var updateData = {};
+        
+        var usernameArr = [];
+        var descriptionArr = [];
 
         if (req.body.name) {
             updateData.name = req.body.name;
+            usernameArr = req.body.name.split(" ")
         }
         if (req.body.description) {
             updateData.description = req.body.description;
+            descriptionArr = req.body.description.split(" ");
         }
         if (req.body.languageId) {
             updateData.language_id = req.body.languageId;
@@ -385,6 +390,22 @@ userApi.put('/updateSetting', checkAuth, function (req, res) {
         }
         if (req.body.auto_blockId) {
             updateData.auto_block = req.body.auto_blockId;
+        }
+                        
+        var booleanValue1 = illegalWords.every(function(words, index) {
+            var wordsArr = words.split(" ");
+
+            return findSubarray(usernameArr, wordsArr) === -1;
+        })
+                        
+        var booleanValue2 = illegalWords.every(function(words, index) {
+            var wordsArr = words.split(" ");
+
+            return findSubarray(descriptionArr, wordsArr) === -1;
+        })
+
+        if (!booleanValue1 || !booleanValue2 ) {
+            updateData.account_status = 10;
         }
     
         updateData.updated_date = new Date();
