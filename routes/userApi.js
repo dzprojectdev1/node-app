@@ -383,6 +383,9 @@ userApi.put('/updateSetting', checkAuth, function (req, res) {
         if (req.body.longGeo) {
             updateData.long_geo = req.body.longGeo;
         }
+        if (req.body.auto_blockId) {
+            updateData.auto_block = req.body.auto_blockId;
+        }
     
         updateData.updated_date = new Date();
     
@@ -394,7 +397,7 @@ userApi.put('/updateSetting', checkAuth, function (req, res) {
             dbConn.query("SELECT a.name, a.description, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.birth_date, a.email_address, a.gender, a.lat_geo, a.long_geo, a.last_loggedin_date, a.updated_date, a.created_date, b.ethnicity_name, c.language_name, d.country_name FROM tbl_user a " + joingQuery + " WHERE a.id=?", userId, function (error1, updatedUser, fields) {
                 if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
                 if (!updatedUser.length) return res.status(403).send({error: true, message: 'user not found'});
-                return res.send({ error: false, data: updatedUser[0], message: 'User has been updated successfully.' });
+                return res.send({ error: false, data: updatedUser[0], message: 'Your profile setting was updated successfully.' });
             });
         });
     })
