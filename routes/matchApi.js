@@ -1261,7 +1261,7 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
             var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
         }
         // var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id=?';
-        var whereCondition = ' AND a.account_status=1 AND a.id=?';
+        var whereCondition = ' a.account_status=1 AND a.id=?';
 
         var pi = Math.PI;
         var defaultDistance = 3959 * Math.acos(Math.cos(myLat * (pi / 180)) * Math.cos(myLong * (pi / 180)));
