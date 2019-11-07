@@ -357,7 +357,7 @@ var autoBlockFunction = (req, res, next) => {
             if (!otherResults || !otherResults.length) return res.status(403).send({ error: true, message: 'No match other id.' })
 
             otherId = otherResults[0].other_user_id;
-            console.log('Otheruseridis ' + otherId);
+            console.log('Other user id is ' + otherId);
 
             query = "select * from tbl_user where id = ?";
             dbConn.query(query, otherId, function(error, otherResultRows, fields) {
@@ -375,10 +375,8 @@ var autoBlockFunction = (req, res, next) => {
 
                         return findSubarray(messaegTextArr, wordsArr) === -1;
                     })
-                    console.log('autoblockisthis ' + auto_block);
 
                     if (booleanValue) {
-                        console.log('passedillegalwords ' + otherId);
                         req.userData.userId = userId;
                         req.body.matchId = matchId;
                         req.body.messageText = messageText;
@@ -401,7 +399,6 @@ var autoBlockFunction = (req, res, next) => {
                                     return res.send({ error: false, data: { account_status: 9, sending_available: false }, message: "Your Account Is Not Active." });
                                 })
                             } else {
-                                console.log('Thismatchidisnotpassed ' + matchId);
                                 dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=9", [userId, otherId], function (error, results, fields) {
                                     if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                     if (results.length) {
@@ -490,7 +487,6 @@ var autoBlockFunction = (req, res, next) => {
                     }
 
                 } else {
-                    console.log('Thismatchidispassed ' + matchId);
                     req.userData.userId = userId;
                     req.body.matchId = matchId;
                     req.body.messageText = messageText;
@@ -499,7 +495,6 @@ var autoBlockFunction = (req, res, next) => {
             });
         })
     } catch (error) {
-        console.log('autoBlockFunctioncatcherror ' + JSON.stringify(error));
         return res.status(401).json({
             message: error
         });
@@ -1218,7 +1213,6 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
         // var rightQuery = '(SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + rightJoinQuery + ' WHERE ' + whereCondition + ' ORDER BY a.last_loggedin_date DESC)';
         // var totalQuery = leftQuery + ' UNION ' + rightQuery + ' ORDER BY last_loggedin_date DESC LIMIT ? OFFSET ? ';
         // console.log(totalQuery);
-        console.log('getAllDiscoversleftQuery ' + leftQuery);
         dbConn.query(leftQuery, [userId, userId, perPageCount, offSet], function (error, results, fields) {
             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
             if (!results.length)

@@ -62,15 +62,12 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
     const serverKey = process.env.FIREBASE_SERVER_KEY;
     const fcm = new FCM(serverKey);
 
-    console.log('chatapicreateuseridis ' + messageText);
-
     if (!matchId || !messageText) {
         return res.status(400).send({ error: true, message: 'Invalid Params.' });
     }
 
     // let query = 'select * from tbl_user as a left join tbl_video as b on a.id = b.user_id where (b.cdn_id IS NULL OR b.is_primary = 1) and a.id = ?';
     let query = 'select * from tbl_user where id = ?';
-    console.log('account_status_username_userphotoIdqueryis' + query);
     dbConn.query(query, userId, function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });;
         if (!results.length)
@@ -79,8 +76,6 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
         var account_status = results[0].account_status;
         const username = results[0].name;
         const userphotoId = results[0].cdn_id;
-
-        console.log('chatapiaccount_status ' + messageText);
 
         if (account_status !== 1)
             return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
@@ -92,8 +87,6 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
 
             var mutualMatchId = matchResults[0].mutual_match_id;
             var publish = matchResults[0].publish;
-
-            console.log('chatapimutualMatchId ' + messageText);
 
             if (publish !== 1)
                 return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
@@ -115,8 +108,6 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
                     message_text: messageText,
                     created_date: new Date()
                 };
-
-                console.log('chatapisendMsg ' + JSON.stringify(sendMsg));
                 dbConn.beginTransaction(function (error) {
                     if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                     dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function (error, sendResult) {
@@ -131,8 +122,6 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
                             message_text: messageText,
                             created_date: new Date()
                         };
-
-                        console.log('chatapireceiveMsg ' + JSON.stringify(receiveMsg));
                         dbConn.query('INSERT INTO tbl_chat set ? ', [receiveMsg], function (error, receiveResult) {
                             if (error) {
                                 dbConn.rollback(function () {
@@ -191,8 +180,6 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
                                             senderName: username
                                         }
                                     };
-
-                                    console.log('chatapimessage ' + JSON.stringify(message));
                                     fcm.send(message, function (notiErr, notiRes) {
                                         if (notiErr) {
                                             console.log("Notification Sending is failed: ", notiErr);
