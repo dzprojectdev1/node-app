@@ -650,4 +650,30 @@ userApi.get('/getAllAssetData', function(req, res) {
     });
 });
 
+userApi.post('/banUser', checkAuth, function(req, res) {
+    var userId = req.userData.userId;
+    var otherId = req.body.otherId;
+
+    if (!otherId) {
+        return res.status(400).send({ error: true, message: 'Please provide other user id' });
+    }
+
+    let query = 'select * from tbl_user where id = ?';
+    dbConn.query(query, userId, function(error, results, fields) {
+        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+        if (!results || !results.length) return res.status(403).send({ error: true, message: 'No match user!' });
+
+        var is_admin = results[0].is_admin;
+        if (is_admin !== 1)
+            return res.send({ error: true, message: "You have no permission for this control." }); 
+        
+        query = 'update tbl_user set account_status = 0 where id = ?';
+        dbConn.query(query, otherId, function(error, uptResults, fields) {
+            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+
+            return res.send({ error: false, message: 'Banned user successfully.' });
+        })
+    })
+});
+
 module.exports = userApi;
