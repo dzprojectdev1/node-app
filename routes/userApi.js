@@ -160,7 +160,7 @@ userApi.post('/signup', function (req, res) {
                 account_status: account_status,
                 last_loggedin_date: new Date(),
                 auto_block: 1,
-                id_admin: 0,
+                is_admin: 0,
             };
 
             console.log('New user information ' + JSON.stringify(newUserData));
@@ -196,7 +196,7 @@ userApi.post('/signup', function (req, res) {
                         account_status: results[0].account_status,
                         last_loggedin_date: results[0].last_loggedin_date,
                         auto_block: results[0].auto_block,
-                        id_admin: results[0].id_admin,
+                        is_admin: results[0].is_admin,
                     };
                     return res.send({error: false, user: outputResult, message: 'User exist!'});
                 });
@@ -244,7 +244,7 @@ userApi.put('/checkDeviceUniqueId/:deviceId', function (req, res) {
                 account_status: results[0].account_status,
                 confirmation_code: results[0].confirmation_code,
                 auto_block: results[0].auto_block,
-                id_admin: results[0].id_admin,
+                is_admin: results[0].is_admin,
             };
             return res.send({error: false, user: outputResult, message: 'User already exist!'});
         });      
