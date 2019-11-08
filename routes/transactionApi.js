@@ -376,6 +376,12 @@ transactionApi.post('/pushNotification', function(req, res) {
     var senderId = req.body.senderId;
     var messageText = req.body.messageText;
     var senderName = req.body.userName;
+    var firstUserId = req.body.firstUserId;
+    var lastUserId = req.body.lastUserId;
+
+    if (!firstUserId || !lastUserId) {
+        return res.status(400).send({ error: true, message: 'Invalid Params. firstUserId, lastUserId params are required.' });
+    }
 
     var num_user = 0;
     var message_sent = 0;
@@ -383,8 +389,8 @@ transactionApi.post('/pushNotification', function(req, res) {
     var total_user = 0;
     var i = 0;
 
-    var query = 'select fcm_id from tbl_user where account_status = 1';
-    dbConnect.query(query, function(error, results, fields) {
+    var query = 'select fcm_id from tbl_user where account_status = 1 and id >= ? and id <= ?';
+    dbConnect.query(query, [firstUserId, lastUserId], function(error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
         if(!results || !results.length) return res.send({error: false, message: 'There is no user.'});
