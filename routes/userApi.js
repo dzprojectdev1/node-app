@@ -40,6 +40,8 @@ var illegalWords = [
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const fromEmail = process.env.SERVER_EMAIL_ADDRESS;
 
+const GENERIC_SERVER_ERROR_MSG = 'Server error has occurred. Please contact us for support.';
+
 // #1 === Retrieve all users 
 userApi.get('/all', checkAuth, function (req, res) {
     dbConn.query('SELECT * FROM tbl_user', function (error, results, fields) {
@@ -109,7 +111,24 @@ userApi.post('/signup', function (req, res) {
     let description = req.body.description;
 
     if (!fcmId || !deviceId || !username || !usergender || !userlanguage || !country || !ethnicity || !userBirthData || !userlat || !userlong || !description) {
-        return res.status(400).send({ error: true, message: 'Please provide all params' });
+        console.log(
+            'User sent signup form with missing fields:',
+            JSON.stringify({
+                'username': username,
+                'usergender': usergender,
+                'language': userlanguage,
+                'country': country,
+                'ethnicity': ethnicity,
+                'birth_date': userBirthData,
+                'lat_geo': userlat,
+                'long_geo': userlong,
+                'device_id': deviceId,
+                'fcm_id': fcmId,
+                'description': description
+            }),
+        );
+        
+        return res.status(400).send({ error: true, message: 'Please fill out all required fields.' });
     }
 
     var usernameArr = username.toUpperCase().split(" ");
@@ -134,9 +153,23 @@ userApi.post('/signup', function (req, res) {
     }
 
     dbConn.query('SELECT * FROM tbl_user where device_id=?', deviceId, function (error, results, fields) {
-        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+        if (error) {
+            console.log(
+                'SQL error:',
+                `"SELECT * FROM tbl_user where device_id=?"`,
+                error.sqlMessage,
+            );
+            return res.status(400)
+                .send({
+                    error: true,
+                    detail: error.code,
+                    message: GENERIC_SERVER_ERROR_MSG,
+                });
+        }
+
         if (results.length) {
-            return res.status(400).send({ error: true, message: 'User exists!' });
+            console.log(`Device with deviceId: ${deviceId} has already signed up`);
+            return res.status(400).send({ error: true, message: 'User already exists.' });
         } else {
             var newUserData = {
                 // email_address: useremail,
@@ -160,16 +193,47 @@ userApi.post('/signup', function (req, res) {
                 account_status: account_status,
                 last_loggedin_date: new Date(),
                 auto_block: 1,
+                is_admin: 0,
             };
 
-            console.log('New user information ' + JSON.stringify(newUserData));
-
             dbConn.query("INSERT INTO tbl_user SET ? ", newUserData, function (error, results, fields) {
-                if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                if (error) {
+                    console.log(
+                        'SQL error:',
+                        `"INSERT INTO tbl_user SET ? "`,
+                        error.sqlMessage,
+                    );
+
+                    return res.status(400).send({
+                        error: true,
+                        detail: error.code,
+                        message: GENERIC_SERVER_ERROR_MSG,
+                    });
+                }
+
                 var joinQuery = 'INNER JOIN tbl_language b on a.language_id=b.id INNER JOIN tbl_ethnicity c ON c.id=a.ethnicity_id INNER JOIN tbl_country d ON a.country_id=d.id';
-                dbConn.query('SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ' + joinQuery + ' WHERE a.id=?', results.insertId, function (error, results, fields) {
-                    if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                    if (!results || !results.length) return res.send({ error: false, message: 'User does not exist.' });
+                var fullQuery = `SELECT a.*, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, b.language_name, c.ethnicity_name, d.country_name FROM tbl_user a ${joinQuery} WHERE a.id=?`;
+
+                dbConn.query(fullQuery, results.insertId, (error, results, fields) => {
+                    if (error) {
+                        console.log(
+                            'SQL error:',
+                            `"${fullQuery}"`,
+                            error.sqlMessage,
+                        );
+
+                        return res.status(400).send({
+                            error: true,
+                            detail: error.code,
+                            message: GENERIC_SERVER_ERROR_MSG,
+                        });
+                    }
+
+                    if (!results || !results.length) {
+                        console.log('Should not ever reach this point. Nonsensical error in /signup.');
+                        return res.send({ error: false, message: 'User does not exist.' });
+                    }
+
                     const token = jwt.sign(
                         {
                             userId: results[0].id,
@@ -195,6 +259,7 @@ userApi.post('/signup', function (req, res) {
                         account_status: results[0].account_status,
                         last_loggedin_date: results[0].last_loggedin_date,
                         auto_block: results[0].auto_block,
+                        is_admin: results[0].is_admin,
                     };
                     return res.send({error: false, user: outputResult, message: 'User exist!'});
                 });
@@ -242,6 +307,7 @@ userApi.put('/checkDeviceUniqueId/:deviceId', function (req, res) {
                 account_status: results[0].account_status,
                 confirmation_code: results[0].confirmation_code,
                 auto_block: results[0].auto_block,
+                is_admin: results[0].is_admin,
             };
             return res.send({error: false, user: outputResult, message: 'User already exist!'});
         });      
@@ -645,6 +711,32 @@ userApi.get('/getAllAssetData', function(req, res) {
             });
         });
     });
+});
+
+userApi.post('/banUser', checkAuth, function(req, res) {
+    var userId = req.userData.userId;
+    var otherId = req.body.otherId;
+
+    if (!otherId) {
+        return res.status(400).send({ error: true, message: 'Please provide other user id' });
+    }
+
+    let query = 'select * from tbl_user where id = ?';
+    dbConn.query(query, userId, function(error, results, fields) {
+        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+        if (!results || !results.length) return res.status(403).send({ error: true, message: 'No match user!' });
+
+        var is_admin = results[0].is_admin;
+        if (is_admin !== 1)
+            return res.send({ error: true, message: "You have no permission for this control." }); 
+        
+        query = 'update tbl_user set account_status = 0 where id = ?';
+        dbConn.query(query, otherId, function(error, uptResults, fields) {
+            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+
+            return res.send({ error: false, message: 'Banned user successfully.' });
+        })
+    })
 });
 
 module.exports = userApi;
