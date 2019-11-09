@@ -131,17 +131,17 @@ userApi.post('/signup', function (req, res) {
         return res.status(400).send({ error: true, message: 'Please fill out all required fields.' });
     }
 
-    var usernameArr = username.split(" ");
-    var descriptionArr = description.split(" ");
+    var usernameArr = username.toUpperCase().split(" ");
+    var descriptionArr = description.toUpperCase().split(" ");
                     
     var booleanValue1 = illegalWords.every(function(words, index) {
-        var wordsArr = words.split(" ");
+        var wordsArr = words.toUpperCase().split(" ");
 
         return findSubarray(usernameArr, wordsArr) === -1;
     })
                     
     var booleanValue2 = illegalWords.every(function(words, index) {
-        var wordsArr = words.split(" ");
+        var wordsArr = words.toUpperCase().split(" ");
 
         return findSubarray(descriptionArr, wordsArr) === -1;
     })
@@ -193,6 +193,7 @@ userApi.post('/signup', function (req, res) {
                 account_status: account_status,
                 last_loggedin_date: new Date(),
                 auto_block: 1,
+                is_admin: 0,
             };
 
             dbConn.query("INSERT INTO tbl_user SET ? ", newUserData, function (error, results, fields) {
@@ -258,6 +259,7 @@ userApi.post('/signup', function (req, res) {
                         account_status: results[0].account_status,
                         last_loggedin_date: results[0].last_loggedin_date,
                         auto_block: results[0].auto_block,
+                        is_admin: results[0].is_admin,
                     };
                     return res.send({error: false, user: outputResult, message: 'User exist!'});
                 });
@@ -305,6 +307,7 @@ userApi.put('/checkDeviceUniqueId/:deviceId', function (req, res) {
                 account_status: results[0].account_status,
                 confirmation_code: results[0].confirmation_code,
                 auto_block: results[0].auto_block,
+                is_admin: results[0].is_admin,
             };
             return res.send({error: false, user: outputResult, message: 'User already exist!'});
         });      
@@ -708,6 +711,32 @@ userApi.get('/getAllAssetData', function(req, res) {
             });
         });
     });
+});
+
+userApi.post('/banUser', checkAuth, function(req, res) {
+    var userId = req.userData.userId;
+    var otherId = req.body.otherId;
+
+    if (!otherId) {
+        return res.status(400).send({ error: true, message: 'Please provide other user id' });
+    }
+
+    let query = 'select * from tbl_user where id = ?';
+    dbConn.query(query, userId, function(error, results, fields) {
+        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+        if (!results || !results.length) return res.status(403).send({ error: true, message: 'No match user!' });
+
+        var is_admin = results[0].is_admin;
+        if (is_admin !== 1)
+            return res.send({ error: true, message: "You have no permission for this control." }); 
+        
+        query = 'update tbl_user set account_status = 0 where id = ?';
+        dbConn.query(query, otherId, function(error, uptResults, fields) {
+            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+
+            return res.send({ error: false, message: 'Banned user successfully.' });
+        })
+    })
 });
 
 module.exports = userApi;

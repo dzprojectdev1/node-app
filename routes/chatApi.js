@@ -80,13 +80,15 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
         if (account_status !== 1)
             return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
 
-        dbConn.query('Select mutual_match_id, publish from tbl_match where id=?', [matchId], function (err, matchResults, fields) {
+        dbConn.query('Select a.mutual_match_id, a.publish, b.name, b.id from tbl_match a join tbl_user b where a.id=? and a.other_user_id = b.id', [matchId], function (err, matchResults, fields) {
             if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });;
             if (!matchResults.length)
                 return res.status(400).send({ error: true, message: 'No Match Found' });
 
             var mutualMatchId = matchResults[0].mutual_match_id;
             var publish = matchResults[0].publish;
+            var otherusername = matchResults[0].name;
+            var otheruserId = matchResults[0].id;
 
             if (publish !== 1)
                 return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
@@ -106,6 +108,10 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
                     match_id: matchId,
                     message_type: 1,
                     message_text: messageText,
+                    user_sent: userId,
+                    name_sent: username,
+                    user_received: otheruserId,
+                    name_received: otherusername,
                     created_date: new Date()
                 };
                 dbConn.beginTransaction(function (error) {
@@ -120,6 +126,10 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
                             match_id: mutualMatchId,
                             message_type: 2,
                             message_text: messageText,
+                            user_sent: userId,
+                            name_sent: username,
+                            user_received: otheruserId,
+                            name_received: otherusername,
                             created_date: new Date()
                         };
                         dbConn.query('INSERT INTO tbl_chat set ? ', [receiveMsg], function (error, receiveResult) {
