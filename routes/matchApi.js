@@ -1134,7 +1134,7 @@ matchApi.post('/requestInstantMatch', checkAuth, function (req, res) {
 });
 
 //#23 uc 8 Matched Page Display Matched list(matched_id)
-matchApi.post('/matches', checkAuth, function (req, res) {
+matchApi.get('/matches', checkAuth, function (req, res) {
     var userId = req.userData.userId;
     var perPageCount = req.body.count;
     var offSet = req.body.offset;
@@ -1158,10 +1158,10 @@ matchApi.post('/matches', checkAuth, function (req, res) {
     
     var whereCondition = ' where (c.cdn_id IS NULL or c.is_primary=1) and a.main_user_id=? and a.status in (6,7) and a.publish=1 and b.account_status=1';
     
-    var leftQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, b.description, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + leftjoinQuery + whereCondition + ' order by a.id desc LIMIT ? OFFSET ? ';
+    var leftQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, b.description, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + leftjoinQuery + whereCondition + ' order by a.id desc LIMIT ? OFFSET ? )'
     // var rightjoinQuery = ' inner join tbl_user b on a.other_user_id=b.id inner join tbl_user d on a.main_user_id=d.id right join tbl_video c on a.other_user_id=c.user_id'
     // var rightQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + rightjoinQuery + whereCondition + ' order by a.id desc)'
-    dbConn.query(leftQuery, [userId, perPageCount, offSet], function (error, results, fields) {
+    dbConn.query(leftQuery, [userId], function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         return res.send({ error: false, data: results, message: 'All match data' });
     });
