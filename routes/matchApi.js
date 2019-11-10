@@ -508,20 +508,31 @@ matchApi.post('/block', checkAuth, blockFunction, function (req, res) {
 });
 
 //#16 uc7.1 display incoming hearts
-matchApi.get('/getReceivedHearts', checkAuth, function (req, res) {
+matchApi.post('/getReceivedHearts', checkAuth, function (req, res) {
     var userId = req.userData.userId;
+    var perPageCount = req.body.count;
+    var offSet = req.body.offset;
+    
+    if (!perPageCount || !offSet) 
+        return res.status(403).send({error: true, message: 'invalid params'});
+
+    perPageCount = parseInt(perPageCount);
+    offSet = parseInt(offSet);
+
+    console.log('perPageCount is ' + perPageCount);
+    console.log('offSet is ' + offSet);
 
     var distanceQuery = ' (3959 * acos(cos(radians(d.lat_geo)) * cos(radians(c.lat_geo)) * cos(radians(c.long_geo) - radians(d.long_geo)) + sin(radians(d.lat_geo)) * sin(radians(c.lat_geo)))) as distance, ';
     var ageQuery = ' TIMESTAMPDIFF(YEAR, c.birth_date, CURDATE()) AS age ';
 
     var leftJoinQuery = ' Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id left join tbl_video b on a.other_user_id=b.user_id ';
-    var whereCondition = ' (b.cdn_id IS NULL or b.is_primary=1) and a.publish=1 and a.status=2 and a.main_user_id=? and c.account_status=1 order by a.id desc ';
+    var whereCondition = ' (b.cdn_id IS NULL or b.is_primary=1) and a.publish=1 and a.status=2 and a.main_user_id=? and c.account_status=1 order by a.id desc LIMIT ? OFFSET ? ';
     var leftSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_id, b.cdn_filtered_id, b.is_primary, c.name, c.gender, c.description, ' + distanceQuery + ageQuery + 'FROM tbl_match a ' + leftJoinQuery + 'WHERE' + whereCondition + ')';
     
     // var rightJoinQuery = ' right join tbl_video b on a.other_user_id=b.user_id Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id '
     // var rightSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_filtered_id, c.name, c.gender, ' + distanceQuery + ageQuery + 'FROM `tbl_match` a ' + rightJoinQuery + 'WHERE' + whereCondition + ')';
     // return res.send({query: leftSqlQuery});
-    dbConn.query(leftSqlQuery, [userId], function (error, results, fields) {
+    dbConn.query(leftSqlQuery, [userId, perPageCount, offSet], function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         if (!results.length) return res.status(403).send({ error: true, message: 'Received Heart data not found.' })
         return res.send({ error: false, data: results, message: 'All hearts list' });
