@@ -11,8 +11,16 @@ const { bucket } = require('../config/storageConfig');
 //#29 UC9 Chat Api == UC9.1 Display Chat - Main list
 chatApi.get('/all', checkAuth, function (req, res) {
     var userId = req.userData.userId;
+    var perPageCount = req.body.count;
+    var offSet = req.body.offset;
+    
+    if (!perPageCount || !offSet) 
+        return res.status(403).send({error: true, message: 'invalid params'});
 
-    var leftJoinQuery = 'inner join tbl_chat d on c.chat_id=d.id inner join tbl_user e on c.other_user_id=e.id left join tbl_video g on g.user_id=e.id WHERE (g.is_primary=1 or g.cdn_id IS NULL) order by d.created_date desc';
+    perPageCount = parseInt(perPageCount);
+    offSet = parseInt(offSet);
+
+    var leftJoinQuery = 'inner join tbl_chat d on c.chat_id=d.id inner join tbl_user e on c.other_user_id=e.id left join tbl_video g on g.user_id=e.id WHERE (g.is_primary=1 or g.cdn_id IS NULL) order by d.created_date desc LIMIT ? OFFSET ? ';
     // var matchWhereCondition = ' a.main_user_id=? and a.status in (6,7) and a.publish=1 group by a.id ';
     var matchWhereCondition = ' a.main_user_id=? and a.status in (6,7) and a.publish in (1, 2) group by a.id ';
     var leftMatchJoinQuery = ' inner join tbl_chat b on a.id=b.match_id';
@@ -20,7 +28,7 @@ chatApi.get('/all', checkAuth, function (req, res) {
     var leftQueryString = '(select c.*, d.message_text, d.created_date as created_date, e.id, e.name, e.gender, e.description, e.birth_date, TIMESTAMPDIFF(YEAR, e.birth_date, CURDATE()) AS age, g.cdn_id, g.cdn_filtered_id, g.is_primary from (' + matchQuery + ') c ' + leftJoinQuery + ')';
     // return res.send({query: leftQueryString});
 
-    dbConn.query(leftQueryString, [userId], function (error, results, fields) {
+    dbConn.query(leftQueryString, [userId, perPageCount, offSet], function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
 
         results.forEach(chat => {
