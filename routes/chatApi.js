@@ -20,6 +20,9 @@ chatApi.get('/all', checkAuth, function (req, res) {
     perPageCount = parseInt(perPageCount);
     offSet = parseInt(offSet);
 
+    console.log('perPageCount is ' + perPageCount);
+    console.log('offSet is ' + offSet);
+
     var leftJoinQuery = 'inner join tbl_chat d on c.chat_id=d.id inner join tbl_user e on c.other_user_id=e.id left join tbl_video g on g.user_id=e.id WHERE (g.is_primary=1 or g.cdn_id IS NULL) order by d.created_date desc LIMIT ? OFFSET ? ';
     // var matchWhereCondition = ' a.main_user_id=? and a.status in (6,7) and a.publish=1 group by a.id ';
     var matchWhereCondition = ' a.main_user_id=? and a.status in (6,7) and a.publish in (1, 2) group by a.id ';
