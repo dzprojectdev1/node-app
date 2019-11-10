@@ -9,7 +9,7 @@ var FCM = require('fcm-node');
 const { bucket } = require('../config/storageConfig');
 
 //#29 UC9 Chat Api == UC9.1 Display Chat - Main list
-chatApi.get('/all', checkAuth, function (req, res) {
+chatApi.post('/all', checkAuth, function (req, res) {
     var userId = req.userData.userId;
     var perPageCount = req.body.count;
     var offSet = req.body.offset;
