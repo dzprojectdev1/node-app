@@ -1134,7 +1134,7 @@ matchApi.post('/requestInstantMatch', checkAuth, function (req, res) {
 });
 
 //#23 uc 8 Matched Page Display Matched list(matched_id)
-matchApi.get('/matches', checkAuth, function (req, res) {
+matchApi.post('/matches', checkAuth, function (req, res) {
     var userId = req.userData.userId;
     var perPageCount = req.body.count;
     var offSet = req.body.offset;
