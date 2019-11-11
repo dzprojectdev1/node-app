@@ -508,36 +508,57 @@ matchApi.post('/block', checkAuth, blockFunction, function (req, res) {
 });
 
 //#16 uc7.1 display incoming hearts
-matchApi.post('/getReceivedHearts', checkAuth, function (req, res) {
+matchApi.get('/getReceivedHearts', checkAuth, function (req, res) {
     var userId = req.userData.userId;
-    var perPageCount = req.body.count;
-    var offSet = req.body.offset;
-    
-    if (!perPageCount || !offSet) 
-        return res.status(403).send({error: true, message: 'invalid params'});
-
-    perPageCount = parseInt(perPageCount);
-    offSet = parseInt(offSet);
-
-    console.log('perPageCount is ' + perPageCount);
-    console.log('offSet is ' + offSet);
 
     var distanceQuery = ' (3959 * acos(cos(radians(d.lat_geo)) * cos(radians(c.lat_geo)) * cos(radians(c.long_geo) - radians(d.long_geo)) + sin(radians(d.lat_geo)) * sin(radians(c.lat_geo)))) as distance, ';
     var ageQuery = ' TIMESTAMPDIFF(YEAR, c.birth_date, CURDATE()) AS age ';
 
     var leftJoinQuery = ' Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id left join tbl_video b on a.other_user_id=b.user_id ';
-    var whereCondition = ' (b.cdn_id IS NULL or b.is_primary=1) and a.publish=1 and a.status=2 and a.main_user_id=? and c.account_status=1 order by a.id desc LIMIT ? OFFSET ? ';
+    var whereCondition = ' (b.cdn_id IS NULL or b.is_primary=1) and a.publish=1 and a.status=2 and a.main_user_id=? and c.account_status=1 order by a.id desc ';
     var leftSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_id, b.cdn_filtered_id, b.is_primary, c.name, c.gender, c.description, ' + distanceQuery + ageQuery + 'FROM tbl_match a ' + leftJoinQuery + 'WHERE' + whereCondition + ')';
     
     // var rightJoinQuery = ' right join tbl_video b on a.other_user_id=b.user_id Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id '
     // var rightSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_filtered_id, c.name, c.gender, ' + distanceQuery + ageQuery + 'FROM `tbl_match` a ' + rightJoinQuery + 'WHERE' + whereCondition + ')';
     // return res.send({query: leftSqlQuery});
-    dbConn.query(leftSqlQuery, [userId, perPageCount, offSet], function (error, results, fields) {
+    dbConn.query(leftSqlQuery, [userId], function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         if (!results.length) return res.status(403).send({ error: true, message: 'Received Heart data not found.' })
         return res.send({ error: false, data: results, message: 'All hearts list' });
     });
 });
+
+//#16.1 uc7.1 display incoming hearts - Pagination
+// matchApi.post('/getReceivedHearts', checkAuth, function (req, res) {
+//     var userId = req.userData.userId;
+//     var perPageCount = req.body.count;
+//     var offSet = req.body.offset;
+    
+//     if (!perPageCount || !offSet) 
+//         return res.status(403).send({error: true, message: 'invalid params'});
+
+//     perPageCount = parseInt(perPageCount);
+//     offSet = parseInt(offSet);
+
+//     console.log('perPageCount is ' + perPageCount);
+//     console.log('offSet is ' + offSet);
+
+//     var distanceQuery = ' (3959 * acos(cos(radians(d.lat_geo)) * cos(radians(c.lat_geo)) * cos(radians(c.long_geo) - radians(d.long_geo)) + sin(radians(d.lat_geo)) * sin(radians(c.lat_geo)))) as distance, ';
+//     var ageQuery = ' TIMESTAMPDIFF(YEAR, c.birth_date, CURDATE()) AS age ';
+
+//     var leftJoinQuery = ' Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id left join tbl_video b on a.other_user_id=b.user_id ';
+//     var whereCondition = ' (b.cdn_id IS NULL or b.is_primary=1) and a.publish=1 and a.status=2 and a.main_user_id=? and c.account_status=1 order by a.id desc LIMIT ? OFFSET ? ';
+//     var leftSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_id, b.cdn_filtered_id, b.is_primary, c.name, c.gender, c.description, ' + distanceQuery + ageQuery + 'FROM tbl_match a ' + leftJoinQuery + 'WHERE' + whereCondition + ')';
+    
+//     // var rightJoinQuery = ' right join tbl_video b on a.other_user_id=b.user_id Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id '
+//     // var rightSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_filtered_id, c.name, c.gender, ' + distanceQuery + ageQuery + 'FROM `tbl_match` a ' + rightJoinQuery + 'WHERE' + whereCondition + ')';
+//     // return res.send({query: leftSqlQuery});
+//     dbConn.query(leftSqlQuery, [userId, perPageCount, offSet], function (error, results, fields) {
+//         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+//         if (!results.length) return res.status(403).send({ error: true, message: 'Received Heart data not found.' })
+//         return res.send({ error: false, data: results, message: 'All hearts list' });
+//     });
+// });
 
 //#17 uc7.2 ===  incoming hearts : main user rejects heart from other user
 matchApi.post('/sendHeartReject', checkAuth, function (req, res) {
@@ -1134,23 +1155,12 @@ matchApi.post('/requestInstantMatch', checkAuth, function (req, res) {
 });
 
 //#23 uc 8 Matched Page Display Matched list(matched_id)
-matchApi.post('/matches', checkAuth, function (req, res) {
+matchApi.get('/matches', checkAuth, function (req, res) {
     var userId = req.userData.userId;
-    var perPageCount = req.body.count;
-    var offSet = req.body.offset;
 
     if (!userId) {
         return res.status(400).send({ error: true, message: 'Please login again!' });
     }
-    
-    if (!perPageCount || !offSet) 
-        return res.status(403).send({error: true, message: 'invalid params'});
-
-    perPageCount = parseInt(perPageCount);
-    offSet = parseInt(offSet);
-
-    console.log('perPageCount is ' + perPageCount);
-    console.log('offSet is ' + offSet);
 
     var distanceQuery = '(3959 * acos (cos (radians(d.lat_geo)) * cos(radians( b.lat_geo )) * cos(radians( b.long_geo ) - radians(d.long_geo)) + sin ( radians( d.lat_geo) )  * sin( radians( b.lat_geo ) ))) as distance, ';
     var ageQuery = 'TIMESTAMPDIFF(YEAR, b.birth_date, CURDATE()) AS age ';
@@ -1158,15 +1168,49 @@ matchApi.post('/matches', checkAuth, function (req, res) {
     
     var whereCondition = ' where (c.cdn_id IS NULL or c.is_primary=1) and a.main_user_id=? and a.status in (6,7) and a.publish=1 and b.account_status=1';
     
-    var leftQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, b.description, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + leftjoinQuery + whereCondition + ' order by a.id desc LIMIT ? OFFSET ? )'
+    var leftQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, b.description, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + leftjoinQuery + whereCondition + ' order by a.id desc)'
     // var rightjoinQuery = ' inner join tbl_user b on a.other_user_id=b.id inner join tbl_user d on a.main_user_id=d.id right join tbl_video c on a.other_user_id=c.user_id'
     // var rightQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + rightjoinQuery + whereCondition + ' order by a.id desc)'
-    console.log('leftQueryForMatch ' + leftQuery);
-    dbConn.query(leftQuery, [userId, perPageCount, offSet], function (error, results, fields) {
+    dbConn.query(leftQuery, [userId], function (error, results, fields) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         return res.send({ error: false, data: results, message: 'All match data' });
     });
 });
+
+//#23 uc 8 Matched Page Display Matched list(matched_id) - Pagination
+// matchApi.post('/matches', checkAuth, function (req, res) {
+//     var userId = req.userData.userId;
+//     var perPageCount = req.body.count;
+//     var offSet = req.body.offset;
+
+//     if (!userId) {
+//         return res.status(400).send({ error: true, message: 'Please login again!' });
+//     }
+    
+//     if (!perPageCount || !offSet) 
+//         return res.status(403).send({error: true, message: 'invalid params'});
+
+//     perPageCount = parseInt(perPageCount);
+//     offSet = parseInt(offSet);
+
+//     console.log('perPageCount is ' + perPageCount);
+//     console.log('offSet is ' + offSet);
+
+//     var distanceQuery = '(3959 * acos (cos (radians(d.lat_geo)) * cos(radians( b.lat_geo )) * cos(radians( b.long_geo ) - radians(d.long_geo)) + sin ( radians( d.lat_geo) )  * sin( radians( b.lat_geo ) ))) as distance, ';
+//     var ageQuery = 'TIMESTAMPDIFF(YEAR, b.birth_date, CURDATE()) AS age ';
+//     var leftjoinQuery = ' inner join tbl_user b on a.other_user_id=b.id inner join tbl_user d on a.main_user_id=d.id left join tbl_video c on a.other_user_id=c.user_id';
+    
+//     var whereCondition = ' where (c.cdn_id IS NULL or c.is_primary=1) and a.main_user_id=? and a.status in (6,7) and a.publish=1 and b.account_status=1';
+    
+//     var leftQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, b.description, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + leftjoinQuery + whereCondition + ' order by a.id desc LIMIT ? OFFSET ? )'
+//     // var rightjoinQuery = ' inner join tbl_user b on a.other_user_id=b.id inner join tbl_user d on a.main_user_id=d.id right join tbl_video c on a.other_user_id=c.user_id'
+//     // var rightQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + rightjoinQuery + whereCondition + ' order by a.id desc)'
+//     console.log('leftQueryForMatch ' + leftQuery);
+//     dbConn.query(leftQuery, [userId, perPageCount, offSet], function (error, results, fields) {
+//         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+//         return res.send({ error: false, data: results, message: 'All match data' });
+//     });
+// });
 
 matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
     var userId = req.userData.userId;
