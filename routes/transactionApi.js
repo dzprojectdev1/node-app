@@ -480,4 +480,119 @@ transactionApi.post('/validatePass/:user_id', checkAuth, function(req, res) {
     })
 })
 
+transactionApi.post('/sendDiamonds', checkAuth, function(req, res) {
+    var userId = req.userData.userId;
+    var userName = req.body.userName;
+    var otherId = req.body.otherId;
+    var otherUserName = req.body.otherUserName;
+    var amount = req.body.amount;
+
+    var query = 'select * from tbl_user where id = ?';
+    dbConnect.query(query, [userId], function(error, results, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if(!results || !results.length) return res.send({error: false, message: 'There is no matched user.'});
+
+        var user_coin_count = results[0].coin_count;
+        var user_fcm_id = results[0].fcm_id;
+        if (user_coin_count < amount) {
+            return res.send({error: false, coin_count: user_coin_count, message: 'There is no enough diamond.'});
+        }
+
+        dbConnect.query(query, [otherId], function(error, otherResults, fields) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+            if(!results || !results.length) return res.send({error: false, message: 'There is no matched user.'});
+
+            var other_coin_count = otherResults[0].coin_count;
+            var other_fcm_id = otherResults[0].fcm_id;
+
+            var sendDiamondsData = {
+                from_user: userId,
+                from_user_name: userName,
+                to_user: otherId,
+                to_user_name: otherUserName,
+                amount: amount,
+                date: new Date()
+            };
+
+            dbConn.beginTransaction(function (error) {
+                if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                dbConn.query('INSERT INTO tbl_send set ? ', [sendDiamondsData], function (error, insertResult) {
+                    if (error) {
+                        dbConn.rollback(function () {
+                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                        });
+                    }
+
+                    user_coin_count = user_coin_count - amount;
+
+                    dbConn.query('update tbl_user set coin_count = ? where id = ? ', [user_coin_count, userId], function (error, sendResult) {
+                        if (error) {
+                            dbConn.rollback(function () {
+                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                            });
+                        }
+
+                        other_coin_count = other_coin_count + amount;
+
+                        dbConn.query('update tbl_user set coin_count = ? where id = ? ', [other_coin_count, otherId], function (error, receiveResult) {
+                            if (error) {
+                                dbConn.rollback(function () {
+                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                });
+                            }
+
+                            dbConn.commit(function (error) {
+                                if (error) {
+                                    dbConn.rollback(function () {
+                                        return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                    });
+                                }
+
+                                diamondImageUrl = 'https://storage.googleapis.com/' + process.env.BUCKET_NAME + '/red_diamond_1.png';
+
+                                var message1 = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                                    to: user_fcm_id,
+                                    notification: {
+                                        title: 'Send Diamonds',
+                                        body: 'You sent '+amount+' diamonds to '+otherUserName,
+                                    },
+                                    data: {  //you can send only notification or only data(or include both)
+                                        type: 'SendDiamonds'
+                                    }
+                                };
+                                fcm.send(message1, function (notiErr, notiRes) {
+                                    if (notiErr) {
+                                        console.log("Notification Sending is failed: ", notiErr);
+                                    } else {
+                                        console.log("Successfully sent with response: ", notiRes);
+                                    }
+                                });
+
+                                var message2 = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                                    to: other_fcm_id,
+                                    notification: {
+                                        title: 'Send Diamonds',
+                                        body: userName+' sent you '+amount+' diamonds',
+                                    },
+                                    data: {  //you can send only notification or only data(or include both)
+                                        type: 'SendDiamonds'
+                                    }
+                                };
+                                fcm.send(message2, function (notiErr, notiRes) {
+                                    if (notiErr) {
+                                        console.log("Notification Sending is failed: ", notiErr);
+                                    } else {
+                                        console.log("Successfully sent with response: ", notiRes);
+                                    }
+                                });
+                                return res.send({ error: false, coin_count: user_coin_count, message: "Diamonds sent." });
+                            });
+                        });
+                    });
+                });
+            });
+        })
+    })
+})
+
 module.exports = transactionApi;
