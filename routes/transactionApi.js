@@ -557,7 +557,8 @@ transactionApi.post('/sendDiamonds', checkAuth, function(req, res) {
                                         body: 'You sent '+amount+' diamonds to '+otherUserName,
                                     },
                                     data: {  //you can send only notification or only data(or include both)
-                                        type: 'SendDiamonds'
+                                        type: 'SendDiamonds',
+                                        senderImg: diamondImageUrl,
                                     }
                                 };
                                 fcm.send(message1, function (notiErr, notiRes) {
@@ -575,7 +576,8 @@ transactionApi.post('/sendDiamonds', checkAuth, function(req, res) {
                                         body: userName+' sent you '+amount+' diamonds',
                                     },
                                     data: {  //you can send only notification or only data(or include both)
-                                        type: 'SendDiamonds'
+                                        type: 'SendDiamonds',
+                                        senderImg: diamondImageUrl,
                                     }
                                 };
                                 fcm.send(message2, function (notiErr, notiRes) {
