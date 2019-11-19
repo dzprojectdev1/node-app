@@ -514,36 +514,36 @@ transactionApi.post('/sendDiamonds', checkAuth, function(req, res) {
                 date: new Date()
             };
 
-            dbConn.beginTransaction(function (error) {
+            dbConnect.beginTransaction(function (error) {
                 if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                dbConn.query('INSERT INTO tbl_send set ? ', [sendDiamondsData], function (error, insertResult) {
+                dbConnect.query('INSERT INTO tbl_send set ? ', [sendDiamondsData], function (error, insertResult) {
                     if (error) {
-                        dbConn.rollback(function () {
+                        dbConnect.rollback(function () {
                             return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                         });
                     }
 
                     user_coin_count = user_coin_count - amount;
 
-                    dbConn.query('update tbl_user set coin_count = ? where id = ? ', [user_coin_count, userId], function (error, sendResult) {
+                    dbConnect.query('update tbl_user set coin_count = ? where id = ? ', [user_coin_count, userId], function (error, sendResult) {
                         if (error) {
-                            dbConn.rollback(function () {
+                            dbConnect.rollback(function () {
                                 return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                             });
                         }
 
                         other_coin_count = other_coin_count + amount;
 
-                        dbConn.query('update tbl_user set coin_count = ? where id = ? ', [other_coin_count, otherId], function (error, receiveResult) {
+                        dbConnect.query('update tbl_user set coin_count = ? where id = ? ', [other_coin_count, otherId], function (error, receiveResult) {
                             if (error) {
-                                dbConn.rollback(function () {
+                                dbConnect.rollback(function () {
                                     return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                 });
                             }
 
-                            dbConn.commit(function (error) {
+                            dbConnect.commit(function (error) {
                                 if (error) {
-                                    dbConn.rollback(function () {
+                                    dbConnect.rollback(function () {
                                         return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                     });
                                 }
