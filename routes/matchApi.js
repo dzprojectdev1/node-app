@@ -516,7 +516,7 @@ matchApi.get('/getReceivedHearts', checkAuth, function (req, res) {
 
     var leftJoinQuery = ' Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id left join tbl_video b on a.other_user_id=b.user_id ';
     var whereCondition = ' (b.cdn_id IS NULL or b.is_primary=1) and a.publish=1 and a.status=2 and a.main_user_id=? and c.account_status=1 order by a.id desc ';
-    var leftSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_id, b.cdn_filtered_id, b.is_primary, c.name, c.gender, c.description, ' + distanceQuery + ageQuery + 'FROM tbl_match a ' + leftJoinQuery + 'WHERE' + whereCondition + ')';
+    var leftSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_id, b.cdn_filtered_id, b.is_primary, c.name, c.gender, c.description, c.coin_count, ' + distanceQuery + ageQuery + 'FROM tbl_match a ' + leftJoinQuery + 'WHERE' + whereCondition + ')';
     
     // var rightJoinQuery = ' right join tbl_video b on a.other_user_id=b.user_id Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id '
     // var rightSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_filtered_id, c.name, c.gender, ' + distanceQuery + ageQuery + 'FROM `tbl_match` a ' + rightJoinQuery + 'WHERE' + whereCondition + ')';
@@ -1168,7 +1168,7 @@ matchApi.get('/matches', checkAuth, function (req, res) {
     
     var whereCondition = ' where (c.cdn_id IS NULL or c.is_primary=1) and a.main_user_id=? and a.status in (6,7) and a.publish=1 and b.account_status=1';
     
-    var leftQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, b.description, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + leftjoinQuery + whereCondition + ' order by a.id desc)'
+    var leftQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, b.description, b.coin_count, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + leftjoinQuery + whereCondition + ' order by a.id desc)'
     // var rightjoinQuery = ' inner join tbl_user b on a.other_user_id=b.id inner join tbl_user d on a.main_user_id=d.id right join tbl_video c on a.other_user_id=c.user_id'
     // var rightQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + rightjoinQuery + whereCondition + ' order by a.id desc)'
     dbConn.query(leftQuery, [userId], function (error, results, fields) {
