@@ -523,7 +523,7 @@ transactionApi.post('/sendDiamonds', checkAuth, function(req, res) {
                         });
                     }
 
-                    user_coin_count = user_coin_count - amount;
+                    user_coin_count = parseInt(user_coin_count) - parseInt(amount);
 
                     dbConnect.query('update tbl_user set coin_count = ? where id = ? ', [user_coin_count, userId], function (error, sendResult) {
                         if (error) {
@@ -532,7 +532,7 @@ transactionApi.post('/sendDiamonds', checkAuth, function(req, res) {
                             });
                         }
 
-                        other_coin_count = other_coin_count + amount;
+                        other_coin_count = parseInt(other_coin_count) + parseInt(amount);
 
                         dbConnect.query('update tbl_user set coin_count = ? where id = ? ', [other_coin_count, otherId], function (error, receiveResult) {
                             if (error) {
