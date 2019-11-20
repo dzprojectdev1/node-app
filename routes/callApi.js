@@ -26,12 +26,18 @@ callApi.post('/initiate', checkAuth, function(req, res) {
         ended_at: new Date()
     };
 
-    dbConnect.query('INSERT INTO tbl_call set ? ', [initiateCall], function (error, insertResult) {
+    var query = 'select * from tbl_chat where user_sent = ? and user_received = ?';
+    dbConnect.query(query, [otherId, userId], function(error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if (!results || !results.length) return res.send({error: false, data: { call_available: false, call_id: 0 }, message: 'You are not able to call ' + otherUserName + ' now'});
 
-        var callId = insertResult.insertId;
+        dbConnect.query('INSERT INTO tbl_call set ? ', [initiateCall], function (error, insertResult) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
-        return res.send({error: false, call_id: callId, message: 'Transactions exist for this user.'});
+            var callId = insertResult.insertId;
+
+            return res.send({error: false, data: { call_available: true, call_id: callId }, message: 'Transactions exist for this user.'});
+        })
     })
 })
 
