@@ -38,6 +38,7 @@ var ethnicityApi = require('./routes/ethnicityApi');
 var chatApi = require('./routes/chatApi');
 var uploadApi = require('./routes/uploadApi');
 var transactionApi = require('./routes/transactionApi');
+var callApi = require('./routes/callApi');
 
 const storageApi = require('./routes/storageApi');
 
@@ -142,5 +143,6 @@ app.use('/api/chat', chatApi);
 app.use('/api/storage', storageApi);
 app.use('/api/upload', uploadApi);
 app.use('/api/transaction', transactionApi);
+app.use('/api/call', callApi);
 
 module.exports = app;
