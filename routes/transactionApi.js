@@ -450,6 +450,8 @@ transactionApi.post('/validatePass/:user_id', checkAuth, function(req, res) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         if(!results || !results.length) return res.send({error: false, message: 'There is no matched user.'});
 
+        var coin_count = results[0].coin_count;
+
         query = "select * from tbl_pass_transaction where user_id = ? order by created_at desc";
         dbConnect.query(query, user_id, function(error, transactionResults, fields) {
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
@@ -470,10 +472,11 @@ transactionApi.post('/validatePass/:user_id', checkAuth, function(req, res) {
                 let result_data = {
                     validation: true,
                     remain_timestamp: send_date_timestamp,
+                    coin_count: coin_count,
                 }
                 return res.send({error: false, data: result_data, message: 'You have pass days.'})
             } else {
-                return res.send({error: false, data: { validation: false }, message: 'Your unlimited feature was expired.'})
+                return res.send({error: false, data: { validation: false, coin_count: coin_count, }, message: 'Your unlimited feature was expired.'})
             }
 
         })
@@ -598,6 +601,19 @@ transactionApi.post('/sendDiamonds', checkAuth, function(req, res) {
                 });
             });
         })
+    })
+})
+
+transactionApi.post('/getDiamondCount', checkAuth, function(req, res) {
+    var userId = req.userData.userId;
+
+    var query = 'select * from tbl_user where id = ?';
+    dbConnect.query(query, [userId], function(error, results, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if(!results || !results.length) return res.send({error: false, message: 'There is no matched user.'});
+
+        var coin_count = results[0].coin_count;
+        return res.send({ error: false, coin_count: coin_count, message: "Got diamonds count." });
     })
 })
 
