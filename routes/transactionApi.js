@@ -498,6 +498,8 @@ transactionApi.post('/sendDiamonds', checkAuth, function(req, res) {
             return res.send({error: false, coin_count: user_coin_count, message: 'There is no enough diamond.'});
         }
 
+        var user_new_coin_count = parseInt(user_coin_count) - parseInt(amount);
+
         dbConnect.query(query, [otherId], function(error, otherResults, fields) {
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
             if(!results || !results.length) return res.send({error: false, message: 'There is no matched user.'});
@@ -505,11 +507,17 @@ transactionApi.post('/sendDiamonds', checkAuth, function(req, res) {
             var other_coin_count = otherResults[0].coin_count;
             var other_fcm_id = otherResults[0].fcm_id;
 
+            var other_new_coin_count = parseInt(other_coin_count) + parseInt(amount);
+
             var sendDiamondsData = {
                 from_user: userId,
                 from_user_name: userName,
+                from_user_orig_count: user_coin_count,
+                from_user_new_count: user_new_coin_count,
                 to_user: otherId,
                 to_user_name: otherUserName,
+                to_user_orig_count: other_coin_count,
+                to_user_new_count: other_new_coin_count,
                 amount: amount,
                 date: new Date()
             };
@@ -523,18 +531,14 @@ transactionApi.post('/sendDiamonds', checkAuth, function(req, res) {
                         });
                     }
 
-                    user_coin_count = parseInt(user_coin_count) - parseInt(amount);
-
-                    dbConnect.query('update tbl_user set coin_count = ? where id = ? ', [user_coin_count, userId], function (error, sendResult) {
+                    dbConnect.query('update tbl_user set coin_count = ? where id = ? ', [user_new_coin_count, userId], function (error, sendResult) {
                         if (error) {
                             dbConnect.rollback(function () {
                                 return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                             });
                         }
 
-                        other_coin_count = parseInt(other_coin_count) + parseInt(amount);
-
-                        dbConnect.query('update tbl_user set coin_count = ? where id = ? ', [other_coin_count, otherId], function (error, receiveResult) {
+                        dbConnect.query('update tbl_user set coin_count = ? where id = ? ', [other_new_coin_count, otherId], function (error, receiveResult) {
                             if (error) {
                                 dbConnect.rollback(function () {
                                     return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
@@ -553,7 +557,7 @@ transactionApi.post('/sendDiamonds', checkAuth, function(req, res) {
                                 var message1 = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
                                     to: user_fcm_id,
                                     notification: {
-                                        title: 'Send Diamonds',
+                                        title: 'You sent diamonds to '+otherUserName+'!',
                                         body: 'You sent '+amount+' diamonds to '+otherUserName,
                                     },
                                     data: {  //you can send only notification or only data(or include both)
@@ -572,7 +576,7 @@ transactionApi.post('/sendDiamonds', checkAuth, function(req, res) {
                                 var message2 = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
                                     to: other_fcm_id,
                                     notification: {
-                                        title: 'Send Diamonds',
+                                        title: userName+' sent you new diamonds!!',
                                         body: userName+' sent you '+amount+' diamonds',
                                     },
                                     data: {  //you can send only notification or only data(or include both)
