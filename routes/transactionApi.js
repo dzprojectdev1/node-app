@@ -489,6 +489,7 @@ transactionApi.post('/sendDiamonds', checkAuth, function(req, res) {
     var otherId = req.body.otherId;
     var otherUserName = req.body.otherUserName;
     var amount = req.body.amount;
+    var fanMessage = req.body.fanMessage;
 
     var query = 'select * from tbl_user where id = ?';
     dbConnect.query(query, [userId], function(error, results, fields) {
@@ -522,6 +523,7 @@ transactionApi.post('/sendDiamonds', checkAuth, function(req, res) {
                 to_user_orig_count: other_coin_count,
                 to_user_new_count: other_new_coin_count,
                 amount: amount,
+                fan_message: fanMessage,
                 date: new Date()
             };
 
