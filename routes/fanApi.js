@@ -45,4 +45,4 @@ fanApi.post('/checkFanOtherUser', checkAuth, function(req, res) {
     });
 })
 
-module.exports = transactionApi;
+module.exports = fanApi;
