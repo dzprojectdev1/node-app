@@ -112,6 +112,7 @@ fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
 
                                     if (old_fan_user_id = 0) {
                                         other_fan_count = other_fan_count + 1;
+                                        console.log('other_fan_count 1 ' + other_fan_count);
                                     } else if (old_fan_user_id == otherId) {
                                         user_fan_count = user_fan_count - 1;
                                         other_fan_count = other_fan_count + 1;
@@ -124,6 +125,7 @@ fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
 
                                     if (old_fan_user_id = 0) {
                                         other_fan_count = other_fan_count + 1;
+                                        console.log('other_fan_count 2 ' + other_fan_count);
                                     } else if (old_fan_user_id == otherId) {
                                         user_fan_count = user_fan_count - 1;
                                         other_fan_count = other_fan_count + 1;
