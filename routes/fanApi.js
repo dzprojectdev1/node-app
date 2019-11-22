@@ -190,7 +190,7 @@ fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
                                                         console.log("Successfully sent with response: ", notiRes);
                                                     }
                                                 });
-                                                return res.send({ error: false, coin_count: user_new_coin_count, message: "Diamonds sent." });
+                                                return res.send({ error: false, data: {coin_count: user_new_coin_count, other_fan_count: other_fan_count}, message: "Diamonds sent." });
                                             });
                                         });
                                     });
