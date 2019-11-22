@@ -101,6 +101,8 @@ fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
 
                                 var differencDiamonds = userIdDiamonds - otherIdDiamonds;
 
+                                console.log('differencDiamonds ' + differencDiamonds);
+
                                 // Update fan_user_id, fan_count
                                 if (differencDiamonds > 0) {
                                     new_fan_user_id = userId;
