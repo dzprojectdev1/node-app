@@ -128,6 +128,9 @@ fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
                                     }
                                 }
 
+                                console.log('user_fan_count ' + user_fan_count);
+                                console.log('other_fan_count ' + other_fan_count);
+
                                 // Update fan_user_id at tbl_send, users's coin_count and fan_count at tbl_user
                                 query = 'update tbl_send set fan_user_id = ? where id = ?';
                                 dbConnect.query(query, [new_fan_user_id, insertId], function(error, updateResult, fields) {
