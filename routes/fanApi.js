@@ -108,6 +108,7 @@ fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
                                     new_fan_user_id = userId;
 
                                     console.log('new_fan_user_id 1 ' + new_fan_user_id);
+                                    console.log('old_fan_user_id 1 ' + old_fan_user_id);
 
                                     if (old_fan_user_id = 0) {
                                         other_fan_count = other_fan_count + 1;
@@ -119,6 +120,7 @@ fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
                                     new_fan_user_id = 0;
 
                                     console.log('new_fan_user_id 2 ' + new_fan_user_id);
+                                    console.log('old_fan_user_id 2 ' + old_fan_user_id);
 
                                     if (old_fan_user_id = 0) {
                                         other_fan_count = other_fan_count + 1;
