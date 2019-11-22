@@ -90,13 +90,13 @@ fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
                         dbConnect.query(query, [userId, otherId], function(error, sumUserResults, fields) {
                             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                             if(sumUserResults && (sumUserResults.length > 0) && (sumUserResults[0].amount != null)) {
-                                userIdDiamonds = results[0].amount; // sum of sent diamonds from user to other user
+                                userIdDiamonds = sumUserResults[0].amount; // sum of sent diamonds from user to other user
                             }
                             
                             dbConnect.query(query, [otherId, userId], function(error, sumOtherResults, fields) {
                                 if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                                 if(sumOtherResults && (sumOtherResults.length > 0) && (sumOtherResults[0].amount != null)) {
-                                    otherIdDiamonds = otherResults[0].amount; // sum of sent diamonds from other user to user
+                                    otherIdDiamonds = sumOtherResults[0].amount; // sum of sent diamonds from other user to user
                                 }
 
                                 var differencDiamonds = userIdDiamonds - otherIdDiamonds;
