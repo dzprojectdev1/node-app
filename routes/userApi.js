@@ -193,6 +193,7 @@ userApi.post('/signup', function (req, res) {
                 account_status: account_status,
                 last_loggedin_date: new Date(),
                 auto_block: 1,
+                fan_count: 0,
                 is_admin: 0,
             };
 
@@ -258,6 +259,7 @@ userApi.post('/signup', function (req, res) {
                         description: results[0].description,
                         account_status: results[0].account_status,
                         last_loggedin_date: results[0].last_loggedin_date,
+                        fan_count: results[0].fan_count,
                         auto_block: results[0].auto_block,
                         is_admin: results[0].is_admin,
                     };
@@ -306,6 +308,7 @@ userApi.put('/checkDeviceUniqueId/:deviceId', function (req, res) {
                 coin_count: results[0].coin_count,
                 account_status: results[0].account_status,
                 confirmation_code: results[0].confirmation_code,
+                fan_count: results[0].fan_count,
                 auto_block: results[0].auto_block,
                 is_admin: results[0].is_admin,
             };
