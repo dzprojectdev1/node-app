@@ -263,30 +263,42 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
             var sentDiamonds      = 0;
             var differenceDiamonds = 0;
             (function(val){
-                dbConnect.query( "select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [val, otherId], function(error, reRows, fields) {
-                    if ( error ) {
-                        console.log( error );
+                dbConnect.query('select * from tbl_video where user_id = ? and is_primary = 1', val, function(error, userRows, fields) {
+                    if (error) {
+                        console.log(error);
                     } else {
-                        receivedDiamonds = reRows[0].amount;
+                        var imgUrl = '';
 
-                        dbConnect.query("select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [otherId, val], function(error, seRows, fields) {
-                            if (error) {
-                                console.log(error);
+                        if (userRows && userRows.length > 0) {
+                            imgUrl = userRows[0].cdn_id;
+                        }
+                        dbConnect.query( "select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [val, otherId], function(error, reRows, fields) {
+                            if ( error ) {
+                                console.log( error );
                             } else {
-                                sentDiamonds = seRows[0].amount;
-                            }
-                            
-                            differenceDiamonds = receivedDiamonds - sentDiamonds;
-
-                            let rowData = {
-                                userId: val,
-                                diamonds: differenceDiamonds,
-                            }
-
-                            if (differenceDiamonds > 0) {
-                                fanUsers.push(rowData);
-                            } else {
-                                mutualUsers.push(rowData);
+                                receivedDiamonds = reRows[0].amount;
+        
+                                dbConnect.query("select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [otherId, val], function(error, seRows, fields) {
+                                    if (error) {
+                                        console.log(error);
+                                    } else {
+                                        sentDiamonds = seRows[0].amount;
+                                    }
+                                    
+                                    differenceDiamonds = receivedDiamonds - sentDiamonds;
+        
+                                    let rowData = {
+                                        userId: val,
+                                        diamonds: differenceDiamonds,
+                                        imgUrl: imgUrl,
+                                    }
+        
+                                    if (differenceDiamonds > 0) {
+                                        fanUsers.push(rowData);
+                                    } else {
+                                        mutualUsers.push(rowData);
+                                    }
+                                });
                             }
                         });
                     }
