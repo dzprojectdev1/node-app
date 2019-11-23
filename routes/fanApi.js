@@ -256,6 +256,9 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
 
         var fanUsers = [];
         var mutualUsers = [];
+
+        console.log('Candidate users ' + JSON.stringify(results));
+
         for ( var i = 0; i < results.length ; i ++ ) {
             var tVal = results[i].from_user;
 
@@ -270,6 +273,7 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
                         var name = '';
                         var imgUrl = '';
 
+                        console.log('imgUrl ' + imgUrl);
                         if (userRows && userRows.length > 0) {
                             name = userRows[0].name;
                             imgUrl = userRows[0].cdn_id;
@@ -279,27 +283,31 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
                                 console.log( error );
                             } else {
                                 receivedDiamonds = reRows[0].amount;
+
+                                console.log('receivedDiamonds ' + receivedDiamonds);
         
                                 dbConnect.query("select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [otherId, val], function(error, seRows, fields) {
                                     if (error) {
                                         console.log(error);
                                     } else {
                                         sentDiamonds = seRows[0].amount;
-                                    }
+
+                                        console.log('sentDiamonds ' + sentDiamonds);
                                     
-                                    differenceDiamonds = receivedDiamonds - sentDiamonds;
-        
-                                    let rowData = {
-                                        userId: val,
-                                        name: name,
-                                        diamonds: differenceDiamonds,
-                                        imgUrl: imgUrl,
-                                    }
-        
-                                    if (differenceDiamonds > 0) {
-                                        fanUsers.push(rowData);
-                                    } else {
-                                        mutualUsers.push(rowData);
+                                        differenceDiamonds = receivedDiamonds - sentDiamonds;
+            
+                                        let rowData = {
+                                            userId: val,
+                                            name: name,
+                                            diamonds: differenceDiamonds,
+                                            imgUrl: imgUrl,
+                                        }
+            
+                                        if (differenceDiamonds > 0) {
+                                            fanUsers.push(rowData);
+                                        } else {
+                                            mutualUsers.push(rowData);
+                                        }
                                     }
                                 });
                             }
@@ -323,6 +331,8 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
             fanUsers: fanUsers,
             mutualUsers: mutualUsers,
         }
+
+        console.log(JSON.stringify(responseData));
 
         return res.send({ error: false, data: responseData, message: "Got Biggest Fan Users and Mutual Users." });
     });
