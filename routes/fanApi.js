@@ -263,13 +263,15 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
             var sentDiamonds      = 0;
             var differenceDiamonds = 0;
             (function(val){
-                dbConnect.query('select * from tbl_video where user_id = ? and is_primary = 1', val, function(error, userRows, fields) {
+                dbConnect.query('select a.cdn_id, b.name from tbl_video as a join tbl_user as b where a.user_id = ? and b.id = a.user_id and a.is_primary = 1', val, function(error, userRows, fields) {
                     if (error) {
                         console.log(error);
                     } else {
+                        var name = '';
                         var imgUrl = '';
 
                         if (userRows && userRows.length > 0) {
+                            name = userRows[0].name;
                             imgUrl = userRows[0].cdn_id;
                         }
                         dbConnect.query( "select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [val, otherId], function(error, reRows, fields) {
@@ -289,6 +291,7 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
         
                                     let rowData = {
                                         userId: val,
+                                        name: name,
                                         diamonds: differenceDiamonds,
                                         imgUrl: imgUrl,
                                     }
