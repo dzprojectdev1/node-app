@@ -385,6 +385,8 @@ fanApi.post('/getBiggestFanUsers', checkAuth, getFunUsers, function(req, res) {
         mutualUsers: mutualUsers,
     }
 
+    counter = 0;
+
     console.log(JSON.stringify(responseData));
 
     return res.send({ error: false, data: responseData, message: "Got Biggest Fan Users and Mutual Users." });
