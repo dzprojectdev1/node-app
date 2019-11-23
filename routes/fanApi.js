@@ -244,123 +244,150 @@ fanApi.post('/checkFanOtherUser', checkAuth, function(req, res) {
     });
 })
 
+var getFunUsers = (req, res, next) => {
+    try {
+        var userId = req.userData.userId;
+        var otherId = req.body.otherId;
+
+        if (!otherId) {
+            return res.status(400).send({ error: true, message: 'Please provide other user id' });
+        }
+
+        var query = 'select distinct from_user from tbl_send where to_user = ?';
+        dbConnect.query(query, [otherId], function(error, results, fields) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+            if(!results || !results.length) return res.send({error: false, is_fan: isFan, message: "This user has no fan yet." });
+
+            var fanUsers = [];
+            var mutualUsers = [];
+
+            var result_count = results.length;
+
+            console.log('Candidate users ' + JSON.stringify(results));
+
+            for ( var i = 0; i < results.length ; i ++ ) {
+                var tVal = results[i].from_user;
+
+                (function(val){
+                    dbConnect.query('select a.cdn_id, b.name from tbl_video as a join tbl_user as b where a.user_id = ? and b.id = a.user_id and a.is_primary = 1', val, function(error, userRows, fields) {
+                        if (error) {
+                            console.log(error);
+                        } else {
+                            var name = '';
+                            var imgUrl = '';
+                            if (userRows && userRows.length > 0) {
+                                name = userRows[0].name;
+                                imgUrl = userRows[0].cdn_id;
+                            }
+                            console.log('imgUrl ' + imgUrl);
+
+                            dbConnect.query( "select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [val, otherId], function(error, reRows, fields) {
+                                if ( error ) {
+                                    console.log( error );
+                                } else {
+
+                                    var receivedDiamonds = 0;
+                                    if (reRows && reRows.length > 0) {
+                                        receivedDiamonds = reRows[0].amount;
+
+                                        if (receivedDiamonds == null) {
+                                            receivedDiamonds = 0;
+                                        }
+                                    }
+
+                                    console.log('receivedDiamonds ' + receivedDiamonds);
+            
+                                    dbConnect.query("select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [otherId, val], function(error, seRows, fields) {
+                                        if (error) {
+                                            console.log(error);
+                                        } else {
+
+                                            var sentDiamonds = 0;
+                                            if (seRows && seRows.length > 0) {
+                                                sentDiamonds = seRows[0].amount;
+
+                                                if (sentDiamonds == null) {
+                                                    sentDiamonds = 0;
+                                                }
+                                            }
+
+                                            console.log('sentDiamonds ' + sentDiamonds);
+                                            var differenceDiamonds = 0;
+                                        
+                                            differenceDiamonds = receivedDiamonds - sentDiamonds;
+                
+                                            let rowData = {
+                                                userId: val,
+                                                name: name,
+                                                diamonds: differenceDiamonds,
+                                                imgUrl: imgUrl,
+                                            }
+
+                                            console.log('rowData ' + JSON.stringify(rowData));
+                
+                                            if (differenceDiamonds > 0) {
+                                                fanUsers.push(rowData);
+                                            } else {
+                                                mutualUsers.push(rowData);
+                                            }
+
+                                            counter ++;
+
+                                            console.log('counter_fan_user' + counter);
+
+                                            if ( result_count == counter) {
+                                                req.userData.userId = userId;
+                                                req.body.otherId = otherId;
+                                                req.body.fanUsers = fanUsers;
+                                                req.body.mutualUsers = mutualUsers;
+                                                next();
+                                            }
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    });
+                })(tVal);
+            }
+        });
+    } catch (error) {
+        return res.status(401).json({
+            message: error
+        });
+    }
+}
+
 /**
  * Get All Biggest Fans for the user (other user) and Mutual Users
  */
-fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
+fanApi.post('/getBiggestFanUsers', checkAuth, getFunUsers, function(req, res) {
     var userId = req.userData.userId;
     var otherId = req.body.otherId;
+    var fanUsers = req.body.fanUsers;
+    var mutualUsers = req.body.mutualUsers;
 
-    var query = 'select distinct from_user from tbl_send where to_user = ?';
-    dbConnect.query(query, [otherId], function(error, results, fields) {
-        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-        if(!results || !results.length) return res.send({error: false, is_fan: isFan, message: "This user has no fan yet." });
+    console.log('fan_users ' + JSON.stringify(fanUsers));
+    console.log('mutual_users ' + JSON.stringify(mutual_users));
 
-        var fanUsers = [];
-        var mutualUsers = [];
-
-        console.log('Candidate users ' + JSON.stringify(results));
-
-        for ( var i = 0; i < results.length ; i ++ ) {
-            var tVal = results[i].from_user;
-
-            (function(val){
-                dbConnect.query('select a.cdn_id, b.name from tbl_video as a join tbl_user as b where a.user_id = ? and b.id = a.user_id and a.is_primary = 1', val, function(error, userRows, fields) {
-                    if (error) {
-                        console.log(error);
-                    } else {
-                        var name = '';
-                        var imgUrl = '';
-                        if (userRows && userRows.length > 0) {
-                            name = userRows[0].name;
-                            imgUrl = userRows[0].cdn_id;
-                        }
-                        console.log('imgUrl ' + imgUrl);
-
-                        dbConnect.query( "select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [val, otherId], function(error, reRows, fields) {
-                            if ( error ) {
-                                console.log( error );
-                            } else {
-
-                                var receivedDiamonds = 0;
-                                if (reRows && reRows.length > 0) {
-                                    receivedDiamonds = reRows[0].amount;
-
-                                    if (receivedDiamonds == null) {
-                                        receivedDiamonds = 0;
-                                    }
-                                }
-
-                                console.log('receivedDiamonds ' + receivedDiamonds);
-        
-                                dbConnect.query("select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [otherId, val], function(error, seRows, fields) {
-                                    if (error) {
-                                        console.log(error);
-                                    } else {
-
-                                        var sentDiamonds = 0;
-                                        if (seRows && seRows.length > 0) {
-                                            sentDiamonds = seRows[0].amount;
-
-                                            if (sentDiamonds == null) {
-                                                sentDiamonds = 0;
-                                            }
-                                        }
-
-                                        console.log('sentDiamonds ' + sentDiamonds);
-                                        var differenceDiamonds = 0;
-                                    
-                                        differenceDiamonds = receivedDiamonds - sentDiamonds;
-            
-                                        let rowData = {
-                                            userId: val,
-                                            name: name,
-                                            diamonds: differenceDiamonds,
-                                            imgUrl: imgUrl,
-                                        }
-
-                                        console.log('rowData ' + JSON.stringify(rowData));
-            
-                                        if (differenceDiamonds > 0) {
-                                            fanUsers.push(rowData);
-                                        } else {
-                                            mutualUsers.push(rowData);
-                                        }
-
-                                        counter ++;
-
-                                        console.log('counter_fan_user' + counter);
-                                    }
-                                });
-                            }
-                        });
-                    }
-                });
-            })(tVal);
-        }
-
-
-        console.log(JSON.stringify(fanUsers));
-
-        for (var i = 0; i < fanUsers.length; i ++) {
-            for (var j = 0; j < i; j ++ ) {
-                if (fanUsers[i].diamonds > fanUsers[j].diamonds) {
-                    let swap_value = fanUsers[i];
-                    fanUsers[i] = fanUsers[j];
-                    fanUsers[j] = swap_value;
-                }
+    for (var i = 0; i < fanUsers.length; i ++) {
+        for (var j = 0; j < i; j ++ ) {
+            if (fanUsers[i].diamonds > fanUsers[j].diamonds) {
+                let swap_value = fanUsers[i];
+                fanUsers[i] = fanUsers[j];
+                fanUsers[j] = swap_value;
             }
         }
+    }
 
-        var responseData = {
-            fanUsers: fanUsers,
-            mutualUsers: mutualUsers,
-        }
+    var responseData = {
+        fanUsers: fanUsers,
+        mutualUsers: mutualUsers,
+    }
 
-        console.log(JSON.stringify(responseData));
+    console.log(JSON.stringify(responseData));
 
-        return res.send({ error: false, data: responseData, message: "Got Biggest Fan Users and Mutual Users." });
-    });
+    return res.send({ error: false, data: responseData, message: "Got Biggest Fan Users and Mutual Users." });
 })
 
 module.exports = fanApi;
