@@ -256,7 +256,7 @@ var getFunUsers = (req, res, next) => {
         var query = 'select distinct from_user from tbl_send where to_user = ?';
         dbConnect.query(query, [otherId], function(error, results, fields) {
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-            if(!results || !results.length) return res.send({error: false, is_fan: isFan, message: "This user has no fan yet." });
+            if(!results || !results.length) return res.send({error: false, message: "This is no matched user." });
 
             var fanUsers = [];
             var mutualUsers = [];
@@ -364,8 +364,16 @@ var getFunUsers = (req, res, next) => {
 fanApi.post('/getBiggestFanUsers', checkAuth, getFunUsers, function(req, res) {
     var userId = req.userData.userId;
     var otherId = req.body.otherId;
-    var fanUsers = req.body.fanUsers;
-    var mutualUsers = req.body.mutualUsers;
+    var fanUsers = [];
+    var mutualUsers = [];
+
+    if (req.body.fanUsers) {
+        fanUsers = req.body.fanUsers;
+    }
+
+    if (req.body.mutualUsers) {
+        mutualUsers = req.body.mutualUsers;
+    }
 
     console.log('fan_users ' + JSON.stringify(fanUsers));
     console.log('mutual_users ' + JSON.stringify(mutualUsers));
