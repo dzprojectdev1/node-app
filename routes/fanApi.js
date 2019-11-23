@@ -242,4 +242,75 @@ fanApi.post('/checkFanOtherUser', checkAuth, function(req, res) {
     });
 })
 
+/**
+ * Get All Biggest Fans for the user (other user) and Mutual Users
+ */
+fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
+    var userId = req.userData.userId;
+    var otherId = req.body.otherId;
+
+    var query = 'select distinct from_user from tbl_send where to_user = ?';
+    dbConnect.query(query, [otherId], function(error, results, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if(!results || !results.length) return res.send({error: false, is_fan: isFan, message: "This user has no fan yet." });
+
+        var fanUsers;
+        var mutualUsers;
+        for ( var i = 0; i < results.length ; i ++ ) {
+            var tVal = results[i].from_user;
+
+            var receivedDiamonds  = 0;
+            var sentDiamonds      = 0;
+            var differenceDiamonds = 0;
+            (function(val){
+                dbConnect.query( "select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [val, otherId], function(error, reRows, fields) {
+                    if ( error ) {
+                        console.log( error );
+                    } else {
+                        receivedDiamonds = reRows[0].amount;
+
+                        dbConnect.query("select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [otherId, val], function(error, seRows, fields) {
+                            if (error) {
+                                console.log(error);
+                            } else {
+                                sentDiamonds = seRows[0].amount;
+                            }
+                            
+                            differenceDiamonds = receivedDiamonds - sentDiamonds;
+
+                            let rowData = {
+                                userId: val,
+                                diamonds: differenceDiamonds,
+                            }
+
+                            if (differenceDiamonds > 0) {
+                                fanUsers.push(rowData);
+                            } else {
+                                mutualUsers.push(rowData);
+                            }
+                        });
+                    }
+                });
+            })(tVal);
+        }
+
+        for (var i = 0; i < fanUsers.length; i ++) {
+            for (var j = 0; j < i; j ++ ) {
+                if (fanUsers[i].diamonds > fanUsers[j].diamonds) {
+                    let swap_value = fanUsers[i];
+                    fanUsers[i] = fanUsers[j];
+                    fanUsers[j] = swap_value;
+                }
+            }
+        }
+
+        var responseData = {
+            fanUsers: fanUsers,
+            mutualUsers: mutualUsers,
+        }
+
+        return res.send({ error: false, data: responseData, message: "Got Biggest Fan Users and Mutual Users." });
+    });
+})
+
 module.exports = fanApi;
