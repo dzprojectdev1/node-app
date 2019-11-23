@@ -272,12 +272,12 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
                     } else {
                         var name = '';
                         var imgUrl = '';
-
-                        console.log('imgUrl ' + imgUrl);
                         if (userRows && userRows.length > 0) {
                             name = userRows[0].name;
                             imgUrl = userRows[0].cdn_id;
                         }
+                        console.log('imgUrl ' + imgUrl);
+
                         dbConnect.query( "select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [val, otherId], function(error, reRows, fields) {
                             if ( error ) {
                                 console.log( error );
@@ -316,6 +316,8 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
                                             diamonds: differenceDiamonds,
                                             imgUrl: imgUrl,
                                         }
+
+                                        console.log('rowData ' + JSON.stringify(rowData));
             
                                         if (differenceDiamonds > 0) {
                                             fanUsers.push(rowData);
@@ -330,6 +332,8 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
                 });
             })(tVal);
         }
+
+        console.log(JSON.stringify(fanUsers));
 
         for (var i = 0; i < fanUsers.length; i ++) {
             for (var j = 0; j < i; j ++ ) {
