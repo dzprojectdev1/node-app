@@ -274,7 +274,7 @@ var getFunUsers = (req, res, next) => {
                     var tVal = results[i].from_user;
     
                     (function(val){
-                        dbConnect.query('select a.cdn_id, b.name from tbl_video as a join tbl_user as b where a.user_id = ? and b.id = a.user_id and a.is_primary = 1', val, function(error, userRows, fields) {
+                        dbConnect.query('select a.cdn_id, b.name from tbl_video as a join tbl_user as b where a.user_id = b.id and b.id = ? and a.is_primary = 1', val, function(error, userRows, fields) {
                             if (error) {
                                 console.log(error);
                             } else {
@@ -358,21 +358,9 @@ var getFunUsers = (req, res, next) => {
             }
         });
     } catch (error) {
-        // return res.status(401).json({
-        //     message: error
-        // });
-        
-        var userId = req.userData.userId;
-        var otherId = req.body.otherId;
-
-        var fanUsers = [];
-        var mutualUsers = [];
-
-        req.userData.userId = userId;
-        req.body.otherId = otherId;
-        req.body.fanUsers = fanUsers;
-        req.body.mutualUsers = mutualUsers;
-        next();
+        return res.status(401).json({
+            message: error
+        });
     }
 }
 
