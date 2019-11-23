@@ -472,9 +472,23 @@ var getFunUsers2 = (req, res, next) => {
                                                 console.log('rowData ' + JSON.stringify(rowData));
                     
                                                 if (differenceDiamonds > 0) {
-                                                    fanUsers.push(rowData);
+
+                                                    var existingCheck = fanUsers.every(function(fanUser, index) {
+                                
+                                                        return rowData.userId !== fanUser.userId;
+                                                    })
+                                                    if (existingCheck) {
+                                                        fanUsers.push(rowData);
+                                                    }
                                                 } else {
-                                                    mutualUsers.push(rowData);
+
+                                                    var existingCheck = mutualUsers.every(function(mutualUser, index) {
+                                
+                                                        return rowData.userId !== mutualUser.userId;
+                                                    })
+                                                    if (existingCheck) {
+                                                        mutualUsers.push(rowData);
+                                                    }
                                                 }
     
                                                 counter ++;
