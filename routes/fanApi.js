@@ -364,16 +364,8 @@ var getFunUsers = (req, res, next) => {
 fanApi.post('/getBiggestFanUsers', checkAuth, getFunUsers, function(req, res) {
     var userId = req.userData.userId;
     var otherId = req.body.otherId;
-    var fanUsers = [];
-    var mutualUsers = [];
-
-    if (req.body.fanUsers) {
-        fanUsers = req.body.fanUsers;
-    }
-
-    if (req.body.mutualUsers) {
-        mutualUsers = req.body.mutualUsers;
-    }
+    var fanUsers = req.body.fanUsers;
+    var mutualUsers = req.body.mutualUsers;
 
     console.log('fan_users ' + JSON.stringify(fanUsers));
     console.log('mutual_users ' + JSON.stringify(mutualUsers));
