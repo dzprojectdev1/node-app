@@ -254,8 +254,8 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         if(!results || !results.length) return res.send({error: false, is_fan: isFan, message: "This user has no fan yet." });
 
-        var fanUsers;
-        var mutualUsers;
+        var fanUsers = [];
+        var mutualUsers = [];
         for ( var i = 0; i < results.length ; i ++ ) {
             var tVal = results[i].from_user;
 
