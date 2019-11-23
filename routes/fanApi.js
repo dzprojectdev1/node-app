@@ -349,7 +349,7 @@ var getFunUsers = (req, res, next) => {
             
                                                         console.log('counter_fan_user' + counter);
             
-                                                        if ( result_count == counter) {
+                                                        if ( result_count == (counter - 1)) {
                                                             req.userData.userId = userId;
                                                             req.body.otherId = otherId;
                                                             req.body.fanUsers = fanUsers;
