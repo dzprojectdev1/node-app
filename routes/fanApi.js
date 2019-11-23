@@ -254,8 +254,8 @@ var getFunUsers1 = (req, res, next) => {
 
         req.userData.userId = userId;
         req.body.otherId = otherId;
-        req.body.fanUsers = fanUsers;
-        req.body.mutualUsers = mutualUsers;
+        req.body.fanUsers = [];
+        req.body.mutualUsers = [];
 
         if (!otherId) {
             return res.status(400).send({ error: true, message: 'Please provide other user id' });
@@ -381,8 +381,8 @@ var getFunUsers2 = (req, res, next) => {
         var userId = req.userData.userId;
         var otherId = req.body.otherId;
 
-        var fanUsers = [];
-        var mutualUsers = [];
+        var fanUsers = req.body.fanUsers;
+        var mutualUsers = req.body.mutualUsers;
 
         req.userData.userId = userId;
         req.body.otherId = otherId;
