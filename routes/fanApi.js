@@ -261,7 +261,9 @@ var getFunUsers = (req, res, next) => {
         console.log('distinct_query ' + query);
 
         dbConnect.query(query, [otherId], function(error, results, fields) {
-            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+            if (error) {
+                console.log(error);
+            } 
             if(!results || !results.length) return res.send({error: false, message: "This is no matched user." });
 
             var result_count = results.length;
