@@ -271,6 +271,7 @@ var getFunUsers1 = (req, res, next) => {
             } else {
                 if(!results || !results.length) {
                     console.log('results_error' + results);
+                    counter = 0;
                     next();
                 };
     
@@ -353,6 +354,7 @@ var getFunUsers1 = (req, res, next) => {
                                                     req.body.otherId = otherId;
                                                     req.body.fanUsers = fanUsers;
                                                     req.body.mutualUsers = mutualUsers;
+                                                    counter = 0;
                                                     next();
                                                 }
                                             }
@@ -401,6 +403,7 @@ var getFunUsers2 = (req, res, next) => {
             } else {
                 if(!results || !results.length) {
                     console.log('results_error' + results);
+                    counter = 0;
                     next();
                 };
     
@@ -483,6 +486,7 @@ var getFunUsers2 = (req, res, next) => {
                                                     req.body.otherId = otherId;
                                                     req.body.fanUsers = fanUsers;
                                                     req.body.mutualUsers = mutualUsers;
+                                                    counter = 0;
                                                     next();
                                                 }
                                             }
