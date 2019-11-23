@@ -266,7 +266,7 @@ var getFunUsers = (req, res, next) => {
             } else {
                 if(!results || !results.length) return res.send({error: false, message: "This is no matched user." });
     
-                var result_count = results.length;
+                var result_count = parseInt(results.length) + 1;
     
                 console.log('Candidate users ' + JSON.stringify(results));
     
@@ -349,7 +349,7 @@ var getFunUsers = (req, res, next) => {
             
                                                         console.log('counter_fan_user' + counter);
             
-                                                        if ( result_count == (counter - 1)) {
+                                                        if ( result_count == counter) {
                                                             req.userData.userId = userId;
                                                             req.body.otherId = otherId;
                                                             req.body.fanUsers = fanUsers;
