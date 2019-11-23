@@ -358,9 +358,21 @@ var getFunUsers = (req, res, next) => {
             }
         });
     } catch (error) {
-        return res.status(401).json({
-            message: error
-        });
+        // return res.status(401).json({
+        //     message: error
+        // });
+        
+        var userId = req.userData.userId;
+        var otherId = req.body.otherId;
+
+        var fanUsers = [];
+        var mutualUsers = [];
+
+        req.userData.userId = userId;
+        req.body.otherId = otherId;
+        req.body.fanUsers = fanUsers;
+        req.body.mutualUsers = mutualUsers;
+        next();
     }
 }
 
