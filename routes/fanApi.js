@@ -412,7 +412,7 @@ var getFunUsers2 = (req, res, next) => {
                 console.log('Candidate users ' + JSON.stringify(results));
     
                 for ( var i = 0; i < results.length ; i ++ ) {
-                    var tVal = results[i].from_user;
+                    var tVal = results[i].to_user;
     
                     (function(val){
                         dbConnect.query('select a.cdn_id, b.name from tbl_user as b left join tbl_video as a on a.user_id = b.id where b.id = ? and (a.cdn_id IS NULL or a.is_primary=1)', val, function(error, userRows, fields) {
