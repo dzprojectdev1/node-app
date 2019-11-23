@@ -281,8 +281,10 @@ var getFunUsers = (req, res, next) => {
                                 console.log(error);
                             } else {
                                 if (blockedResults && blockedResults.length > 0) {
+                                    console.log('blockedResults ' + blockedResults);
+                                    console.log('blockedResults.length ' + blockedResults.length);
                                     if (blockedResults.publish == 0 || blockedResults.publish == 2) {
-                                        return
+                                        
                                     }
                                 }
                                 dbConnect.query('select a.cdn_id, b.name from tbl_user as b left join tbl_video as a on a.user_id = b.id where b.id = ? and (a.cdn_id IS NULL or a.is_primary=1)', val, function(error, userRows, fields) {
