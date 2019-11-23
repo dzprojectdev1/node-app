@@ -285,6 +285,10 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
 
                                 if (reRows && reRows.length > 0) {
                                     receivedDiamonds = reRows[0].amount;
+
+                                    if (receivedDiamonds == null) {
+                                        receivedDiamonds = 0;
+                                    }
                                 }
 
                                 console.log('receivedDiamonds ' + receivedDiamonds);
@@ -294,11 +298,12 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
                                         console.log(error);
                                     } else {
 
-                                        console.log('seRows ' + JSON.stringify(seRows));
-                                        console.log('seRows.length ' + seRows.length);
-
                                         if (seRows && seRows.length > 0) {
                                             sentDiamonds = seRows[0].amount;
+
+                                            if (sentDiamonds == null) {
+                                                sentDiamonds = 0;
+                                            }
                                         }
 
                                         console.log('sentDiamonds ' + sentDiamonds);
