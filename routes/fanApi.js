@@ -249,17 +249,20 @@ var getFunUsers = (req, res, next) => {
         var userId = req.userData.userId;
         var otherId = req.body.otherId;
 
+        var fanUsers = [];
+        var mutualUsers = [];
+
         if (!otherId) {
             return res.status(400).send({ error: true, message: 'Please provide other user id' });
         }
 
         var query = 'select distinct from_user from tbl_send where to_user = ?';
+
+        console.log('distinct_query ' + query);
+
         dbConnect.query(query, [otherId], function(error, results, fields) {
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
             if(!results || !results.length) return res.send({error: false, message: "This is no matched user." });
-
-            var fanUsers = [];
-            var mutualUsers = [];
 
             var result_count = results.length;
 
