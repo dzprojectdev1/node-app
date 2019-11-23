@@ -257,7 +257,7 @@ var getFunUsers1 = (req, res, next) => {
         }
 
         // var query = 'select distinct from_user from tbl_send where to_user = ?';
-        var query = 'select * from tbl_send where to_user = ? group by from_user';
+        var query = 'select from_user from tbl_send where to_user = ? group by from_user';
 
         console.log('group_by_query ' + query);
 
@@ -378,7 +378,7 @@ var getFunUsers2 = (req, res, next) => {
         }
 
         // var query = 'select distinct to_user from tbl_send where from_user = ?';
-        var query = 'select * from tbl_send where from_user = ? group by to_user';
+        var query = 'select from_user from tbl_send where from_user = ? group by to_user';
 
         console.log('group_by_query ' + query);
 
