@@ -436,6 +436,7 @@ transactionApi.post('/pushNotification', function(req, res) {
         dbConnect.query(query, [messageText, message_sent, total_user, new Date()], function(error, results, fields) {
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
             
+            counter = 0;
             return res.send({ error: false, message: "New push notification sent " + total_user + " users." });
         })
     })
