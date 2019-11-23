@@ -356,6 +356,7 @@ var getFunUsers = (req, res, next) => {
                                                             req.body.otherId = otherId;
                                                             req.body.fanUsers = fanUsers;
                                                             req.body.mutualUsers = mutualUsers;
+                                                            counder = 0;
                                                             next();
                                                         }
                                                     }
