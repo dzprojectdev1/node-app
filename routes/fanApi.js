@@ -266,11 +266,11 @@ var getFunUsers = (req, res, next) => {
         console.log('distinct_query ' + query);
 
         dbConnect.query(query, [otherId], function(error, results, fields) {
-            console.log('distinct_error ' + JSON.stringify(error));
             if (error) {
+                console.log(error);
             } else {
                 if(!results || !results.length) {
-                    console.log('results error');
+                    console.log('results_error' + results);
                 };
     
                 var result_count = results.length;
