@@ -294,6 +294,9 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
                                         console.log(error);
                                     } else {
 
+                                        console.log('seRows ' + JSON.stringify(seRows));
+                                        console.log('seRows.length ' + seRows.length);
+
                                         if (seRows && seRows.length > 0) {
                                             sentDiamonds = seRows[0].amount;
                                         }
