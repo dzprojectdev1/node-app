@@ -274,7 +274,7 @@ var getFunUsers = (req, res, next) => {
                     var tVal = results[i].from_user;
     
                     (function(val){
-                        dbConnect.query('select a.cdn_id, b.name from tbl_user as b left join tbl_video as a on a.user_id = b.id where b.id = ? and (a.cdn_id IS NULL or a.is_primary=1)', val, function(error, userRows, fields) {
+                        dbConnect.query('select a.cdn_id, b.name from tbl_user as b left join tbl_video as a on a.user_id = b.id left join tbl_match as c on c.main_user_id = b.id where b.id = ? and c.other_user_id = ? and c.publish not in (0, 2) and (a.cdn_id IS NULL or a.is_primary=1)', [val, otherId], function(error, userRows, fields) {
                             if (error) {
                                 console.log(error);
                             } else {
