@@ -363,10 +363,11 @@ var getFunUsers = (req, res, next) => {
             }
         });
     } catch (error) {
+        console.log(JSON.stringify(error));
         // return res.status(401).json({
         //     message: error
         // });
-        next();
+        // next();
     }
 }
 
