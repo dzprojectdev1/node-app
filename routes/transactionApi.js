@@ -6,6 +6,8 @@ var FCM = require('fcm-node');
 const serverKey = process.env.FIREBASE_SERVER_KEY;
 const fcm = new FCM(serverKey);
 
+var counter = 0;
+
 /**
  * return transaction lists for selected user
  * table_name: tbl_transaction
@@ -420,6 +422,10 @@ transactionApi.post('/pushNotification', function(req, res) {
                     num_user = parseInt(num_user) + 1;
                 }
             });
+
+            counter ++;
+
+            console.log('counter_push_notification' + counter);
         });
 
         if (total_user > 0) {

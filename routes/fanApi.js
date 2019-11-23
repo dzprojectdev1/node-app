@@ -6,6 +6,8 @@ var FCM = require('fcm-node');
 const serverKey = process.env.FIREBASE_SERVER_KEY;
 const fcm = new FCM(serverKey);
 
+var counter = 0;
+
 /**
  * Sending diamonds
  */
@@ -324,6 +326,10 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
                                         } else {
                                             mutualUsers.push(rowData);
                                         }
+
+                                        counter ++;
+
+                                        console.log('counter_fan_user' + counter);
                                     }
                                 });
                             }
@@ -332,6 +338,7 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
                 });
             })(tVal);
         }
+
 
         console.log(JSON.stringify(fanUsers));
 
