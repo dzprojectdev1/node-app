@@ -329,34 +329,53 @@ var getFunUsers1 = (req, res, next) => {
                                                 var differenceDiamonds = 0;
                                             
                                                 differenceDiamonds = receivedDiamonds - sentDiamonds;
+
+                                                dbConnect.query('select * from tbl_send where from_user = ? order by date desc', val, function(error, getMessageResults, fields) {
+                                                    if (error) {
+                                                        console.log(error);
+                                                    } else {
+
+                                                        var recentMessage = '';
+                                                        if (getMessageResults && getMessageResults.length > 0) {
+                                                            recentMessage = getMessageResults[0].fan_message;
+            
+                                                            if (recentMessage == null) {
+                                                                recentMessage = '';
+                                                            }
+                                                        }
+
+                                                        console.log('recentMessage ' + recentMessage);
                     
-                                                let rowData = {
-                                                    userId: val,
-                                                    name: name,
-                                                    diamonds: differenceDiamonds,
-                                                    imgUrl: imgUrl,
-                                                }
-    
-                                                console.log('rowData ' + JSON.stringify(rowData));
-                    
-                                                if (differenceDiamonds > 0) {
-                                                    fanUsers.push(rowData);
-                                                } else {
-                                                    mutualUsers.push(rowData);
-                                                }
-    
-                                                counter ++;
-    
-                                                console.log('counter_fan_user' + counter);
-    
-                                                if ( result_count == counter) {
-                                                    req.userData.userId = userId;
-                                                    req.body.otherId = otherId;
-                                                    req.body.fanUsers = fanUsers;
-                                                    req.body.mutualUsers = mutualUsers;
-                                                    counter = 0;
-                                                    next();
-                                                }
+                                                        let rowData = {
+                                                            userId: val,
+                                                            name: name,
+                                                            diamonds: differenceDiamonds,
+                                                            imgUrl: imgUrl,
+                                                            fanMessage: recentMessage,
+                                                        }
+            
+                                                        console.log('rowData ' + JSON.stringify(rowData));
+                            
+                                                        if (differenceDiamonds > 0) {
+                                                            fanUsers.push(rowData);
+                                                        } else {
+                                                            mutualUsers.push(rowData);
+                                                        }
+            
+                                                        counter ++;
+            
+                                                        console.log('counter_fan_user' + counter);
+            
+                                                        if ( result_count == counter) {
+                                                            req.userData.userId = userId;
+                                                            req.body.otherId = otherId;
+                                                            req.body.fanUsers = fanUsers;
+                                                            req.body.mutualUsers = mutualUsers;
+                                                            counter = 0;
+                                                            next();
+                                                        }
+                                                    }
+                                                })
                                             }
                                         });
                                     }
@@ -467,6 +486,7 @@ var getFunUsers2 = (req, res, next) => {
                                                     name: name,
                                                     diamonds: differenceDiamonds,
                                                     imgUrl: imgUrl,
+                                                    fanMessage: '',
                                                 }
     
                                                 console.log('rowData ' + JSON.stringify(rowData));
