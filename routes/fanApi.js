@@ -256,9 +256,10 @@ var getFunUsers1 = (req, res, next) => {
             return res.status(400).send({ error: true, message: 'Please provide other user id' });
         }
 
-        var query = 'select distinct from_user from tbl_send where to_user = ?';
+        // var query = 'select distinct from_user from tbl_send where to_user = ?';
+        var query = 'select * from tbl_send where to_user = ? group by from_user';
 
-        console.log('distinct_query ' + query);
+        console.log('group_by_query ' + query);
 
         dbConnect.query(query, [otherId], function(error, results, fields) {
             if (error) {
@@ -376,9 +377,10 @@ var getFunUsers2 = (req, res, next) => {
             return res.status(400).send({ error: true, message: 'Please provide other user id' });
         }
 
-        var query = 'select distinct to_user from tbl_send where from_user = ?';
+        // var query = 'select distinct to_user from tbl_send where from_user = ?';
+        var query = 'select * from tbl_send where from_user = ? group by to_user';
 
-        console.log('distinct_query ' + query);
+        console.log('group_by_query ' + query);
 
         dbConnect.query(query, [otherId], function(error, results, fields) {
             if (error) {
