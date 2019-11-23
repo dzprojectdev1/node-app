@@ -273,7 +273,7 @@ var getFunUsers1 = (req, res, next) => {
                     console.log('results_error' + results);
                     counter = 0;
                     next();
-                };
+                }
     
                 var result_count = results.length;
     
@@ -405,7 +405,7 @@ var getFunUsers2 = (req, res, next) => {
                     console.log('results_error' + results);
                     counter = 0;
                     next();
-                };
+                }
     
                 var result_count = results.length;
     
