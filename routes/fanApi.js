@@ -252,6 +252,11 @@ var getFunUsers = (req, res, next) => {
         var fanUsers = [];
         var mutualUsers = [];
 
+        req.userData.userId = userId;
+        req.body.otherId = otherId;
+        req.body.fanUsers = fanUsers;
+        req.body.mutualUsers = mutualUsers;
+
         if (!otherId) {
             return res.status(400).send({ error: true, message: 'Please provide other user id' });
         }
@@ -358,9 +363,10 @@ var getFunUsers = (req, res, next) => {
             }
         });
     } catch (error) {
-        return res.status(401).json({
-            message: error
-        });
+        // return res.status(401).json({
+        //     message: error
+        // });
+        next();
     }
 }
 
