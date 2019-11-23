@@ -264,8 +264,6 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
         for ( var i = 0; i < results.length ; i ++ ) {
             var tVal = results[i].from_user;
 
-            var receivedDiamonds  = 0;
-            var sentDiamonds      = 0;
             (function(val){
                 dbConnect.query('select a.cdn_id, b.name from tbl_video as a join tbl_user as b where a.user_id = ? and b.id = a.user_id and a.is_primary = 1', val, function(error, userRows, fields) {
                     if (error) {
@@ -284,6 +282,7 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
                                 console.log( error );
                             } else {
 
+                                var receivedDiamonds = 0;
                                 if (reRows && reRows.length > 0) {
                                     receivedDiamonds = reRows[0].amount;
 
@@ -293,13 +292,13 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
                                 }
 
                                 console.log('receivedDiamonds ' + receivedDiamonds);
-                                var differenceDiamonds = 0;
         
                                 dbConnect.query("select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [otherId, val], function(error, seRows, fields) {
                                     if (error) {
                                         console.log(error);
                                     } else {
 
+                                        var sentDiamonds = 0;
                                         if (seRows && seRows.length > 0) {
                                             sentDiamonds = seRows[0].amount;
 
@@ -309,6 +308,7 @@ fanApi.post('/getBiggestFanUsers', checkAuth, function(req, res) {
                                         }
 
                                         console.log('sentDiamonds ' + sentDiamonds);
+                                        var differenceDiamonds = 0;
                                     
                                         differenceDiamonds = receivedDiamonds - sentDiamonds;
             
