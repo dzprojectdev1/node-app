@@ -271,11 +271,10 @@ var getFunUsers = (req, res, next) => {
                 console.log('Candidate users ' + JSON.stringify(results));
     
                 for ( var i = 0; i < results.length ; i ++ ) {
-                    var val = results[i].from_user;
+                    var tVal = results[i].from_user;    
     
-                    counter ++;
-    
-                    // (function(val){
+                    (function(val){
+                        counter ++;
                         dbConnect.query('select * from tbl_match where main_user_id = ? and other_user_id = ? and status in (6, 7) and publish in (0, 2)', [val, otherId], function(error, blockedResults, fields) {
                             if (error) {
                                 console.log(error);
@@ -367,7 +366,7 @@ var getFunUsers = (req, res, next) => {
                                 });
                             }
                         });                        
-                    // })(tVal);
+                    })(tVal);
                 }
             }
         });
