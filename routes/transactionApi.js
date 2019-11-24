@@ -6,6 +6,8 @@ var FCM = require('fcm-node');
 const serverKey = process.env.FIREBASE_SERVER_KEY;
 const fcm = new FCM(serverKey);
 
+var counter = 0;
+
 /**
  * return transaction lists for selected user
  * table_name: tbl_transaction
@@ -420,6 +422,10 @@ transactionApi.post('/pushNotification', function(req, res) {
                     num_user = parseInt(num_user) + 1;
                 }
             });
+
+            counter ++;
+
+            console.log('counter_push_notification' + counter);
         });
 
         if (total_user > 0) {
@@ -430,6 +436,7 @@ transactionApi.post('/pushNotification', function(req, res) {
         dbConnect.query(query, [messageText, message_sent, total_user, new Date()], function(error, results, fields) {
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
             
+            counter = 0;
             return res.send({ error: false, message: "New push notification sent " + total_user + " users." });
         })
     })
@@ -489,6 +496,7 @@ transactionApi.post('/sendDiamonds', checkAuth, function(req, res) {
     var otherId = req.body.otherId;
     var otherUserName = req.body.otherUserName;
     var amount = req.body.amount;
+    var fanMessage = req.body.fanMessage;
 
     var query = 'select * from tbl_user where id = ?';
     dbConnect.query(query, [userId], function(error, results, fields) {
@@ -522,6 +530,7 @@ transactionApi.post('/sendDiamonds', checkAuth, function(req, res) {
                 to_user_orig_count: other_coin_count,
                 to_user_new_count: other_new_coin_count,
                 amount: amount,
+                fan_message: fanMessage,
                 date: new Date()
             };
 

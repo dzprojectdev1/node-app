@@ -39,6 +39,7 @@ var chatApi = require('./routes/chatApi');
 var uploadApi = require('./routes/uploadApi');
 var transactionApi = require('./routes/transactionApi');
 var callApi = require('./routes/callApi');
+var fanApi = require('./routes/fanApi');
 
 const storageApi = require('./routes/storageApi');
 
@@ -144,5 +145,6 @@ app.use('/api/storage', storageApi);
 app.use('/api/upload', uploadApi);
 app.use('/api/transaction', transactionApi);
 app.use('/api/call', callApi);
+app.use('/api/fan', fanApi);
 
 module.exports = app;
