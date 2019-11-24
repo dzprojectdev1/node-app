@@ -114,13 +114,16 @@ fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
 
                                     if (old_fan_user_id == 0) {
                                         other_fan_count = other_fan_count + 1;
+
+                                        sentPushTitle = 'You are now a fan of '+otherUserName+'!';
+                                        receivePushTitle = userName+' became your fan!';
                                     } else if (old_fan_user_id == otherId) {
                                         user_fan_count = user_fan_count - 1;
                                         other_fan_count = other_fan_count + 1;
-                                    }
 
-                                    sentPushTitle = 'You are now a fan of '+otherUserName+'!';
-                                    receivePushTitle = userName+' became your fan!';
+                                        sentPushTitle = 'You are now a fan of '+otherUserName+'!';
+                                        receivePushTitle = userName+' became your fan!';
+                                    }
                                 } else if (differencDiamonds == 0) {
                                     new_fan_user_id = 0;
 
