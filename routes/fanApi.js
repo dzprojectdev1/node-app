@@ -366,27 +366,36 @@ var getFunUsers1 = (req, res, next) => {
                                                         }
             
                                                         console.log('rowData ' + JSON.stringify(rowData));
+
+                                                        dbConnect.query('SELECT * FROM tbl_match WHERE main_user_id = ? and other_user_id = ? and status in (8, 9)', [val, otherId], function(error, checkBlockedResults, fields) {
+                                                            if (error) {
+                                                                console.log(error);
+                                                            } else {
+                                                                if (!checkBlockedResults && !checkBlockedResults.length) {
                             
-                                                        if (differenceDiamonds > 0) {
-                                                            fanUsers.push(rowData);
-                                                        } else {
-                                                            mutualUsers.push(rowData);
-                                                        }
-            
-                                                        counter ++;
-            
-                                                        console.log('counter_fan_user' + counter);
-            
-                                                        if ( result_count == counter) {
-                                                            req.userData.userId = userId;
-                                                            req.body.otherId = otherId;
-                                                            req.body.fanUsers = fanUsers;
-                                                            req.body.mutualUsers = mutualUsers;
-                                                            counter = 0;
-                                                            next();
-                                                        }
+                                                                    if (differenceDiamonds > 0) {
+                                                                        fanUsers.push(rowData);
+                                                                    } else {
+                                                                        mutualUsers.push(rowData);
+                                                                    }
+                                                                }
+                        
+                                                                counter ++;
+                    
+                                                                console.log('counter_fan_user' + counter);
+                    
+                                                                if ( result_count == counter) {
+                                                                    req.userData.userId = userId;
+                                                                    req.body.otherId = otherId;
+                                                                    req.body.fanUsers = fanUsers;
+                                                                    req.body.mutualUsers = mutualUsers;
+                                                                    counter = 0;
+                                                                    next();
+                                                                }
+                                                            }
+                                                        });
                                                     }
-                                                })
+                                                });
                                             }
                                         });
                                     }
@@ -501,39 +510,48 @@ var getFunUsers2 = (req, res, next) => {
                                                 }
     
                                                 console.log('rowData ' + JSON.stringify(rowData));
+
+                                                dbConnect.query('SELECT * FROM tbl_match WHERE main_user_id = ? and other_user_id = ? and status in (8, 9)', [val, otherId], function(error, checkBlockedResults, fields) {
+                                                    if (error) {
+                                                        console.log(error);
+                                                    } else {
+                                                        if (!checkBlockedResults && !checkBlockedResults.length) {
                     
-                                                if (differenceDiamonds > 0) {
+                                                            if (differenceDiamonds > 0) {
 
-                                                    var existingCheck = fanUsers.every(function(fanUser, index) {
-                                
-                                                        return rowData.userId !== fanUser.userId;
-                                                    })
-                                                    if (existingCheck) {
-                                                        fanUsers.push(rowData);
-                                                    }
-                                                } else {
+                                                                var existingCheck = fanUsers.every(function(fanUser, index) {
+                                            
+                                                                    return rowData.userId !== fanUser.userId;
+                                                                })
+                                                                if (existingCheck) {
+                                                                    fanUsers.push(rowData);
+                                                                }
+                                                            } else {
 
-                                                    var existingCheck = mutualUsers.every(function(mutualUser, index) {
-                                
-                                                        return rowData.userId !== mutualUser.userId;
-                                                    })
-                                                    if (existingCheck) {
-                                                        mutualUsers.push(rowData);
+                                                                var existingCheck = mutualUsers.every(function(mutualUser, index) {
+                                            
+                                                                    return rowData.userId !== mutualUser.userId;
+                                                                })
+                                                                if (existingCheck) {
+                                                                    mutualUsers.push(rowData);
+                                                                }
+                                                            }
+                                                        }
+    
+                                                        counter ++;
+            
+                                                        console.log('counter_fan_user' + counter);
+            
+                                                        if ( result_count == counter) {
+                                                            req.userData.userId = userId;
+                                                            req.body.otherId = otherId;
+                                                            req.body.fanUsers = fanUsers;
+                                                            req.body.mutualUsers = mutualUsers;
+                                                            counter = 0;
+                                                            next();
+                                                        }
                                                     }
-                                                }
-    
-                                                counter ++;
-    
-                                                console.log('counter_fan_user' + counter);
-    
-                                                if ( result_count == counter) {
-                                                    req.userData.userId = userId;
-                                                    req.body.otherId = otherId;
-                                                    req.body.fanUsers = fanUsers;
-                                                    req.body.mutualUsers = mutualUsers;
-                                                    counter = 0;
-                                                    next();
-                                                }
+                                                });
                                             }
                                         });
                                     }
