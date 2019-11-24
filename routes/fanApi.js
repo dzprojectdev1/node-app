@@ -294,7 +294,7 @@ var getFunUsers1 = (req, res, next) => {
                     var tVal = results[i].from_user;
     
                     (function(val){
-                        dbConnect.query('select a.cdn_id, b.name from tbl_user as b left join tbl_video as a on a.user_id = b.id where b.id = ? and (a.cdn_id IS NULL or a.is_primary=1)', val, function(error, userRows, fields) {
+                        dbConnect.query('SELECT b.name, (CASE WHEN a.is_primary=0 THEN NULL ELSE a.cdn_id END) from tbl_user as b left join tbl_video as a on a.user_id = b.id where b.id = ?', val, function(error, userRows, fields) {
                             if (error) {
                                 console.log(error);
                             } else {
@@ -458,7 +458,7 @@ var getFunUsers2 = (req, res, next) => {
                     var tVal = results[i].to_user;
     
                     (function(val){
-                        dbConnect.query('select a.cdn_id, b.name from tbl_user as b left join tbl_video as a on a.user_id = b.id where b.id = ? and (a.cdn_id IS NULL or a.is_primary=1)', val, function(error, userRows, fields) {
+                        dbConnect.query('SELECT b.name, (CASE WHEN a.is_primary=0 THEN NULL ELSE a.cdn_id END) from tbl_user as b left join tbl_video as a on a.user_id = b.id where b.id = ?', val, function(error, userRows, fields) {
                             if (error) {
                                 console.log(error);
                             } else {
