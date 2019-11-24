@@ -294,7 +294,7 @@ var getFunUsers1 = (req, res, next) => {
                     var tVal = results[i].from_user;
     
                     (function(val){
-                        dbConnect.query('select count(*) as primary_count, cdn_id from tbl_video where user_id = ? and is_primary = 1', val, function(error, primaryResutls, fields) {
+                        dbConnect.query('select count(*) as primary_count from tbl_video where user_id = ? and is_primary = 1', val, function(error, primaryResutls, fields) {
                             if (error) {
                                 console.log(error);
                             } else {
@@ -594,7 +594,7 @@ var getFunUsers2 = (req, res, next) => {
     
                     (function(val){
 
-                        dbConnect.query('select count(*) as primary_count, cdn_id from tbl_video where user_id = ? and is_primary = 1', val, function(error, primaryResutls, fields) {
+                        dbConnect.query('select count(*) as primary_count from tbl_video where user_id = ? and is_primary = 1', val, function(error, primaryResutls, fields) {
                             if (error) {
                                 console.log(error);
                             } else {
