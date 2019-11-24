@@ -371,7 +371,7 @@ var getFunUsers1 = (req, res, next) => {
                                                             if (error) {
                                                                 console.log(error);
                                                             } else {
-                                                                if (!checkBlockedResults && !checkBlockedResults.length) {
+                                                                if (!checkBlockedResults.length) {
 
                                                                     console.log('checkBlockedResults 1-1 ' + checkBlockedResults);
                             
@@ -519,7 +519,7 @@ var getFunUsers2 = (req, res, next) => {
                                                     if (error) {
                                                         console.log(error);
                                                     } else {
-                                                        if (!checkBlockedResults && !checkBlockedResults.length) {
+                                                        if (!checkBlockedResults.length) {
 
                                                             console.log('checkBlockedResults 2-1 ' + checkBlockedResults);
                     
