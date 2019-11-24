@@ -372,6 +372,8 @@ var getFunUsers1 = (req, res, next) => {
                                                                 console.log(error);
                                                             } else {
                                                                 if (!checkBlockedResults && !checkBlockedResults.length) {
+
+                                                                    console.log('checkBlockedResults 1 ' + checkBlockedResults);
                             
                                                                     if (differenceDiamonds > 0) {
                                                                         fanUsers.push(rowData);
@@ -516,6 +518,8 @@ var getFunUsers2 = (req, res, next) => {
                                                         console.log(error);
                                                     } else {
                                                         if (!checkBlockedResults && !checkBlockedResults.length) {
+
+                                                            console.log('checkBlockedResults 2 ' + checkBlockedResults);
                     
                                                             if (differenceDiamonds > 0) {
 
