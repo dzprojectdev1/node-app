@@ -373,7 +373,7 @@ var getFunUsers1 = (req, res, next) => {
                                                             } else {
                                                                 if (!checkBlockedResults && !checkBlockedResults.length) {
 
-                                                                    console.log('checkBlockedResults 1 ' + checkBlockedResults);
+                                                                    console.log('checkBlockedResults 1-1 ' + checkBlockedResults);
                             
                                                                     if (differenceDiamonds > 0) {
                                                                         fanUsers.push(rowData);
@@ -381,6 +381,8 @@ var getFunUsers1 = (req, res, next) => {
                                                                         mutualUsers.push(rowData);
                                                                     }
                                                                 }
+
+                                                                console.log('checkBlockedResults 1-2 ' + checkBlockedResults);
                         
                                                                 counter ++;
                     
@@ -519,7 +521,7 @@ var getFunUsers2 = (req, res, next) => {
                                                     } else {
                                                         if (!checkBlockedResults && !checkBlockedResults.length) {
 
-                                                            console.log('checkBlockedResults 2 ' + checkBlockedResults);
+                                                            console.log('checkBlockedResults 2-1 ' + checkBlockedResults);
                     
                                                             if (differenceDiamonds > 0) {
 
@@ -541,6 +543,8 @@ var getFunUsers2 = (req, res, next) => {
                                                                 }
                                                             }
                                                         }
+
+                                                        console.log('checkBlockedResults 2-2 ' + checkBlockedResults);
     
                                                         counter ++;
             
