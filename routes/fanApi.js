@@ -103,6 +103,11 @@ fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
 
                                 var differencDiamonds = userIdDiamonds - otherIdDiamonds;
 
+                                var sentPushTitle = 'You sent diamonds to '+otherUserName+'!';
+                                var sentPushBody = 'You sent '+amount+' diamonds to '+otherUserName;
+                                var receivePushTitle = userName+' sent you new diamonds!!';
+                                var receivePushBody = userName+' sent you '+amount+' diamonds';
+
                                 // Update fan_user_id, fan_count
                                 if (differencDiamonds > 0) {
                                     new_fan_user_id = userId;
@@ -113,6 +118,9 @@ fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
                                         user_fan_count = user_fan_count - 1;
                                         other_fan_count = other_fan_count + 1;
                                     }
+
+                                    sentPushTitle = 'You are now a fan of '+otherUserName+'!';
+                                    receivePushTitle = userName+' became your fan!';
                                 } else if (differencDiamonds == 0) {
                                     new_fan_user_id = 0;
 
@@ -158,8 +166,8 @@ fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
                                                 var message1 = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
                                                     to: user_fcm_id,
                                                     notification: {
-                                                        title: 'You sent diamonds to '+otherUserName+'!',
-                                                        body: 'You sent '+amount+' diamonds to '+otherUserName,
+                                                        title: sentPushTitle,
+                                                        body: sentPushBody,
                                                     },
                                                     data: {  //you can send only notification or only data(or include both)
                                                         type: 'SendDiamonds',
@@ -177,8 +185,8 @@ fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
                                                 var message2 = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
                                                     to: other_fcm_id,
                                                     notification: {
-                                                        title: userName+' sent you new diamonds!!',
-                                                        body: userName+' sent you '+amount+' diamonds',
+                                                        title: receivePushTitle,
+                                                        body: receivePushBody,
                                                     },
                                                     data: {  //you can send only notification or only data(or include both)
                                                         type: 'SendDiamonds',
