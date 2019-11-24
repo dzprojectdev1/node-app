@@ -40,7 +40,7 @@ var illegalWords = [
 /**
  * Sending diamonds
  */
-fanApi.post('/sendDiamonds', checkAuth, autoBlockFunction, function(req, res) {
+fanApi.post('/sendDiamonds', checkAuth, autoBlockFanFunction, function(req, res) {
     var userId = req.userData.userId;
     var userName = req.body.userName;
     var otherId = req.body.otherId;
@@ -944,7 +944,7 @@ fanApi.post('/getBiggestFanUsers', checkAuth, getFunUsers1, getFunUsers2, functi
     return res.send({ error: false, data: responseData, message: "Got Biggest Fan Users and Mutual Users." });
 })
 
-var findSubarray = (arr, subarr) => {
+var findFanSubarray = (arr, subarr) => {
     for (var i = 0; i < 1 + (arr.length - subarr.length); i++) {
         var j = 0;
         for (; j < subarr.length; j++)
@@ -956,7 +956,7 @@ var findSubarray = (arr, subarr) => {
     return -1;
 }
 
-var autoBlockFunction = (req, res, next) => {
+var autoBlockFanFunction = (req, res, next) => {
     try {
         var userId = req.userData.userId;
         var userName = req.body.userName;
@@ -979,7 +979,7 @@ var autoBlockFunction = (req, res, next) => {
                 var booleanValue = illegalWords.every(function(words, index) {
                     var wordsArr = words.toUpperCase().split(" ");
 
-                    return findSubarray(messaegTextArr, wordsArr) === -1;
+                    return findFanSubarray(messaegTextArr, wordsArr) === -1;
                 })
 
                 if (booleanValue) {
@@ -1112,4 +1112,5 @@ var autoBlockFunction = (req, res, next) => {
     }
 }
 
-module.exports = fanApi;
+module.exports.fanApi = fanApi;
+module.exports.autoBlockFanFunction = autoBlockFanFunction;
