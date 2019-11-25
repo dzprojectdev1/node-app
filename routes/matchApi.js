@@ -1321,34 +1321,75 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
         } else {
             var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
         }
-        var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id=?';
 
-        var pi = Math.PI;
-        var defaultDistance = 3959 * Math.acos(Math.cos(myLat * (pi / 180)) * Math.cos(myLong * (pi / 180)));
+        dbConn.query('select * from tbl_video where user_id = ? and is_primary = 1', other_user_id, function(error, primaryResutls, fields) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
-        console.log('DefaultDistance Other user is ' + defaultDistance);
+            var primary_count = 0;
+            if (primaryResutls) {
+                primary_count = primaryResutls[0].primary_count;
+            }
+
+            if (primary_count > 0) {
+                var whereCondition = ' e.is_primary=1 AND a.account_status=1 AND a.id=?';
+
+                var pi = Math.PI;
+                var defaultDistance = 3959 * Math.acos(Math.cos(myLat * (pi / 180)) * Math.cos(myLong * (pi / 180)));
         
-        joinQuery += ' LEFT JOIN tbl_video as e ON a.id=e.user_id ';
-
-        var leftQuery = 'SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + joinQuery + ' WHERE ' + whereCondition;
-
-        console.log('getOtherUserData_leftQuery ' + leftQuery);
+                console.log('DefaultDistance Other user is ' + defaultDistance);
+                
+                joinQuery += ' LEFT JOIN tbl_video as e ON a.id=e.user_id ';
         
-        dbConn.query(leftQuery, [other_user_id], function (error, results, fields) {
-            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-            if (!results.length)
-                return res.send({ error: false, message: 'Not found.' });
-            
-            results.map(item => {
-                item.last_loggedin_date = commonFunc.timeAgo(item.last_loggedin_date);
-                if ((defaultDistance == 0) || (defaultDistance == item.distance)) {
-                    item.distance = 0;
-                }
-            });
-
-            console.log('Result[0].distance is ' + results[0].distance);
-            return res.send({error: false, data: results[0], message: 'discover list updated'});
-        });
+                var leftQuery = 'SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + joinQuery + ' WHERE ' + whereCondition;
+        
+                console.log('getOtherUserData_leftQuery ' + leftQuery);
+                
+                dbConn.query(leftQuery, [other_user_id], function (error, results, fields) {
+                    if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                    if (!results.length)
+                        return res.send({ error: false, message: 'Not found.' });
+                    
+                    results.map(item => {
+                        item.last_loggedin_date = commonFunc.timeAgo(item.last_loggedin_date);
+                        if ((defaultDistance == 0) || (defaultDistance == item.distance)) {
+                            item.distance = 0;
+                        }
+                    });
+        
+                    console.log('Result[0].distance is ' + results[0].distance);
+                    return res.send({error: false, data: results[0], message: 'discover list updated'});
+                });                
+            } else {
+                var whereCondition = ' a.account_status=1 AND a.id=?';
+        
+                var pi = Math.PI;
+                var defaultDistance = 3959 * Math.acos(Math.cos(myLat * (pi / 180)) * Math.cos(myLong * (pi / 180)));
+        
+                console.log('DefaultDistance Other user is ' + defaultDistance);
+                
+                joinQuery += ' LEFT JOIN tbl_video as e ON a.id=e.user_id ';
+        
+                var leftQuery = 'SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + joinQuery + ' WHERE ' + whereCondition;
+        
+                console.log('getOtherUserData_leftQuery ' + leftQuery);
+                
+                dbConn.query(leftQuery, [other_user_id], function (error, results, fields) {
+                    if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                    if (!results.length)
+                        return res.send({ error: false, message: 'Not found.' });
+                    
+                    results.map(item => {
+                        item.last_loggedin_date = commonFunc.timeAgo(item.last_loggedin_date);
+                        if ((defaultDistance == 0) || (defaultDistance == item.distance)) {
+                            item.distance = 0;
+                        }
+                    });
+        
+                    console.log('Result[0].distance is ' + results[0].distance);
+                    return res.send({error: false, data: results[0], message: 'discover list updated'});
+                });
+            }
+        })
     });
 });
 
