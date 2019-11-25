@@ -37,11 +37,179 @@ var illegalWords = [
     'suck your',
 ];
 
+var findFanSubarray = (arr, subarr) => {
+    for (var i = 0; i < 1 + (arr.length - subarr.length); i++) {
+        var j = 0;
+        for (; j < subarr.length; j++)
+            if (arr[i + j] !== subarr[j])
+                break;
+        if (j == subarr.length)
+            return i;
+    }
+    return -1;
+}
+
+var autoBlockFanFunction = (req, res, next) => {
+    try {
+        var userId = req.userData.userId;
+        var userName = req.body.userName;
+        var otherId = req.body.otherId;
+        var otherUserName = req.body.otherUserName;
+        var amount = req.body.amount;
+        var fanMessage = req.body.fanMessage;
+
+        query = "select * from tbl_user where id = ?";
+        dbConn.query(query, otherId, function(error, otherResultRows, fields) {
+            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+            if (!otherResultRows || !otherResultRows.length) return res.status(400).send({ error: true, message: 'No Match Found' });
+
+            var auto_block = otherResultRows[0].auto_block;
+
+            if (auto_block == 1) {
+
+                var messaegTextArr = fanMessage.toUpperCase().split(" ");
+                
+                var booleanValue = illegalWords.every(function(words, index) {
+                    var wordsArr = words.toUpperCase().split(" ");
+
+                    return findFanSubarray(messaegTextArr, wordsArr) === -1;
+                })
+
+                if (booleanValue) {
+                    req.userData.userId = userId;
+                    req.body.userName = userName;
+                    req.body.otherId = otherId;
+                    req.body.otherUserName = otherUserName;
+                    req.body.amount = amount;
+                    req.body.fanMessage = fanMessage;
+                    next();
+                } else {
+
+                    query = "select count(id) as count from tbl_match where main_user_id = ? and status_description = 'block_received_auto'";
+                    dbConn.query(query, userId, function(error, results, fields) {
+                        if (error) return error;
+                        if (!results || !results.length) return error;
+
+                        var auto_blocked_count = results[0].count;
+                        if (auto_blocked_count >= 15) {
+
+                            console.log('AutoBlockFunctio runs: this user has over 15 auto bocked times');
+                            query = "update tbl_user set account_status = 9 where id = ?";
+                            dbConn.query(query, userId, function(error, uptResults, fields) {
+                                if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+
+                                return res.send({ error: false, data: { account_status: 9, sending_available: false }, message: "Your Account Is Not Active." });
+                            })
+                        } else {
+                            dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=9", [userId, otherId], function (error, results, fields) {
+                                if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                if (results.length) {
+                                    return res.send({ error: true, message: 'Block Data Already exist' });
+                                } else {
+                                    //get status 2,6,7 match data,
+                                    dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [otherId, userId], function (error, results, fields) {
+                                        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                    
+                                        if (results.length) {
+                                            var resultIdArr = results.map(one => {
+                                                return one.id;
+                                            });
+                                            dbConn.query("UPDATE tbl_match SET publish=0 WHERE id IN (?)", resultIdArr.join(), function (error, updateResults, updateFields) {
+                                                if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                            });
+                                        }
+                    
+                                        dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [userId, otherId], function (error, otherResults, fields) {
+                                            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                        
+                                            if (otherResults.length) {
+                                                var otherResultIdArr = otherResults.map(one => {
+                                                    return one.id;
+                                                });
+                                                dbConn.query("UPDATE tbl_match SET publish=2 WHERE id IN (?)", otherResultIdArr.join(), function (error, updateResults, updateFields) {
+                                                    if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                });
+                                            }
+                    
+                                            var blockCreateData = {
+                                                main_user_id: userId,
+                                                other_user_id: otherId,
+                                                status: 9,
+                                                status_description: "block_received_auto",
+                                                publish: 1,
+                                                created_date: new Date(),
+                                                updated_date: new Date()
+                                            };
+                    
+                                            dbConn.beginTransaction(function (err) {
+                                                if (err) return res.status(400).send({ error: true, message: err });
+                                                dbConn.query("INSERT INTO tbl_match SET ? ", blockCreateData, function (error, results, fields) {
+                                                    if (error) {
+                                                        dbConn.rollback(function () {
+                                                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                        });
+                                                    }
+                    
+                                                    req.matchId = results.insertId;
+                    
+                                                    var blockRecieveData = {
+                                                        main_user_id: otherId,
+                                                        other_user_id: userId,
+                                                        status: 8,
+                                                        status_description: "block_created_auto",
+                                                        publish: 1,
+                                                        created_date: new Date(),
+                                                        updated_date: new Date()
+                                                    };
+                    
+                                                    dbConn.query('INSERT INTO tbl_match SET ? ', blockRecieveData, function (error1, receiveResult, fields) {
+                                                        if (error1) {
+                                                            dbConn.rollback(function () {
+                                                                return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+                                                            });
+                                                        }
+                    
+                                                        dbConn.commit(function (error) {
+                                                            if (error) {
+                                                                dbConn.rollback(function () {
+                                                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                                });
+                                                            };
+                                                            return res.send({ error: false, data: { account_status: 1, sending_available: false }, message: "Your Account Is Not Active." });
+                                                        });
+                                                    });
+                                                });
+                                            });
+                                        });
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+
+            } else {
+                req.userData.userId = userId;
+                req.body.userName = userName;
+                req.body.otherId = otherId;
+                req.body.otherUserName = otherUserName;
+                req.body.amount = amount;
+                req.body.fanMessage = fanMessage;
+                next();
+            }
+        });
+    } catch (error) {
+        return res.status(401).json({
+            message: error
+        });
+    }
+}
+
 /**
  * Sending diamonds
  */
-// fanApi.post('/sendDiamonds', checkAuth, autoBlockFanFunction, function(req, res) {
-fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
+fanApi.post('/sendDiamonds', checkAuth, autoBlockFanFunction, function(req, res) {
+// fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
     var userId = req.userData.userId;
     var userName = req.body.userName;
     var otherId = req.body.otherId;
@@ -945,173 +1113,5 @@ fanApi.post('/getBiggestFanUsers', checkAuth, getFunUsers1, getFunUsers2, functi
     return res.send({ error: false, data: responseData, message: "Got Biggest Fan Users and Mutual Users." });
 })
 
-// var findFanSubarray = (arr, subarr) => {
-//     for (var i = 0; i < 1 + (arr.length - subarr.length); i++) {
-//         var j = 0;
-//         for (; j < subarr.length; j++)
-//             if (arr[i + j] !== subarr[j])
-//                 break;
-//         if (j == subarr.length)
-//             return i;
-//     }
-//     return -1;
-// }
-
-// var autoBlockFanFunction = (req, res, next) => {
-//     try {
-//         var userId = req.userData.userId;
-//         var userName = req.body.userName;
-//         var otherId = req.body.otherId;
-//         var otherUserName = req.body.otherUserName;
-//         var amount = req.body.amount;
-//         var fanMessage = req.body.fanMessage;
-
-//         query = "select * from tbl_user where id = ?";
-//         dbConn.query(query, otherId, function(error, otherResultRows, fields) {
-//             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-//             if (!otherResultRows || !otherResultRows.length) return res.status(400).send({ error: true, message: 'No Match Found' });
-
-//             var auto_block = otherResultRows[0].auto_block;
-
-//             if (auto_block == 1) {
-
-//                 var messaegTextArr = fanMessage.toUpperCase().split(" ");
-                
-//                 var booleanValue = illegalWords.every(function(words, index) {
-//                     var wordsArr = words.toUpperCase().split(" ");
-
-//                     return findFanSubarray(messaegTextArr, wordsArr) === -1;
-//                 })
-
-//                 if (booleanValue) {
-//                     req.userData.userId = userId;
-//                     req.body.userName = userName;
-//                     req.body.otherId = otherId;
-//                     req.body.otherUserName = otherUserName;
-//                     req.body.amount = amount;
-//                     req.body.fanMessage = fanMessage;
-//                     next();
-//                 } else {
-
-//                     query = "select count(id) as count from tbl_match where main_user_id = ? and status_description = 'block_received_auto'";
-//                     dbConn.query(query, userId, function(error, results, fields) {
-//                         if (error) return error;
-//                         if (!results || !results.length) return error;
-
-//                         var auto_blocked_count = results[0].count;
-//                         if (auto_blocked_count >= 15) {
-
-//                             console.log('AutoBlockFunctio runs: this user has over 15 auto bocked times');
-//                             query = "update tbl_user set account_status = 9 where id = ?";
-//                             dbConn.query(query, userId, function(error, uptResults, fields) {
-//                                 if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-
-//                                 return res.send({ error: false, data: { account_status: 9, sending_available: false }, message: "Your Account Is Not Active." });
-//                             })
-//                         } else {
-//                             dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=9", [userId, otherId], function (error, results, fields) {
-//                                 if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-//                                 if (results.length) {
-//                                     return res.send({ error: true, message: 'Block Data Already exist' });
-//                                 } else {
-//                                     //get status 2,6,7 match data,
-//                                     dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [otherId, userId], function (error, results, fields) {
-//                                         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                    
-//                                         if (results.length) {
-//                                             var resultIdArr = results.map(one => {
-//                                                 return one.id;
-//                                             });
-//                                             dbConn.query("UPDATE tbl_match SET publish=0 WHERE id IN (?)", resultIdArr.join(), function (error, updateResults, updateFields) {
-//                                                 if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-//                                             });
-//                                         }
-                    
-//                                         dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [userId, otherId], function (error, otherResults, fields) {
-//                                             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                        
-//                                             if (otherResults.length) {
-//                                                 var otherResultIdArr = otherResults.map(one => {
-//                                                     return one.id;
-//                                                 });
-//                                                 dbConn.query("UPDATE tbl_match SET publish=2 WHERE id IN (?)", otherResultIdArr.join(), function (error, updateResults, updateFields) {
-//                                                     if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-//                                                 });
-//                                             }
-                    
-//                                             var blockCreateData = {
-//                                                 main_user_id: userId,
-//                                                 other_user_id: otherId,
-//                                                 status: 9,
-//                                                 status_description: "block_received_auto",
-//                                                 publish: 1,
-//                                                 created_date: new Date(),
-//                                                 updated_date: new Date()
-//                                             };
-                    
-//                                             dbConn.beginTransaction(function (err) {
-//                                                 if (err) return res.status(400).send({ error: true, message: err });
-//                                                 dbConn.query("INSERT INTO tbl_match SET ? ", blockCreateData, function (error, results, fields) {
-//                                                     if (error) {
-//                                                         dbConn.rollback(function () {
-//                                                             return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-//                                                         });
-//                                                     }
-                    
-//                                                     req.matchId = results.insertId;
-                    
-//                                                     var blockRecieveData = {
-//                                                         main_user_id: otherId,
-//                                                         other_user_id: userId,
-//                                                         status: 8,
-//                                                         status_description: "block_created_auto",
-//                                                         publish: 1,
-//                                                         created_date: new Date(),
-//                                                         updated_date: new Date()
-//                                                     };
-                    
-//                                                     dbConn.query('INSERT INTO tbl_match SET ? ', blockRecieveData, function (error1, receiveResult, fields) {
-//                                                         if (error1) {
-//                                                             dbConn.rollback(function () {
-//                                                                 return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
-//                                                             });
-//                                                         }
-                    
-//                                                         dbConn.commit(function (error) {
-//                                                             if (error) {
-//                                                                 dbConn.rollback(function () {
-//                                                                     return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-//                                                                 });
-//                                                             };
-//                                                             return res.send({ error: false, data: { account_status: 1, sending_available: false }, message: "Your Account Is Not Active." });
-//                                                         });
-//                                                     });
-//                                                 });
-//                                             });
-//                                         });
-//                                     });
-//                                 }
-//                             });
-//                         }
-//                     });
-//                 }
-
-//             } else {
-//                 req.userData.userId = userId;
-//                 req.body.userName = userName;
-//                 req.body.otherId = otherId;
-//                 req.body.otherUserName = otherUserName;
-//                 req.body.amount = amount;
-//                 req.body.fanMessage = fanMessage;
-//                 next();
-//             }
-//         });
-//     } catch (error) {
-//         return res.status(401).json({
-//             message: error
-//         });
-//     }
-// }
-
-module.exports = fanApi;
-// module.exports.autoBlockFanFunction = autoBlockFanFunction;
+module.exports.fanApi = fanApi;
+module.exports.autoBlockFanFunction = autoBlockFanFunction;
