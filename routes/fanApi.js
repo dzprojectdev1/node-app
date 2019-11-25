@@ -7,11 +7,208 @@ const serverKey = process.env.FIREBASE_SERVER_KEY;
 const fcm = new FCM(serverKey);
 
 var counter = 0;
+var illegalWords = [
+    'sex',
+    'pussy',
+    'fuck',
+    'fucking',
+    'lick',
+    'boob',
+    'boobs',
+    'tit',
+    'tits',
+    'nude',
+    'blowjob',
+    'cum',
+    'porn',
+    'naked',
+    'cock',
+    'dildo',
+    'horny',
+    'dick',
+    'sexting',
+    'sexchat',
+    'penis',
+    'pennis',
+    'vagina',
+    'call girl',
+    'sex chat',
+    'suck my',
+    'suck your',
+];
+
+var findFanSubarray = (arr, subarr) => {
+    for (var i = 0; i < 1 + (arr.length - subarr.length); i++) {
+        var j = 0;
+        for (; j < subarr.length; j++)
+            if (arr[i + j] !== subarr[j])
+                break;
+        if (j == subarr.length)
+            return i;
+    }
+    return -1;
+}
+
+var autoBlockFanFunction = (req, res, next) => {
+    try {
+        var userId = req.userData.userId;
+        var userName = req.body.userName;
+        var otherId = req.body.otherId;
+        var otherUserName = req.body.otherUserName;
+        var amount = req.body.amount;
+        var fanMessage = req.body.fanMessage;
+
+        query = "select * from tbl_user where id = ?";
+        dbConnect.query(query, otherId, function(error, otherResultRows, fields) {
+            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+            if (!otherResultRows || !otherResultRows.length) return res.status(400).send({ error: true, message: 'No Match Found' });
+
+            var auto_block = otherResultRows[0].auto_block;
+
+            if (auto_block == 1) {
+
+                var messaegTextArr = fanMessage.toUpperCase().split(" ");
+                
+                var booleanValue = illegalWords.every(function(words, index) {
+                    var wordsArr = words.toUpperCase().split(" ");
+
+                    return findFanSubarray(messaegTextArr, wordsArr) === -1;
+                })
+
+                if (booleanValue) {
+                    req.userData.userId = userId;
+                    req.body.userName = userName;
+                    req.body.otherId = otherId;
+                    req.body.otherUserName = otherUserName;
+                    req.body.amount = amount;
+                    req.body.fanMessage = fanMessage;
+                    next();
+                } else {
+
+                    query = "select count(id) as count from tbl_match where main_user_id = ? and status_description = 'block_received_auto'";
+                    dbConnect.query(query, userId, function(error, results, fields) {
+                        if (error) return error;
+                        if (!results || !results.length) return error;
+
+                        var auto_blocked_count = results[0].count;
+                        if (auto_blocked_count >= 15) {
+
+                            console.log('AutoBlockFunctio runs: this user has over 15 auto bocked times');
+                            query = "update tbl_user set account_status = 9 where id = ?";
+                            dbConnect.query(query, userId, function(error, uptResults, fields) {
+                                if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+
+                                return res.send({ error: false, data: { account_status: 9, sending_available: false }, message: "Your Account Is Not Active." });
+                            })
+                        } else {
+                            dbConnect.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=9", [userId, otherId], function (error, results, fields) {
+                                if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                if (results.length) {
+                                    return res.send({ error: true, message: 'Block Data Already exist' });
+                                } else {
+                                    //get status 2,6,7 match data,
+                                    dbConnect.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [otherId, userId], function (error, results, fields) {
+                                        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                    
+                                        if (results.length) {
+                                            var resultIdArr = results.map(one => {
+                                                return one.id;
+                                            });
+                                            dbConnect.query("UPDATE tbl_match SET publish=0 WHERE id IN (?)", resultIdArr.join(), function (error, updateResults, updateFields) {
+                                                if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                            });
+                                        }
+                    
+                                        dbConnect.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [userId, otherId], function (error, otherResults, fields) {
+                                            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                        
+                                            if (otherResults.length) {
+                                                var otherResultIdArr = otherResults.map(one => {
+                                                    return one.id;
+                                                });
+                                                dbConnect.query("UPDATE tbl_match SET publish=2 WHERE id IN (?)", otherResultIdArr.join(), function (error, updateResults, updateFields) {
+                                                    if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                });
+                                            }
+                    
+                                            var blockCreateData = {
+                                                main_user_id: userId,
+                                                other_user_id: otherId,
+                                                status: 9,
+                                                status_description: "block_received_auto",
+                                                publish: 1,
+                                                created_date: new Date(),
+                                                updated_date: new Date()
+                                            };
+                    
+                                            dbConnect.beginTransaction(function (err) {
+                                                if (err) return res.status(400).send({ error: true, message: err });
+                                                dbConnect.query("INSERT INTO tbl_match SET ? ", blockCreateData, function (error, results, fields) {
+                                                    if (error) {
+                                                        dbConnect.rollback(function () {
+                                                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                        });
+                                                    }
+                    
+                                                    req.matchId = results.insertId;
+                    
+                                                    var blockRecieveData = {
+                                                        main_user_id: otherId,
+                                                        other_user_id: userId,
+                                                        status: 8,
+                                                        status_description: "block_created_auto",
+                                                        publish: 1,
+                                                        created_date: new Date(),
+                                                        updated_date: new Date()
+                                                    };
+                    
+                                                    dbConnect.query('INSERT INTO tbl_match SET ? ', blockRecieveData, function (error1, receiveResult, fields) {
+                                                        if (error1) {
+                                                            dbConnect.rollback(function () {
+                                                                return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+                                                            });
+                                                        }
+                    
+                                                        dbConnect.commit(function (error) {
+                                                            if (error) {
+                                                                dbConnect.rollback(function () {
+                                                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                                });
+                                                            };
+                                                            return res.send({ error: false, data: { account_status: 1, sending_available: false }, message: "Your Account Is Not Active." });
+                                                        });
+                                                    });
+                                                });
+                                            });
+                                        });
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+
+            } else {
+                req.userData.userId = userId;
+                req.body.userName = userName;
+                req.body.otherId = otherId;
+                req.body.otherUserName = otherUserName;
+                req.body.amount = amount;
+                req.body.fanMessage = fanMessage;
+                next();
+            }
+        });
+    } catch (error) {
+        return res.status(401).json({
+            message: error
+        });
+    }
+}
 
 /**
  * Sending diamonds
  */
-fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
+fanApi.post('/sendDiamonds', checkAuth, autoBlockFanFunction, function(req, res) {
     var userId = req.userData.userId;
     var userName = req.body.userName;
     var otherId = req.body.otherId;
@@ -30,7 +227,7 @@ fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
         var user_fan_count = results[0].fan_count;
 
         if (user_coin_count < amount) {
-            return res.send({error: false, coin_count: user_coin_count, message: 'There is no enough diamond.'});
+            return res.send({error: false, data: { account_status: 1, sending_available: true, coin_count: user_coin_count }, message: 'There is no enough diamond.'});
         }
 
         var user_new_coin_count = parseInt(user_coin_count) - parseInt(amount); // updated diamonds count of user
@@ -203,7 +400,7 @@ fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
                                                         console.log("Successfully sent with response: ", notiRes);
                                                     }
                                                 });
-                                                return res.send({ error: false, data: {coin_count: user_new_coin_count, other_fan_count: other_fan_count}, message: "Diamonds sent." });
+                                                return res.send({ error: false, data: { account_status: 1, sending_available: true, coin_count: user_new_coin_count, other_fan_count: other_fan_count}, message: "Diamonds sent." });
                                             });
                                         });
                                     });
@@ -294,116 +491,251 @@ var getFunUsers1 = (req, res, next) => {
                     var tVal = results[i].from_user;
     
                     (function(val){
-                        dbConnect.query('select a.cdn_id, b.name from tbl_user as b left join tbl_video as a on a.user_id = b.id where b.id = ? and (a.cdn_id IS NULL or a.is_primary=1)', val, function(error, userRows, fields) {
+                        dbConnect.query('select count(*) as primary_count from tbl_video where user_id = ? and is_primary = 1', val, function(error, primaryResutls, fields) {
                             if (error) {
                                 console.log(error);
                             } else {
-                                var name = '';
-                                var imgUrl = '';
-                                if (userRows && userRows.length > 0) {
-                                    name = userRows[0].name;
-                                    imgUrl = userRows[0].cdn_id;
+                                var primary_count = 0;
+                                if (primaryResutls) {
+                                    primary_count = primaryResutls[0].primary_count;
                                 }
-                                console.log('imgUrl ' + imgUrl);
-    
-                                dbConnect.query( "select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [val, otherId], function(error, reRows, fields) {
-                                    if ( error ) {
-                                        console.log( error );
-                                    } else {
-    
-                                        var receivedDiamonds = 0;
-                                        if (reRows && reRows.length > 0) {
-                                            receivedDiamonds = reRows[0].amount;
-    
-                                            if (receivedDiamonds == null) {
-                                                receivedDiamonds = 0;
+
+                                if (primary_count > 0) {
+                                    dbConnect.query('select cdn_id from tbl_video where user_id = ? and is_primary = 1', val, function(error, cdnResults, fields) {
+                                        if (error) {
+                                            console.log(error);
+                                        } else {
+
+                                            var imgUrl = '';
+                                            if (cdnResults) {
+                                                imgUrl = cdnResults[0].cdn_id;
                                             }
-                                        }
-    
-                                        console.log('receivedDiamonds ' + receivedDiamonds);
-                
-                                        dbConnect.query("select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [otherId, val], function(error, seRows, fields) {
-                                            if (error) {
-                                                console.log(error);
-                                            } else {
-    
-                                                var sentDiamonds = 0;
-                                                if (seRows && seRows.length > 0) {
-                                                    sentDiamonds = seRows[0].amount;
-    
-                                                    if (sentDiamonds == null) {
-                                                        sentDiamonds = 0;
+
+                                            dbConnect.query('select name from tbl_user where id = ?', val, function(error, nameResults, fields) {
+                                                if (error) {
+                                                    console.log(error);
+                                                } else {
+
+                                                    var name = '';
+                                                    if (nameResults) {
+                                                        name = nameResults[0].name;
                                                     }
-                                                }
-    
-                                                console.log('sentDiamonds ' + sentDiamonds);
-                                                var differenceDiamonds = 0;
-                                            
-                                                differenceDiamonds = receivedDiamonds - sentDiamonds;
 
-                                                dbConnect.query('select * from tbl_send where from_user = ? order by date desc', val, function(error, getMessageResults, fields) {
-                                                    if (error) {
-                                                        console.log(error);
-                                                    } else {
-
-                                                        var recentMessage = '';
-                                                        if (getMessageResults && getMessageResults.length > 0) {
-                                                            recentMessage = getMessageResults[0].fan_message;
-            
-                                                            if (recentMessage == null) {
-                                                                recentMessage = '';
-                                                            }
-                                                        }
-
-                                                        console.log('recentMessage ' + recentMessage);
-                    
-                                                        let rowData = {
-                                                            userId: val,
-                                                            name: name,
-                                                            diamonds: differenceDiamonds,
-                                                            imgUrl: imgUrl,
-                                                            fanMessage: recentMessage,
-                                                        }
-            
-                                                        console.log('rowData ' + JSON.stringify(rowData));
-
-                                                        dbConnect.query('SELECT * FROM tbl_match WHERE main_user_id = ? and other_user_id = ? and status in (8, 9)', [val, otherId], function(error, checkBlockedResults, fields) {
-                                                            if (error) {
-                                                                console.log(error);
-                                                            } else {
-                                                                if (!checkBlockedResults.length) {
-
-                                                                    console.log('checkBlockedResults 1-1 ' + checkBlockedResults);
-                            
-                                                                    if (differenceDiamonds > 0) {
-                                                                        fanUsers.push(rowData);
-                                                                    } else {
-                                                                        mutualUsers.push(rowData);
-                                                                    }
-                                                                }
-
-                                                                console.log('checkBlockedResults 1-2 ' + checkBlockedResults);
+                                                    dbConnect.query( "select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [val, otherId], function(error, reRows, fields) {
+                                                        if ( error ) {
+                                                            console.log( error );
+                                                        } else {
                         
-                                                                counter ++;
-                    
-                                                                console.log('counter_fan_user' + counter);
-                    
-                                                                if ( result_count == counter) {
-                                                                    req.userData.userId = userId;
-                                                                    req.body.otherId = otherId;
-                                                                    req.body.fanUsers = fanUsers;
-                                                                    req.body.mutualUsers = mutualUsers;
-                                                                    counter = 0;
-                                                                    next();
+                                                            var receivedDiamonds = 0;
+                                                            if (reRows && reRows.length > 0) {
+                                                                receivedDiamonds = reRows[0].amount;
+                        
+                                                                if (receivedDiamonds == null) {
+                                                                    receivedDiamonds = 0;
                                                                 }
                                                             }
-                                                        });
-                                                    }
-                                                });
+                        
+                                                            console.log('receivedDiamonds ' + receivedDiamonds);
+                                    
+                                                            dbConnect.query("select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [otherId, val], function(error, seRows, fields) {
+                                                                if (error) {
+                                                                    console.log(error);
+                                                                } else {
+                        
+                                                                    var sentDiamonds = 0;
+                                                                    if (seRows && seRows.length > 0) {
+                                                                        sentDiamonds = seRows[0].amount;
+                        
+                                                                        if (sentDiamonds == null) {
+                                                                            sentDiamonds = 0;
+                                                                        }
+                                                                    }
+                        
+                                                                    console.log('sentDiamonds ' + sentDiamonds);
+                                                                    var differenceDiamonds = 0;
+                                                                
+                                                                    differenceDiamonds = receivedDiamonds - sentDiamonds;
+                    
+                                                                    dbConnect.query('select * from tbl_send where from_user = ? order by date desc', val, function(error, getMessageResults, fields) {
+                                                                        if (error) {
+                                                                            console.log(error);
+                                                                        } else {
+                    
+                                                                            var recentMessage = '';
+                                                                            if (getMessageResults && getMessageResults.length > 0) {
+                                                                                recentMessage = getMessageResults[0].fan_message;
+                                
+                                                                                if (recentMessage == null) {
+                                                                                    recentMessage = '';
+                                                                                }
+                                                                            }
+                    
+                                                                            console.log('recentMessage ' + recentMessage);
+                                        
+                                                                            let rowData = {
+                                                                                userId: val,
+                                                                                name: name,
+                                                                                diamonds: differenceDiamonds,
+                                                                                imgUrl: imgUrl,
+                                                                                fanMessage: recentMessage,
+                                                                            }
+                                
+                                                                            console.log('rowData ' + JSON.stringify(rowData));
+                    
+                                                                            dbConnect.query('SELECT * FROM tbl_match WHERE main_user_id = ? and other_user_id = ? and status in (8, 9)', [val, otherId], function(error, checkBlockedResults, fields) {
+                                                                                if (error) {
+                                                                                    console.log(error);
+                                                                                } else {
+                                                                                    if (!checkBlockedResults.length) {
+                    
+                                                                                        console.log('checkBlockedResults 1-1 ' + checkBlockedResults);
+                                                
+                                                                                        if (differenceDiamonds > 0) {
+                                                                                            fanUsers.push(rowData);
+                                                                                        } else {
+                                                                                            mutualUsers.push(rowData);
+                                                                                        }
+                                                                                    }
+                    
+                                                                                    console.log('checkBlockedResults 1-2 ' + checkBlockedResults);
+                                            
+                                                                                    counter ++;
+                                        
+                                                                                    console.log('counter_fan_user' + counter);
+                                        
+                                                                                    if ( result_count == counter) {
+                                                                                        req.userData.userId = userId;
+                                                                                        req.body.otherId = otherId;
+                                                                                        req.body.fanUsers = fanUsers;
+                                                                                        req.body.mutualUsers = mutualUsers;
+                                                                                        counter = 0;
+                                                                                        next();
+                                                                                    }
+                                                                                }
+                                                                            });
+                                                                        }
+                                                                    });
+                                                                }
+                                                            });
+                                                        }
+                                                    });
+                                                }
+                                            });
+                                        }
+                                    });
+                                } else {
+                                    var imgUrl = '';
+                                    dbConnect.query('select name from tbl_user where id = ?', val, function(error, nameResults, fields) {
+                                        if (error) {
+                                            console.log(error);
+                                        } else {
+
+                                            var name = '';
+                                            if (nameResults) {
+                                                name = nameResults[0].name;
                                             }
-                                        });
-                                    }
-                                });
+
+                                            dbConnect.query( "select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [val, otherId], function(error, reRows, fields) {
+                                                if ( error ) {
+                                                    console.log( error );
+                                                } else {
+                
+                                                    var receivedDiamonds = 0;
+                                                    if (reRows && reRows.length > 0) {
+                                                        receivedDiamonds = reRows[0].amount;
+                
+                                                        if (receivedDiamonds == null) {
+                                                            receivedDiamonds = 0;
+                                                        }
+                                                    }
+                
+                                                    console.log('receivedDiamonds ' + receivedDiamonds);
+                            
+                                                    dbConnect.query("select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [otherId, val], function(error, seRows, fields) {
+                                                        if (error) {
+                                                            console.log(error);
+                                                        } else {
+                
+                                                            var sentDiamonds = 0;
+                                                            if (seRows && seRows.length > 0) {
+                                                                sentDiamonds = seRows[0].amount;
+                
+                                                                if (sentDiamonds == null) {
+                                                                    sentDiamonds = 0;
+                                                                }
+                                                            }
+                
+                                                            console.log('sentDiamonds ' + sentDiamonds);
+                                                            var differenceDiamonds = 0;
+                                                        
+                                                            differenceDiamonds = receivedDiamonds - sentDiamonds;
+            
+                                                            dbConnect.query('select * from tbl_send where from_user = ? order by date desc', val, function(error, getMessageResults, fields) {
+                                                                if (error) {
+                                                                    console.log(error);
+                                                                } else {
+            
+                                                                    var recentMessage = '';
+                                                                    if (getMessageResults && getMessageResults.length > 0) {
+                                                                        recentMessage = getMessageResults[0].fan_message;
+                        
+                                                                        if (recentMessage == null) {
+                                                                            recentMessage = '';
+                                                                        }
+                                                                    }
+            
+                                                                    console.log('recentMessage ' + recentMessage);
+                                
+                                                                    let rowData = {
+                                                                        userId: val,
+                                                                        name: name,
+                                                                        diamonds: differenceDiamonds,
+                                                                        imgUrl: imgUrl,
+                                                                        fanMessage: recentMessage,
+                                                                    }
+                        
+                                                                    console.log('rowData ' + JSON.stringify(rowData));
+            
+                                                                    dbConnect.query('SELECT * FROM tbl_match WHERE main_user_id = ? and other_user_id = ? and status in (8, 9)', [val, otherId], function(error, checkBlockedResults, fields) {
+                                                                        if (error) {
+                                                                            console.log(error);
+                                                                        } else {
+                                                                            if (!checkBlockedResults.length) {
+            
+                                                                                console.log('checkBlockedResults 1-1 ' + checkBlockedResults);
+                                        
+                                                                                if (differenceDiamonds > 0) {
+                                                                                    fanUsers.push(rowData);
+                                                                                } else {
+                                                                                    mutualUsers.push(rowData);
+                                                                                }
+                                                                            }
+            
+                                                                            console.log('checkBlockedResults 1-2 ' + checkBlockedResults);
+                                    
+                                                                            counter ++;
+                                
+                                                                            console.log('counter_fan_user' + counter);
+                                
+                                                                            if ( result_count == counter) {
+                                                                                req.userData.userId = userId;
+                                                                                req.body.otherId = otherId;
+                                                                                req.body.fanUsers = fanUsers;
+                                                                                req.body.mutualUsers = mutualUsers;
+                                                                                counter = 0;
+                                                                                next();
+                                                                            }
+                                                                        }
+                                                                    });
+                                                                }
+                                                            });
+                                                        }
+                                                    });
+                                                }
+                                            });
+                                        }
+                                    });
+                                }
                             }
                         });
                     })(tVal);
@@ -458,112 +790,279 @@ var getFunUsers2 = (req, res, next) => {
                     var tVal = results[i].to_user;
     
                     (function(val){
-                        dbConnect.query('select a.cdn_id, b.name from tbl_user as b left join tbl_video as a on a.user_id = b.id where b.id = ? and (a.cdn_id IS NULL or a.is_primary=1)', val, function(error, userRows, fields) {
+
+                        dbConnect.query('select count(*) as primary_count from tbl_video where user_id = ? and is_primary = 1', val, function(error, primaryResutls, fields) {
                             if (error) {
                                 console.log(error);
                             } else {
-                                var name = '';
-                                var imgUrl = '';
-                                if (userRows && userRows.length > 0) {
-                                    name = userRows[0].name;
-                                    imgUrl = userRows[0].cdn_id;
+                                var primary_count = 0;
+                                if (primaryResutls) {
+                                    primary_count = primaryResutls[0].primary_count;
                                 }
-                                console.log('imgUrl ' + imgUrl);
-    
-                                dbConnect.query( "select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [val, otherId], function(error, reRows, fields) {
-                                    if ( error ) {
-                                        console.log( error );
-                                    } else {
-    
-                                        var receivedDiamonds = 0;
-                                        if (reRows && reRows.length > 0) {
-                                            receivedDiamonds = reRows[0].amount;
-    
-                                            if (receivedDiamonds == null) {
-                                                receivedDiamonds = 0;
+
+                                if (primary_count > 0) {
+                                    dbConnect.query('select cdn_id from tbl_video where user_id = ? and is_primary = 1', val, function(error, cdnResults, fields) {
+                                        if (error) {
+                                            console.log(error);
+                                        } else {
+
+                                            var imgUrl = '';
+                                            if (cdnResults) {
+                                                imgUrl = cdnResults[0].cdn_id;
                                             }
-                                        }
-    
-                                        console.log('receivedDiamonds ' + receivedDiamonds);
-                
-                                        dbConnect.query("select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [otherId, val], function(error, seRows, fields) {
-                                            if (error) {
-                                                console.log(error);
-                                            } else {
-    
-                                                var sentDiamonds = 0;
-                                                if (seRows && seRows.length > 0) {
-                                                    sentDiamonds = seRows[0].amount;
-    
-                                                    if (sentDiamonds == null) {
-                                                        sentDiamonds = 0;
+
+                                            dbConnect.query('select name from tbl_user where id = ?', val, function(error, nameResults, fields) {
+                                                if (error) {
+                                                    console.log(error);
+                                                } else {
+
+                                                    var name = '';
+                                                    if (nameResults) {
+                                                        name = nameResults[0].name;
                                                     }
-                                                }
-    
-                                                console.log('sentDiamonds ' + sentDiamonds);
-                                                var differenceDiamonds = 0;
-                                            
-                                                differenceDiamonds = receivedDiamonds - sentDiamonds;
-                    
-                                                let rowData = {
-                                                    userId: val,
-                                                    name: name,
-                                                    diamonds: differenceDiamonds,
-                                                    imgUrl: imgUrl,
-                                                    fanMessage: '',
-                                                }
-    
-                                                console.log('rowData ' + JSON.stringify(rowData));
 
-                                                dbConnect.query('SELECT * FROM tbl_match WHERE main_user_id = ? and other_user_id = ? and status in (8, 9)', [val, otherId], function(error, checkBlockedResults, fields) {
-                                                    if (error) {
-                                                        console.log(error);
-                                                    } else {
-                                                        if (!checkBlockedResults.length) {
-
-                                                            console.log('checkBlockedResults 2-1 ' + checkBlockedResults);
-                    
-                                                            if (differenceDiamonds > 0) {
-
-                                                                var existingCheck = fanUsers.every(function(fanUser, index) {
-                                            
-                                                                    return rowData.userId !== fanUser.userId;
-                                                                })
-                                                                if (existingCheck) {
-                                                                    fanUsers.push(rowData);
-                                                                }
-                                                            } else {
-
-                                                                var existingCheck = mutualUsers.every(function(mutualUser, index) {
-                                            
-                                                                    return rowData.userId !== mutualUser.userId;
-                                                                })
-                                                                if (existingCheck) {
-                                                                    mutualUsers.push(rowData);
+                                                    dbConnect.query( "select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [val, otherId], function(error, reRows, fields) {
+                                                        if ( error ) {
+                                                            console.log( error );
+                                                        } else {
+                        
+                                                            var receivedDiamonds = 0;
+                                                            if (reRows && reRows.length > 0) {
+                                                                receivedDiamonds = reRows[0].amount;
+                        
+                                                                if (receivedDiamonds == null) {
+                                                                    receivedDiamonds = 0;
                                                                 }
                                                             }
-                                                        }
+                        
+                                                            console.log('receivedDiamonds ' + receivedDiamonds);
+                                    
+                                                            dbConnect.query("select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [otherId, val], function(error, seRows, fields) {
+                                                                if (error) {
+                                                                    console.log(error);
+                                                                } else {
+                        
+                                                                    var sentDiamonds = 0;
+                                                                    if (seRows && seRows.length > 0) {
+                                                                        sentDiamonds = seRows[0].amount;
+                        
+                                                                        if (sentDiamonds == null) {
+                                                                            sentDiamonds = 0;
+                                                                        }
+                                                                    }
+                        
+                                                                    console.log('sentDiamonds ' + sentDiamonds);
+                                                                    var differenceDiamonds = 0;
+                                                                
+                                                                    differenceDiamonds = receivedDiamonds - sentDiamonds;
+                                        
+                                                                    let rowData = {
+                                                                        userId: val,
+                                                                        name: name,
+                                                                        diamonds: differenceDiamonds,
+                                                                        imgUrl: imgUrl,
+                                                                        fanMessage: '',
+                                                                    }
+                        
+                                                                    console.log('rowData ' + JSON.stringify(rowData));
+                    
+                                                                    dbConnect.query('SELECT * FROM tbl_match WHERE main_user_id = ? and other_user_id = ? and status in (8, 9)', [val, otherId], function(error, checkBlockedResults, fields) {
+                                                                        if (error) {
+                                                                            console.log(error);
+                                                                        } else {
+                                                                            if (!checkBlockedResults.length) {
+                    
+                                                                                console.log('checkBlockedResults 2-1 ' + checkBlockedResults);
+                                        
+                                                                                if (differenceDiamonds > 0) {
+                    
+                                                                                    var existingCheck = fanUsers.every(function(fanUser, index) {
+                                                                
+                                                                                        return rowData.userId !== fanUser.userId;
+                                                                                    })
+                                                                                    if (existingCheck) {
+                                                                                        fanUsers.push(rowData);
+                                                                                    }
+                                                                                } else if (differenceDiamonds < 0) {
 
-                                                        console.log('checkBlockedResults 2-2 ' + checkBlockedResults);
-    
-                                                        counter ++;
-            
-                                                        console.log('counter_fan_user' + counter);
-            
-                                                        if ( result_count == counter) {
-                                                            req.userData.userId = userId;
-                                                            req.body.otherId = otherId;
-                                                            req.body.fanUsers = fanUsers;
-                                                            req.body.mutualUsers = mutualUsers;
-                                                            counter = 0;
-                                                            next();
+                                                                                    dbConnect.query('select * from tbl_send where from_user = ? and to_user = ?', [val, otherId], function(error, sentHistoryResults, fields) {
+                                                                                        if (error) {
+                                                                                            console.log(error);
+                                                                                        } else {
+                                                                                            if (sentHistoryResults && sentHistoryResults > 0) {
+                                                                                                var existingCheck = mutualUsers.every(function(mutualUser, index) {
+                                                                            
+                                                                                                    return rowData.userId !== mutualUser.userId;
+                                                                                                })
+                                                                                                if (existingCheck) {
+                                                                                                    mutualUsers.push(rowData);
+                                                                                                }
+                                                                                            }
+                                                                                        }
+                                                                                    })
+                                                                                } else {
+                    
+                                                                                    var existingCheck = mutualUsers.every(function(mutualUser, index) {
+                                                                
+                                                                                        return rowData.userId !== mutualUser.userId;
+                                                                                    })
+                                                                                    if (existingCheck) {
+                                                                                        mutualUsers.push(rowData);
+                                                                                    }
+                                                                                }
+                                                                            }
+                    
+                                                                            console.log('checkBlockedResults 2-2 ' + checkBlockedResults);
+                        
+                                                                            counter ++;
+                                
+                                                                            console.log('counter_fan_user' + counter);
+                                
+                                                                            if ( result_count == counter) {
+                                                                                req.userData.userId = userId;
+                                                                                req.body.otherId = otherId;
+                                                                                req.body.fanUsers = fanUsers;
+                                                                                req.body.mutualUsers = mutualUsers;
+                                                                                counter = 0;
+                                                                                next();
+                                                                            }
+                                                                        }
+                                                                    });
+                                                                }
+                                                            });
+                                                        }
+                                                    });
+                                                }
+                                            });
+                                        }
+                                    });
+                                } else {
+
+                                    var imgUrl = '';
+                                    dbConnect.query('select name from tbl_user where id = ?', val, function(error, nameResults, fields) {
+                                        if (error) {
+                                            console.log(error);
+                                        } else {
+                                            
+                                            var name = '';
+                                            if (nameResults) {
+                                                name = nameResults[0].name;
+                                            }
+
+                                            dbConnect.query( "select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [val, otherId], function(error, reRows, fields) {
+                                                if ( error ) {
+                                                    console.log( error );
+                                                } else {
+                
+                                                    var receivedDiamonds = 0;
+                                                    if (reRows && reRows.length > 0) {
+                                                        receivedDiamonds = reRows[0].amount;
+                
+                                                        if (receivedDiamonds == null) {
+                                                            receivedDiamonds = 0;
                                                         }
                                                     }
-                                                });
-                                            }
-                                        });
-                                    }
-                                });
+                
+                                                    console.log('receivedDiamonds ' + receivedDiamonds);
+                            
+                                                    dbConnect.query("select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [otherId, val], function(error, seRows, fields) {
+                                                        if (error) {
+                                                            console.log(error);
+                                                        } else {
+                
+                                                            var sentDiamonds = 0;
+                                                            if (seRows && seRows.length > 0) {
+                                                                sentDiamonds = seRows[0].amount;
+                
+                                                                if (sentDiamonds == null) {
+                                                                    sentDiamonds = 0;
+                                                                }
+                                                            }
+                
+                                                            console.log('sentDiamonds ' + sentDiamonds);
+                                                            var differenceDiamonds = 0;
+                                                        
+                                                            differenceDiamonds = receivedDiamonds - sentDiamonds;
+                                
+                                                            let rowData = {
+                                                                userId: val,
+                                                                name: name,
+                                                                diamonds: differenceDiamonds,
+                                                                imgUrl: imgUrl,
+                                                                fanMessage: '',
+                                                            }
+                
+                                                            console.log('rowData ' + JSON.stringify(rowData));
+            
+                                                            dbConnect.query('SELECT * FROM tbl_match WHERE main_user_id = ? and other_user_id = ? and status in (8, 9)', [val, otherId], function(error, checkBlockedResults, fields) {
+                                                                if (error) {
+                                                                    console.log(error);
+                                                                } else {
+                                                                    if (!checkBlockedResults.length) {
+            
+                                                                        console.log('checkBlockedResults 2-1 ' + checkBlockedResults);
+                                
+                                                                        if (differenceDiamonds > 0) {
+                    
+                                                                            var existingCheck = fanUsers.every(function(fanUser, index) {
+                                                        
+                                                                                return rowData.userId !== fanUser.userId;
+                                                                            })
+                                                                            if (existingCheck) {
+                                                                                fanUsers.push(rowData);
+                                                                            }
+                                                                        } else if (differenceDiamonds < 0) {
+
+                                                                            dbConnect.query('select * from tbl_send where from_user = ? and to_user = ?', [val, otherId], function(error, sentHistoryResults, fields) {
+                                                                                if (error) {
+                                                                                    console.log(error);
+                                                                                } else {
+                                                                                    if (sentHistoryResults && sentHistoryResults > 0) {
+                                                                                        var existingCheck = mutualUsers.every(function(mutualUser, index) {
+                                                                    
+                                                                                            return rowData.userId !== mutualUser.userId;
+                                                                                        })
+                                                                                        if (existingCheck) {
+                                                                                            mutualUsers.push(rowData);
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            })
+                                                                        } else {
+            
+                                                                            var existingCheck = mutualUsers.every(function(mutualUser, index) {
+                                                        
+                                                                                return rowData.userId !== mutualUser.userId;
+                                                                            })
+                                                                            if (existingCheck) {
+                                                                                mutualUsers.push(rowData);
+                                                                            }
+                                                                        }
+                                                                    }
+            
+                                                                    console.log('checkBlockedResults 2-2 ' + checkBlockedResults);
+                
+                                                                    counter ++;
+                        
+                                                                    console.log('counter_fan_user' + counter);
+                        
+                                                                    if ( result_count == counter) {
+                                                                        req.userData.userId = userId;
+                                                                        req.body.otherId = otherId;
+                                                                        req.body.fanUsers = fanUsers;
+                                                                        req.body.mutualUsers = mutualUsers;
+                                                                        counter = 0;
+                                                                        next();
+                                                                    }
+                                                                }
+                                                            });
+                                                        }
+                                                    });
+                                                }
+                                            });
+                                        }
+                                    });
+                                }
                             }
                         });
                     })(tVal);
