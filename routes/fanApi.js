@@ -916,5 +916,4 @@ fanApi.post('/getBiggestFanUsers', checkAuth, getFunUsers1, getFunUsers2, functi
     return res.send({ error: false, data: responseData, message: "Got Biggest Fan Users and Mutual Users." });
 })
 
-module.exports.fanApi = fanApi;
-module.exports.autoBlockFanFunction = autoBlockFanFunction;
+module.exports = fanApi;
