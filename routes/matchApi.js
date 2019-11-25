@@ -1312,8 +1312,6 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
         var myLong = loggedUser.long_geo;
         if (myLong != 0 && myLat != 0 && (!myLat || !myLong)) return res.status(403).send({error: true, message: 'user location information is invalid'});
 
-        var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
-
         var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
 
         if (myLat == 0 && myLong ==0) {
@@ -1331,6 +1329,9 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
             }
 
             if (primary_count > 0) {
+
+                var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
+
                 var whereCondition = ' e.is_primary=1 AND a.account_status=1 AND a.id=?';
 
                 var pi = Math.PI;
@@ -1360,6 +1361,9 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
                     return res.send({error: false, data: results[0], message: 'discover list updated'});
                 });                
             } else {
+
+                var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, Null as cdn_filtered_id, Null as cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
+
                 var whereCondition = ' a.account_status=1 AND a.id=?';
         
                 var pi = Math.PI;
