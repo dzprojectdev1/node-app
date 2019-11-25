@@ -1331,6 +1331,8 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
         joinQuery += ' LEFT JOIN tbl_video as e ON a.id=e.user_id ';
 
         var leftQuery = 'SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + joinQuery + ' WHERE ' + whereCondition;
+
+        console.log('getOtherUserData_leftQuery ' + leftQuery);
         
         dbConn.query(leftQuery, [other_user_id], function (error, results, fields) {
             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
