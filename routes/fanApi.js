@@ -459,11 +459,13 @@ var getFunUsers1 = (req, res, next) => {
 
         var fanUsers = [];
         var mutualUsers = [];
+        var starUsers = [];
 
         req.userData.userId = userId;
         req.body.otherId = otherId;
         req.body.fanUsers = [];
         req.body.mutualUsers = [];
+        req.body.starUsers = [];
 
         if (!otherId) {
             return res.status(400).send({ error: true, message: 'Please provide other user id' });
@@ -556,7 +558,7 @@ var getFunUsers1 = (req, res, next) => {
                                                                 
                                                                     differenceDiamonds = receivedDiamonds - sentDiamonds;
                     
-                                                                    dbConnect.query('select * from tbl_send where from_user = ? order by date desc', val, function(error, getMessageResults, fields) {
+                                                                    dbConnect.query('select * from tbl_send where from_user = ? and to_user = ? order by date desc', [val, otherId], function(error, getMessageResults, fields) {
                                                                         if (error) {
                                                                             console.log(error);
                                                                         } else {
@@ -593,6 +595,7 @@ var getFunUsers1 = (req, res, next) => {
                                                                                         if (differenceDiamonds > 0) {
                                                                                             fanUsers.push(rowData);
                                                                                         } else {
+                                                                                            starUsers.push(rowData);
                                                                                             mutualUsers.push(rowData);
                                                                                         }
                                                                                     }
@@ -607,6 +610,7 @@ var getFunUsers1 = (req, res, next) => {
                                                                                         req.userData.userId = userId;
                                                                                         req.body.otherId = otherId;
                                                                                         req.body.fanUsers = fanUsers;
+                                                                                        req.body.starUsers = starUsers;
                                                                                         req.body.mutualUsers = mutualUsers;
                                                                                         counter = 0;
                                                                                         next();
@@ -670,7 +674,7 @@ var getFunUsers1 = (req, res, next) => {
                                                         
                                                             differenceDiamonds = receivedDiamonds - sentDiamonds;
             
-                                                            dbConnect.query('select * from tbl_send where from_user = ? order by date desc', val, function(error, getMessageResults, fields) {
+                                                            dbConnect.query('select * from tbl_send where from_user = ? and to_user = ? order by date desc', [val, otherId], function(error, getMessageResults, fields) {
                                                                 if (error) {
                                                                     console.log(error);
                                                                 } else {
@@ -707,6 +711,7 @@ var getFunUsers1 = (req, res, next) => {
                                                                                 if (differenceDiamonds > 0) {
                                                                                     fanUsers.push(rowData);
                                                                                 } else {
+                                                                                    starUsers.push(rowData);
                                                                                     mutualUsers.push(rowData);
                                                                                 }
                                                                             }
@@ -721,6 +726,7 @@ var getFunUsers1 = (req, res, next) => {
                                                                                 req.userData.userId = userId;
                                                                                 req.body.otherId = otherId;
                                                                                 req.body.fanUsers = fanUsers;
+                                                                                req.body.starUsers = starUsers;
                                                                                 req.body.mutualUsers = mutualUsers;
                                                                                 counter = 0;
                                                                                 next();
@@ -758,11 +764,13 @@ var getFunUsers2 = (req, res, next) => {
 
         var fanUsers = req.body.fanUsers;
         var mutualUsers = req.body.mutualUsers;
+        var starUsers = req.body.starUsers;
 
         req.userData.userId = userId;
         req.body.otherId = otherId;
         req.body.fanUsers = fanUsers;
         req.body.mutualUsers = mutualUsers;
+        req.body.starUsers = starUsers;
 
         if (!otherId) {
             return res.status(400).send({ error: true, message: 'Please provide other user id' });
@@ -855,77 +863,110 @@ var getFunUsers2 = (req, res, next) => {
                                                                     var differenceDiamonds = 0;
                                                                 
                                                                     differenceDiamonds = receivedDiamonds - sentDiamonds;
-                                        
-                                                                    let rowData = {
-                                                                        userId: val,
-                                                                        name: name,
-                                                                        diamonds: differenceDiamonds,
-                                                                        imgUrl: imgUrl,
-                                                                        fanMessage: '',
-                                                                    }
-                        
-                                                                    console.log('rowData ' + JSON.stringify(rowData));
-                    
-                                                                    dbConnect.query('SELECT * FROM tbl_match WHERE main_user_id = ? and other_user_id = ? and status in (8, 9)', [val, otherId], function(error, checkBlockedResults, fields) {
+                                                                    
+            
+                                                                    dbConnect.query('select * from tbl_send where from_user = ? and to_user = ? order by date desc', [otherId, val], function(error, getMessageResults, fields) {
                                                                         if (error) {
                                                                             console.log(error);
                                                                         } else {
-                                                                            if (!checkBlockedResults.length) {
-                    
-                                                                                console.log('checkBlockedResults 2-1 ' + checkBlockedResults);
-                                        
-                                                                                if (differenceDiamonds > 0) {
-                    
-                                                                                    var existingCheck = fanUsers.every(function(fanUser, index) {
-                                                                
-                                                                                        return rowData.userId !== fanUser.userId;
-                                                                                    })
-                                                                                    if (existingCheck) {
-                                                                                        fanUsers.push(rowData);
-                                                                                    }
-                                                                                } else if (differenceDiamonds < 0) {
-
-                                                                                    dbConnect.query('select * from tbl_send where from_user = ? and to_user = ?', [val, otherId], function(error, sentHistoryResults, fields) {
-                                                                                        if (error) {
-                                                                                            console.log(error);
-                                                                                        } else {
-                                                                                            if (sentHistoryResults && sentHistoryResults > 0) {
-                                                                                                var existingCheck = mutualUsers.every(function(mutualUser, index) {
-                                                                            
-                                                                                                    return rowData.userId !== mutualUser.userId;
-                                                                                                })
-                                                                                                if (existingCheck) {
-                                                                                                    mutualUsers.push(rowData);
-                                                                                                }
-                                                                                            }
-                                                                                        }
-                                                                                    })
-                                                                                } else {
-                    
-                                                                                    var existingCheck = mutualUsers.every(function(mutualUser, index) {
-                                                                
-                                                                                        return rowData.userId !== mutualUser.userId;
-                                                                                    })
-                                                                                    if (existingCheck) {
-                                                                                        mutualUsers.push(rowData);
-                                                                                    }
+                                                                            var recentMessage = '';
+                                                                            if (getMessageResults && getMessageResults.length > 0) {
+                                                                                recentMessage = getMessageResults[0].fan_message;
+                                
+                                                                                if (recentMessage == null) {
+                                                                                    recentMessage = '';
                                                                                 }
                                                                             }
-                    
-                                                                            console.log('checkBlockedResults 2-2 ' + checkBlockedResults);
-                        
-                                                                            counter ++;
-                                
-                                                                            console.log('counter_fan_user' + counter);
-                                
-                                                                            if ( result_count == counter) {
-                                                                                req.userData.userId = userId;
-                                                                                req.body.otherId = otherId;
-                                                                                req.body.fanUsers = fanUsers;
-                                                                                req.body.mutualUsers = mutualUsers;
-                                                                                counter = 0;
-                                                                                next();
+            
+                                                                            console.log('recentMessage ' + recentMessage);
+
+                                                                            let rowData = {
+                                                                                userId: val,
+                                                                                name: name,
+                                                                                diamonds: differenceDiamonds,
+                                                                                imgUrl: imgUrl,
+                                                                                fanMessage: recentMessage,
                                                                             }
+                                
+                                                                            console.log('rowData ' + JSON.stringify(rowData));
+                            
+                                                                            dbConnect.query('SELECT * FROM tbl_match WHERE main_user_id = ? and other_user_id = ? and status in (8, 9)', [val, otherId], function(error, checkBlockedResults, fields) {
+                                                                                if (error) {
+                                                                                    console.log(error);
+                                                                                } else {
+                                                                                    if (!checkBlockedResults.length) {
+                            
+                                                                                        console.log('checkBlockedResults 2-1 ' + checkBlockedResults);
+                                                
+                                                                                        if (differenceDiamonds > 0) {
+                            
+                                                                                            var existingCheck = fanUsers.every(function(fanUser, index) {
+                                                                        
+                                                                                                return rowData.userId !== fanUser.userId;
+                                                                                            })
+                                                                                            if (existingCheck) {
+                                                                                                fanUsers.push(rowData);
+                                                                                            }
+                                                                                        } else if (differenceDiamonds < 0) {
+                                                                                            var existingCheck1 = starUsers.every(function(starUser, index) {
+                                                                                    
+                                                                                                return rowData.userId !== starUser.userId;
+                                                                                            })
+                                                                                            if (existingCheck1) {
+                                                                                                starUsers.push(rowData);
+                                                                                            }
+                                                                                            dbConnect.query('select * from tbl_send where from_user = ? and to_user = ?', [val, otherId], function(error, sentHistoryResults, fields) {
+                                                                                                if (error) {
+                                                                                                    console.log(error);
+                                                                                                } else {
+                                                                                                    if (sentHistoryResults && sentHistoryResults > 0) {
+                                                                                                        var existingCheck2 = mutualUsers.every(function(mutualUser, index) {
+                                                                                    
+                                                                                                            return rowData.userId !== mutualUser.userId;
+                                                                                                        })
+                                                                                                        if (existingCheck2) {
+                                                                                                            mutualUsers.push(rowData);
+                                                                                                        }
+                                                                                                    }
+                                                                                                }
+                                                                                            })
+                                                                                        } else {
+                            
+                                                                                            var existingCheck = mutualUsers.every(function(mutualUser, index) {
+                                                                        
+                                                                                                return rowData.userId !== mutualUser.userId;
+                                                                                            })
+                                                                                            if (existingCheck) {
+                                                                                                mutualUsers.push(rowData);
+                                                                                            }
+        
+                                                                                            var existingCheck1 = starUsers.every(function(starUser, index) {
+                                                                                    
+                                                                                                return rowData.userId !== starUser.userId;
+                                                                                            })
+                                                                                            if (existingCheck1) {
+                                                                                                starUsers.push(rowData);
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                            
+                                                                                    console.log('checkBlockedResults 2-2 ' + checkBlockedResults);
+                                
+                                                                                    counter ++;
+                                        
+                                                                                    console.log('counter_fan_user' + counter);
+                                        
+                                                                                    if ( result_count == counter) {
+                                                                                        req.userData.userId = userId;
+                                                                                        req.body.otherId = otherId;
+                                                                                        req.body.fanUsers = fanUsers;
+                                                                                        req.body.starUsers = starUsers;
+                                                                                        req.body.mutualUsers = mutualUsers;
+                                                                                        counter = 0;
+                                                                                        next();
+                                                                                    }
+                                                                                }
+                                                                            });
                                                                         }
                                                                     });
                                                                 }
@@ -983,79 +1024,111 @@ var getFunUsers2 = (req, res, next) => {
                                                             var differenceDiamonds = 0;
                                                         
                                                             differenceDiamonds = receivedDiamonds - sentDiamonds;
-                                
-                                                            let rowData = {
-                                                                userId: val,
-                                                                name: name,
-                                                                diamonds: differenceDiamonds,
-                                                                imgUrl: imgUrl,
-                                                                fanMessage: '',
-                                                            }
-                
-                                                            console.log('rowData ' + JSON.stringify(rowData));
-            
-                                                            dbConnect.query('SELECT * FROM tbl_match WHERE main_user_id = ? and other_user_id = ? and status in (8, 9)', [val, otherId], function(error, checkBlockedResults, fields) {
+
+                                                            dbConnect.query('select * from tbl_send where from_user = ? and to_user = ? order by date desc', [otherId, val], function(error, getMessageResults, fields) {
                                                                 if (error) {
                                                                     console.log(error);
                                                                 } else {
-                                                                    if (!checkBlockedResults.length) {
-            
-                                                                        console.log('checkBlockedResults 2-1 ' + checkBlockedResults);
-                                
-                                                                        if (differenceDiamonds > 0) {
-                    
-                                                                            var existingCheck = fanUsers.every(function(fanUser, index) {
-                                                        
-                                                                                return rowData.userId !== fanUser.userId;
-                                                                            })
-                                                                            if (existingCheck) {
-                                                                                fanUsers.push(rowData);
-                                                                            }
-                                                                        } else if (differenceDiamonds < 0) {
-
-                                                                            dbConnect.query('select * from tbl_send where from_user = ? and to_user = ?', [val, otherId], function(error, sentHistoryResults, fields) {
-                                                                                if (error) {
-                                                                                    console.log(error);
-                                                                                } else {
-                                                                                    if (sentHistoryResults && sentHistoryResults > 0) {
-                                                                                        var existingCheck = mutualUsers.every(function(mutualUser, index) {
-                                                                    
-                                                                                            return rowData.userId !== mutualUser.userId;
-                                                                                        })
-                                                                                        if (existingCheck) {
-                                                                                            mutualUsers.push(rowData);
-                                                                                        }
-                                                                                    }
-                                                                                }
-                                                                            })
-                                                                        } else {
-            
-                                                                            var existingCheck = mutualUsers.every(function(mutualUser, index) {
-                                                        
-                                                                                return rowData.userId !== mutualUser.userId;
-                                                                            })
-                                                                            if (existingCheck) {
-                                                                                mutualUsers.push(rowData);
-                                                                            }
+                                                                    var recentMessage = '';
+                                                                    if (getMessageResults && getMessageResults.length > 0) {
+                                                                        recentMessage = getMessageResults[0].fan_message;
+                        
+                                                                        if (recentMessage == null) {
+                                                                            recentMessage = '';
                                                                         }
                                                                     }
-            
-                                                                    console.log('checkBlockedResults 2-2 ' + checkBlockedResults);
-                
-                                                                    counter ++;
-                        
-                                                                    console.log('counter_fan_user' + counter);
-                        
-                                                                    if ( result_count == counter) {
-                                                                        req.userData.userId = userId;
-                                                                        req.body.otherId = otherId;
-                                                                        req.body.fanUsers = fanUsers;
-                                                                        req.body.mutualUsers = mutualUsers;
-                                                                        counter = 0;
-                                                                        next();
+    
+                                                                    console.log('recentMessage ' + recentMessage);
+
+                                                                    let rowData = {
+                                                                        userId: val,
+                                                                        name: name,
+                                                                        diamonds: differenceDiamonds,
+                                                                        imgUrl: imgUrl,
+                                                                        fanMessage: recentMessage,
                                                                     }
+                        
+                                                                    console.log('rowData ' + JSON.stringify(rowData));
+                    
+                                                                    dbConnect.query('SELECT * FROM tbl_match WHERE main_user_id = ? and other_user_id = ? and status in (8, 9)', [val, otherId], function(error, checkBlockedResults, fields) {
+                                                                        if (error) {
+                                                                            console.log(error);
+                                                                        } else {
+                                                                            if (!checkBlockedResults.length) {
+                    
+                                                                                console.log('checkBlockedResults 2-1 ' + checkBlockedResults);
+                                        
+                                                                                if (differenceDiamonds > 0) {
+                            
+                                                                                    var existingCheck = fanUsers.every(function(fanUser, index) {
+                                                                
+                                                                                        return rowData.userId !== fanUser.userId;
+                                                                                    })
+                                                                                    if (existingCheck) {
+                                                                                        fanUsers.push(rowData);
+                                                                                    }
+                                                                                } else if (differenceDiamonds < 0) {                                                                                    
+                                                                                    var existingCheck1 = starUsers.every(function(starUser, index) {
+                                                                            
+                                                                                        return rowData.userId !== starUser.userId;
+                                                                                    })
+                                                                                    if (existingCheck1) {
+                                                                                        starUsers.push(rowData);
+                                                                                    }
+                                                                                    dbConnect.query('select * from tbl_send where from_user = ? and to_user = ?', [val, otherId], function(error, sentHistoryResults, fields) {
+                                                                                        if (error) {
+                                                                                            console.log(error);
+                                                                                        } else {
+                                                                                            if (sentHistoryResults && sentHistoryResults > 0) {
+                                                                                                var existingCheck = mutualUsers.every(function(mutualUser, index) {
+                                                                            
+                                                                                                    return rowData.userId !== mutualUser.userId;
+                                                                                                })
+                                                                                                if (existingCheck) {
+                                                                                                    mutualUsers.push(rowData);
+                                                                                                }
+                                                                                            }
+                                                                                        }
+                                                                                    })
+                                                                                } else {
+                    
+                                                                                    var existingCheck = mutualUsers.every(function(mutualUser, index) {
+                                                                
+                                                                                        return rowData.userId !== mutualUser.userId;
+                                                                                    })
+                                                                                    if (existingCheck) {
+                                                                                        mutualUsers.push(rowData);
+                                                                                    }                                                                            
+                                                                                            
+                                                                                    var existingCheck1 = starUsers.every(function(starUser, index) {
+                                                                                    
+                                                                                        return rowData.userId !== starUser.userId;
+                                                                                    })
+                                                                                    if (existingCheck1) {
+                                                                                        starUsers.push(rowData);
+                                                                                    }
+                                                                                }
+                                                                            }
+                    
+                                                                            console.log('checkBlockedResults 2-2 ' + checkBlockedResults);
+                        
+                                                                            counter ++;
+                                
+                                                                            console.log('counter_fan_user' + counter);
+                                
+                                                                            if ( result_count == counter) {
+                                                                                req.userData.userId = userId;
+                                                                                req.body.otherId = otherId;
+                                                                                req.body.fanUsers = fanUsers;
+                                                                                req.body.starUsers = starUsers;
+                                                                                req.body.mutualUsers = mutualUsers;
+                                                                                counter = 0;
+                                                                                next();
+                                                                            }
+                                                                        }
+                                                                    });
                                                                 }
-                                                            });
+                                                            });                                                            
                                                         }
                                                     });
                                                 }
@@ -1086,9 +1159,11 @@ fanApi.post('/getBiggestFanUsers', checkAuth, getFunUsers1, getFunUsers2, functi
     var otherId = req.body.otherId;
     var fanUsers = req.body.fanUsers;
     var mutualUsers = req.body.mutualUsers;
+    var starUsers = req.body.starUsers;
 
     console.log('fan_users ' + JSON.stringify(fanUsers));
     console.log('mutual_users ' + JSON.stringify(mutualUsers));
+    console.log('star_users ' + JSON.stringify(starUsers));
 
     for (var i = 0; i < fanUsers.length; i ++) {
         for (var j = 0; j < i; j ++ ) {
@@ -1103,6 +1178,7 @@ fanApi.post('/getBiggestFanUsers', checkAuth, getFunUsers1, getFunUsers2, functi
     var responseData = {
         fanUsers: fanUsers,
         mutualUsers: mutualUsers,
+        starUsers: starUsers,
     }
 
     counter = 0;
