@@ -59,7 +59,7 @@ var autoBlockFanFunction = (req, res, next) => {
         var fanMessage = req.body.fanMessage;
 
         query = "select * from tbl_user where id = ?";
-        dbConn.query(query, otherId, function(error, otherResultRows, fields) {
+        dbConnect.query(query, otherId, function(error, otherResultRows, fields) {
             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
             if (!otherResultRows || !otherResultRows.length) return res.status(400).send({ error: true, message: 'No Match Found' });
 
@@ -86,7 +86,7 @@ var autoBlockFanFunction = (req, res, next) => {
                 } else {
 
                     query = "select count(id) as count from tbl_match where main_user_id = ? and status_description = 'block_received_auto'";
-                    dbConn.query(query, userId, function(error, results, fields) {
+                    dbConnect.query(query, userId, function(error, results, fields) {
                         if (error) return error;
                         if (!results || !results.length) return error;
 
@@ -95,38 +95,38 @@ var autoBlockFanFunction = (req, res, next) => {
 
                             console.log('AutoBlockFunctio runs: this user has over 15 auto bocked times');
                             query = "update tbl_user set account_status = 9 where id = ?";
-                            dbConn.query(query, userId, function(error, uptResults, fields) {
+                            dbConnect.query(query, userId, function(error, uptResults, fields) {
                                 if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
 
                                 return res.send({ error: false, data: { account_status: 9, sending_available: false }, message: "Your Account Is Not Active." });
                             })
                         } else {
-                            dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=9", [userId, otherId], function (error, results, fields) {
+                            dbConnect.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=9", [userId, otherId], function (error, results, fields) {
                                 if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                 if (results.length) {
                                     return res.send({ error: true, message: 'Block Data Already exist' });
                                 } else {
                                     //get status 2,6,7 match data,
-                                    dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [otherId, userId], function (error, results, fields) {
+                                    dbConnect.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [otherId, userId], function (error, results, fields) {
                                         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                     
                                         if (results.length) {
                                             var resultIdArr = results.map(one => {
                                                 return one.id;
                                             });
-                                            dbConn.query("UPDATE tbl_match SET publish=0 WHERE id IN (?)", resultIdArr.join(), function (error, updateResults, updateFields) {
+                                            dbConnect.query("UPDATE tbl_match SET publish=0 WHERE id IN (?)", resultIdArr.join(), function (error, updateResults, updateFields) {
                                                 if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                             });
                                         }
                     
-                                        dbConn.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [userId, otherId], function (error, otherResults, fields) {
+                                        dbConnect.query("SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (2,6,7)", [userId, otherId], function (error, otherResults, fields) {
                                             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                         
                                             if (otherResults.length) {
                                                 var otherResultIdArr = otherResults.map(one => {
                                                     return one.id;
                                                 });
-                                                dbConn.query("UPDATE tbl_match SET publish=2 WHERE id IN (?)", otherResultIdArr.join(), function (error, updateResults, updateFields) {
+                                                dbConnect.query("UPDATE tbl_match SET publish=2 WHERE id IN (?)", otherResultIdArr.join(), function (error, updateResults, updateFields) {
                                                     if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                                 });
                                             }
@@ -141,11 +141,11 @@ var autoBlockFanFunction = (req, res, next) => {
                                                 updated_date: new Date()
                                             };
                     
-                                            dbConn.beginTransaction(function (err) {
+                                            dbConnect.beginTransaction(function (err) {
                                                 if (err) return res.status(400).send({ error: true, message: err });
-                                                dbConn.query("INSERT INTO tbl_match SET ? ", blockCreateData, function (error, results, fields) {
+                                                dbConnect.query("INSERT INTO tbl_match SET ? ", blockCreateData, function (error, results, fields) {
                                                     if (error) {
-                                                        dbConn.rollback(function () {
+                                                        dbConnect.rollback(function () {
                                                             return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                                         });
                                                     }
@@ -162,16 +162,16 @@ var autoBlockFanFunction = (req, res, next) => {
                                                         updated_date: new Date()
                                                     };
                     
-                                                    dbConn.query('INSERT INTO tbl_match SET ? ', blockRecieveData, function (error1, receiveResult, fields) {
+                                                    dbConnect.query('INSERT INTO tbl_match SET ? ', blockRecieveData, function (error1, receiveResult, fields) {
                                                         if (error1) {
-                                                            dbConn.rollback(function () {
+                                                            dbConnect.rollback(function () {
                                                                 return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
                                                             });
                                                         }
                     
-                                                        dbConn.commit(function (error) {
+                                                        dbConnect.commit(function (error) {
                                                             if (error) {
-                                                                dbConn.rollback(function () {
+                                                                dbConnect.rollback(function () {
                                                                     return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                                                 });
                                                             };
