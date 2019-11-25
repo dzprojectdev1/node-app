@@ -1322,7 +1322,7 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
             var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
         }
 
-        dbConn.query('select * from tbl_video where user_id = ? and is_primary = 1', other_user_id, function(error, primaryResutls, fields) {
+        dbConn.query('select count(*) as primary_count from tbl_video where user_id = ? and is_primary = 1', other_user_id, function(error, primaryResutls, fields) {
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
             var primary_count = 0;
