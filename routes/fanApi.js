@@ -11,8 +11,8 @@ var counter = 0;
 /**
  * Sending diamonds
  */
-fanApi.post('/sendDiamonds', checkAuth, autoBlockFanFunction, function(req, res) {
-// fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
+// fanApi.post('/sendDiamonds', checkAuth, autoBlockFanFunction, function(req, res) {
+fanApi.post('/sendDiamonds', checkAuth, function(req, res) {
     var userId = req.userData.userId;
     var userName = req.body.userName;
     var otherId = req.body.otherId;
