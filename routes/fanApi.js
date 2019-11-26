@@ -498,7 +498,7 @@ var getFunUsers1 = (req, res, next) => {
                                 console.log(error);
                             } else {
                                 var primary_count = 0;
-                                if (primaryResutls) {
+                                if (primaryResutls && primaryResutls.length > 0) {
                                     primary_count = primaryResutls[0].primary_count;
                                 }
 
@@ -509,7 +509,7 @@ var getFunUsers1 = (req, res, next) => {
                                         } else {
 
                                             var imgUrl = '';
-                                            if (cdnResults) {
+                                            if (cdnResults && cdnResults.length > 0) {
                                                 imgUrl = cdnResults[0].cdn_id;
                                             }
 
@@ -519,7 +519,7 @@ var getFunUsers1 = (req, res, next) => {
                                                 } else {
 
                                                     var name = '';
-                                                    if (nameResults) {
+                                                    if (nameResults && nameResults.length > 0) {
                                                         name = nameResults[0].name;
                                                     }
 
@@ -804,7 +804,7 @@ var getFunUsers2 = (req, res, next) => {
                                 console.log(error);
                             } else {
                                 var primary_count = 0;
-                                if (primaryResutls) {
+                                if (primaryResutls && primaryResutls.length > 0) {
                                     primary_count = primaryResutls[0].primary_count;
                                 }
 
@@ -815,7 +815,7 @@ var getFunUsers2 = (req, res, next) => {
                                         } else {
 
                                             var imgUrl = '';
-                                            if (cdnResults) {
+                                            if (cdnResults && cdnResults.length > 0) {
                                                 imgUrl = cdnResults[0].cdn_id;
                                             }
 
@@ -825,7 +825,7 @@ var getFunUsers2 = (req, res, next) => {
                                                 } else {
 
                                                     var name = '';
-                                                    if (nameResults) {
+                                                    if (nameResults && nameResults.length > 0) {
                                                         name = nameResults[0].name;
                                                     }
 
@@ -986,7 +986,7 @@ var getFunUsers2 = (req, res, next) => {
                                         } else {
                                             
                                             var name = '';
-                                            if (nameResults) {
+                                            if (nameResults && nameResults.length > 0) {
                                                 name = nameResults[0].name;
                                             }
 
@@ -1224,7 +1224,7 @@ var getStarUsers = (req, res, next) => {
                                 console.log(error);
                             } else {
                                 var primary_count = 0;
-                                if (primaryResutls) {
+                                if (primaryResutls && primaryResutls.length > 0) {
                                     primary_count = primaryResutls[0].primary_count;
                                 }
 
@@ -1235,7 +1235,7 @@ var getStarUsers = (req, res, next) => {
                                         } else {
 
                                             var imgUrl = '';
-                                            if (cdnResults) {
+                                            if (cdnResults && cdnResults.length > 0) {
                                                 imgUrl = cdnResults[0].cdn_id;
                                             }
 
@@ -1245,7 +1245,7 @@ var getStarUsers = (req, res, next) => {
                                                 } else {
 
                                                     var name = '';
-                                                    if (nameResults) {
+                                                    if (nameResults && nameResults.length > 0) {
                                                         name = nameResults[0].name;
                                                     }
 
@@ -1330,7 +1330,7 @@ var getStarUsers = (req, res, next) => {
                                         } else {
 
                                             var name = '';
-                                            if (nameResults) {
+                                            if (nameResults && nameResults.length > 0) {
                                                 name = nameResults[0].name;
                                             }                            
                                             dbConnect.query("select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [userId, val], function(error, seRows, fields) {
