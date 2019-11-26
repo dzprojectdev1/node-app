@@ -625,8 +625,8 @@ transactionApi.post('/getDiamondCount', checkAuth, function(req, res) {
         var fan_count = results[0].fan_count;
 
         var responseData = {
-            coin_count = coin_count,
-            fan_count = fan_count,
+            coin_count: coin_count,
+            fan_count: fan_count,
         }
         return res.send({ error: false, data: responseData, message: "Got diamonds count." });
     })
