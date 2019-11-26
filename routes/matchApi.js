@@ -84,7 +84,7 @@ matchApi.post('/like', checkAuth, function (req, res) {
                 dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=1', [userId, otherId], function (getError, getResults, getFields) {
                     if (getError) return res.status(400).send({ error: true, detail: getError.code, message: getError.sqlMessage });
                     if (getResults.length)
-                        return res.status(400).send({ error: true, data: getResults, message: 'Match data is already taken.' });
+                        return res.status(400).send({ error: true, data: getResults, message: 'You already sent heart to this user.' });
 
                     var newMatchSql = {
                         main_user_id: userId,
@@ -813,7 +813,7 @@ matchApi.post('/requestInstantMatch', checkAuth, function (req, res) {
                             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                     
                             if (oldMatchResult.length)
-                                return res.status(400).send({ error: true, message: 'Match data already exist.' });
+                                return res.status(400).send({ error: true, message: 'You are already connected to this user.' });
             
             
                             // creat a new match for instant chatting
