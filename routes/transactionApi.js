@@ -622,7 +622,13 @@ transactionApi.post('/getDiamondCount', checkAuth, function(req, res) {
         if(!results || !results.length) return res.send({error: false, message: 'There is no matched user.'});
 
         var coin_count = results[0].coin_count;
-        return res.send({ error: false, coin_count: coin_count, message: "Got diamonds count." });
+        var fan_count = results[0].fan_count;
+
+        var responseData = {
+            coin_count = coin_count,
+            fan_count = fan_count,
+        }
+        return res.send({ error: false, data: responseData, message: "Got diamonds count." });
     })
 })
 
