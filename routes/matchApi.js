@@ -84,7 +84,7 @@ matchApi.post('/like', checkAuth, function (req, res) {
                 dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=1', [userId, otherId], function (getError, getResults, getFields) {
                     if (getError) return res.status(400).send({ error: true, detail: getError.code, message: getError.sqlMessage });
                     if (getResults.length)
-                        return res.status(400).send({ error: true, data: getResults, message: 'Match data is already taken.' });
+                        return res.status(400).send({ error: true, data: getResults, message: 'You already sent heart to this user.' });
 
                     var newMatchSql = {
                         main_user_id: userId,
@@ -813,7 +813,7 @@ matchApi.post('/requestInstantMatch', checkAuth, function (req, res) {
                             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                     
                             if (oldMatchResult.length)
-                                return res.status(400).send({ error: true, message: 'Match data already exist.' });
+                                return res.status(400).send({ error: true, message: 'You are already connected to this user.' });
             
             
                             // creat a new match for instant chatting
@@ -1312,8 +1312,6 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
         var myLong = loggedUser.long_geo;
         if (myLong != 0 && myLat != 0 && (!myLat || !myLong)) return res.status(403).send({error: true, message: 'user location information is invalid'});
 
-        var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
-
         var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
 
         if (myLat == 0 && myLong ==0) {
@@ -1321,32 +1319,81 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
         } else {
             var distanceQuery = '(3959 * acos (cos(radians(' + myLat + ') ) * cos(radians( a.lat_geo)) * cos(radians(a.long_geo) - radians(' + myLong + ')) + sin (radians(' + myLat + ') ) * sin( radians(a.lat_geo))))';
         }
-        var whereCondition = ' (e.cdn_id IS NULL OR e.is_primary=1) AND a.account_status=1 AND a.id=?';
 
-        var pi = Math.PI;
-        var defaultDistance = 3959 * Math.acos(Math.cos(myLat * (pi / 180)) * Math.cos(myLong * (pi / 180)));
+        dbConn.query('select count(*) as primary_count from tbl_video where user_id = ? and is_primary = 1', other_user_id, function(error, primaryResutls, fields) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
-        console.log('DefaultDistance Other user is ' + defaultDistance);
+            var primary_count = 0;
+            if (primaryResutls) {
+                primary_count = primaryResutls[0].primary_count;
+            }
+
+            if (primary_count > 0) {
+
+                var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
+
+                var whereCondition = ' e.is_primary=1 AND a.account_status=1 AND a.id=?';
+
+                var pi = Math.PI;
+                var defaultDistance = 3959 * Math.acos(Math.cos(myLat * (pi / 180)) * Math.cos(myLong * (pi / 180)));
         
-        joinQuery += ' LEFT JOIN tbl_video as e ON a.id=e.user_id ';
-
-        var leftQuery = 'SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + joinQuery + ' WHERE ' + whereCondition;
+                console.log('DefaultDistance Other user is ' + defaultDistance);
+                
+                joinQuery += ' LEFT JOIN tbl_video as e ON a.id=e.user_id ';
         
-        dbConn.query(leftQuery, [other_user_id], function (error, results, fields) {
-            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-            if (!results.length)
-                return res.send({ error: false, message: 'Not found.' });
-            
-            results.map(item => {
-                item.last_loggedin_date = commonFunc.timeAgo(item.last_loggedin_date);
-                if ((defaultDistance == 0) || (defaultDistance == item.distance)) {
-                    item.distance = 0;
-                }
-            });
+                var leftQuery = 'SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + joinQuery + ' WHERE ' + whereCondition;
+        
+                console.log('getOtherUserData_leftQuery ' + leftQuery);
+                
+                dbConn.query(leftQuery, [other_user_id], function (error, results, fields) {
+                    if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                    if (!results.length)
+                        return res.send({ error: false, message: 'Not found.' });
+                    
+                    results.map(item => {
+                        item.last_loggedin_date = commonFunc.timeAgo(item.last_loggedin_date);
+                        if ((defaultDistance == 0) || (defaultDistance == item.distance)) {
+                            item.distance = 0;
+                        }
+                    });
+        
+                    console.log('Result[0].distance is ' + results[0].distance);
+                    return res.send({error: false, data: results[0], message: 'discover list updated'});
+                });                
+            } else {
 
-            console.log('Result[0].distance is ' + results[0].distance);
-            return res.send({error: false, data: results[0], message: 'discover list updated'});
-        });
+                var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, Null as cdn_filtered_id, Null as cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
+
+                var whereCondition = ' a.account_status=1 AND a.id=?';
+        
+                var pi = Math.PI;
+                var defaultDistance = 3959 * Math.acos(Math.cos(myLat * (pi / 180)) * Math.cos(myLong * (pi / 180)));
+        
+                console.log('DefaultDistance Other user is ' + defaultDistance);
+                
+                joinQuery += ' LEFT JOIN tbl_video as e ON a.id=e.user_id ';
+        
+                var leftQuery = 'SELECT ' + selectQuery + distanceQuery + ' as distance FROM tbl_user as a ' + joinQuery + ' WHERE ' + whereCondition;
+        
+                console.log('getOtherUserData_leftQuery ' + leftQuery);
+                
+                dbConn.query(leftQuery, [other_user_id], function (error, results, fields) {
+                    if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                    if (!results.length)
+                        return res.send({ error: false, message: 'Not found.' });
+                    
+                    results.map(item => {
+                        item.last_loggedin_date = commonFunc.timeAgo(item.last_loggedin_date);
+                        if ((defaultDistance == 0) || (defaultDistance == item.distance)) {
+                            item.distance = 0;
+                        }
+                    });
+        
+                    console.log('Result[0].distance is ' + results[0].distance);
+                    return res.send({error: false, data: results[0], message: 'discover list updated'});
+                });
+            }
+        })
     });
 });
 
