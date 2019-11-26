@@ -1249,7 +1249,7 @@ var getStarUsers = (req, res, next) => {
                                                         name = nameResults[0].name;
                                                     }
 
-                                                    dbConnect.query("select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [otherId, val], function(error, seRows, fields) {
+                                                    dbConnect.query("select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [userId, val], function(error, seRows, fields) {
                                                         if (error) {
                                                             console.log(error);
                                                         } else {
@@ -1263,7 +1263,7 @@ var getStarUsers = (req, res, next) => {
                                                                 }
                                                             }
             
-                                                            dbConnect.query('select * from tbl_send where from_user = ? and to_user = ? order by date desc', [otherId, val], function(error, getMessageResults, fields) {
+                                                            dbConnect.query('select * from tbl_send where from_user = ? and to_user = ? order by date desc', [userId, val], function(error, getMessageResults, fields) {
                                                                 if (error) {
                                                                     console.log(error);
                                                                 } else {
@@ -1289,7 +1289,7 @@ var getStarUsers = (req, res, next) => {
                         
                                                                     console.log('rowData ' + JSON.stringify(rowData));
             
-                                                                    dbConnect.query('SELECT * FROM tbl_match WHERE main_user_id = ? and other_user_id = ? and status in (8, 9)', [val, otherId], function(error, checkBlockedResults, fields) {
+                                                                    dbConnect.query('SELECT * FROM tbl_match WHERE main_user_id = ? and other_user_id = ? and status in (8, 9)', [val, userId], function(error, checkBlockedResults, fields) {
                                                                         if (error) {
                                                                             console.log(error);
                                                                         } else {
@@ -1333,7 +1333,7 @@ var getStarUsers = (req, res, next) => {
                                             if (nameResults) {
                                                 name = nameResults[0].name;
                                             }                            
-                                            dbConnect.query("select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [otherId, val], function(error, seRows, fields) {
+                                            dbConnect.query("select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?", [userId, val], function(error, seRows, fields) {
                                                 if (error) {
                                                     console.log(error);
                                                 } else {
@@ -1349,7 +1349,7 @@ var getStarUsers = (req, res, next) => {
         
                                                     console.log('sentDiamonds ' + sentDiamonds);
     
-                                                    dbConnect.query('select * from tbl_send where from_user = ? and to_user = ? order by date desc', [otherId, val], function(error, getMessageResults, fields) {
+                                                    dbConnect.query('select * from tbl_send where from_user = ? and to_user = ? order by date desc', [userId, val], function(error, getMessageResults, fields) {
                                                         if (error) {
                                                             console.log(error);
                                                         } else {
@@ -1375,7 +1375,7 @@ var getStarUsers = (req, res, next) => {
                 
                                                             console.log('rowData ' + JSON.stringify(rowData));
     
-                                                            dbConnect.query('SELECT * FROM tbl_match WHERE main_user_id = ? and other_user_id = ? and status in (8, 9)', [val, otherId], function(error, checkBlockedResults, fields) {
+                                                            dbConnect.query('SELECT * FROM tbl_match WHERE main_user_id = ? and other_user_id = ? and status in (8, 9)', [val, userId], function(error, checkBlockedResults, fields) {
                                                                 if (error) {
                                                                     console.log(error);
                                                                 } else {
