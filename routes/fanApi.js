@@ -635,7 +635,7 @@ var getFunUsers1 = (req, res, next) => {
                                         } else {
 
                                             var name = '';
-                                            if (nameResults) {
+                                            if (nameResults && nameResults.length > 0) {
                                                 name = nameResults[0].name;
                                             }
 
