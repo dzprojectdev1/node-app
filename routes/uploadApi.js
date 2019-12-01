@@ -80,8 +80,7 @@ uploadApi.post('/userPhoto', checkAuth, upload.single('fileData'), (req, res) =>
 
   const sizes = [64, 128, 512];
 
-  const uploadPromises = sizes.map(async size => {
-
+  const uploadPromises = sizes.map(size => {
     var thumbName = '';
     if (size == 512) {
       thumbName = `${file.filename}.${DESIRED_FILE_EXTENSION}`;
@@ -90,49 +89,57 @@ uploadApi.post('/userPhoto', checkAuth, upload.single('fileData'), (req, res) =>
     }
     const processedFilePath = path.join(TEMP_UPLOAD_FOLDER, thumbName);
 
-    console.log(processedFilePath);
-
     // Resize source image
+    let resizePromise;
+
     if (size == 512) {
-      await sharp(file.path)
+      resizePromise = sharp(file.path)
         .jpeg()
         .toFile(processedFilePath);
     } else {
-      await sharp(file.path)
+      resizePromise = sharp(file.path)
         .jpeg()
         .resize(size, size)
         .toFile(processedFilePath);
     }
 
-    var photoIdInBucket='';
-    if (size == 512) {
-      photoIdInBucket = `${file.filename}-screenshot`;
-    } else {
-      photoIdInBucket = `thumb_${size}_${file.filename}-screenshot`;
-    }
+    return resizePromise
+      .then(() => {
+        var photoIdInBucket='';
 
-    // Upload to GCS
-    return bucket.upload(processedFilePath, {
-      destination: photoIdInBucket,
-      metadata: {
-        // Enable long-lived HTTP caching headers
-        // Use only if the contents of the file will never change
-        // (If the contents will change, use cacheControl: 'no-cache')
-        cacheControl: 'public, max-age=4133869200',
-      },
-    }).then(responseUpload => {
-      bucket.file(photoIdInBucket)
-        .makePublic();
+        if (size == 512) {
+          photoIdInBucket = `${file.filename}-screenshot`;
+        } else {
+          photoIdInBucket = `thumb_${size}_${file.filename}-screenshot`;
+        }
 
-      deleteFiles([
-        processedFilePath,
-      ]);
-    })
-    .catch(err => {
-      deleteFiles([
-        processedFilePath,
-      ]);
-    });
+        // Upload to GCS
+        return bucket.upload(processedFilePath, {
+          destination: photoIdInBucket,
+          metadata: {
+            // Enable long-lived HTTP caching headers
+            // Use only if the contents of the file will never change
+            // (If the contents will change, use cacheControl: 'no-cache')
+            cacheControl: 'public, max-age=4133869200',
+          },
+        }).then(responseUpload => {
+          bucket.file(photoIdInBucket).makePublic();
+
+          deleteFiles([
+            processedFilePath,
+          ]);
+        })
+        .catch(err => {
+          deleteFiles([
+            processedFilePath,
+          ]);
+        });
+      })
+      .catch({
+        deleteFiles([
+          processedFilePath,
+        ]);
+      })
   });
   
   // 4. Run the upload operations
