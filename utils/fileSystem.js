@@ -6,7 +6,8 @@ function deleteFiles(files) {
       return new Promise((resolve, reject) => {
         fs.unlink(file, err => {
           if (err) {
-            reject(err);
+            console.warn(`error deleting files: ${files}, error message: ${err.message}`);
+            resolve();
           } else {
             resolve();
           }
