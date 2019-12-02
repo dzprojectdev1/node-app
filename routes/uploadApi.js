@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const express = require("express");
 const uploadApi = express.Router();
@@ -139,10 +140,20 @@ uploadApi.post('/userPhoto', checkAuth, upload.single('fileData'), (req, res) =>
           res.status(500).send(err);
         });
       
-      deleteFiles([originalFilePath]);
+      deleteFiles([originalFilePath])
+        .then(() => {
+          fs.readdir(TEMP_UPLOAD_FOLDER, (err, res) => {
+            console.log(`${TEMP_UPLOAD_FOLDER} contents: ${res}`);
+          });
+        });
     })
     .catch(e => {
-      deleteFiles([originalFilePath]);
+      deleteFiles([originalFilePath])
+        .then(() => {
+          fs.readdir(TEMP_UPLOAD_FOLDER, (err, res) => {
+            console.log(`${TEMP_UPLOAD_FOLDER} contents: ${res}`);
+          });
+        });
 
       res.status(500).send(e);
     });
