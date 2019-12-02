@@ -113,7 +113,7 @@ uploadApi.post('/userPhoto', checkAuth, upload.single('fileData'), (req, res) =>
       };
 
       return resizeFile(file.path, processedFilePath, size)
-        .then(() => bucket.upload(uploadOptions))
+        .then(() => bucket.upload(processedFilePath, uploadOptions))
         .then(() => bucket.file(photoIdInBucket).makePublic())
         .then(() => deleteFiles([processedFilePath]))
         .catch(err => {
