@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const express = require("express");
 const uploadApi = express.Router();
@@ -9,6 +10,7 @@ const { deleteFiles } = require('../utils/fileSystem');
 
 const TEMP_UPLOAD_FOLDER = '/tmp';
 const DESIRED_FILE_EXTENSION = 'jpg';
+const THUMBNAIL_SIZES = [64, 128, 512];
 
 const upload = multer({
   dest: TEMP_UPLOAD_FOLDER,
@@ -42,8 +44,6 @@ function createNewVideoInDatabase({
   cdnId_64,
   // isPrimary = 1,
 }) {
-  
-
   return new Promise((resolve, reject) => {
     dbConn.query('SELECT * FROM tbl_video WHERE user_id=? AND is_primary=1', userId, function(error, results, fields) {
       // if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
@@ -73,117 +73,90 @@ function createNewVideoInDatabase({
   })
 }
 
+/**
+ * 
+ * @param {string} file
+ * @param {string} toPath
+ */
+function resizeFile(fromPath, toPath, size) {
+  if (size === 512) {
+    return sharp(fromPath)
+      .jpeg()
+      .toFile(toPath);
+  } else {
+    return sharp(fromPath)
+      .jpeg()
+      .resize(size, size)
+      .toFile(toPath);
+  }
+}
+
 uploadApi.post('/userPhoto', checkAuth, upload.single('fileData'), (req, res) => {
   const file = req.file;
-  // const originalFilePath = path.join(TEMP_UPLOAD_FOLDER, file.filename);
-  // const processedFilePath = path.join(TEMP_UPLOAD_FOLDER, `${file.filename}.${DESIRED_FILE_EXTENSION}`);
+  const originalFilePath = path.join(TEMP_UPLOAD_FOLDER, file.filename);
 
-  const sizes = [64, 128, 512];
+  const promises = THUMBNAIL_SIZES
+    .map(size => {
+      const thumbnailName = size === 512 ? `${file.filename}.${DESIRED_FILE_EXTENSION}` : `thumb_${size}_${file.filename}.${DESIRED_FILE_EXTENSION}`;
+      const processedFilePath = path.join(TEMP_UPLOAD_FOLDER, thumbnailName);
+      const photoIdInBucket = size === 512 ? `${file.filename}-screenshot` : `thumb_${size}_${file.filename}-screenshot`;
 
-  const uploadPromises = sizes.map(async size => {
+      const uploadOptions = {
+        destination: photoIdInBucket,
+        metadata: {
+          /**
+           * Enable long-lived HTTP caching headers
+           * Use only if the contents of the file will never change
+           * (If the contents will change, use cacheControl: 'no-cache')
+           */
+          cacheControl: 'public, max-age=4133869200',
+        },
+      };
 
-    var thumbName = '';
-    if (size == 512) {
-      thumbName = `${file.filename}.${DESIRED_FILE_EXTENSION}`;
-    } else {
-      thumbName = `thumb_${size}_${file.filename}.${DESIRED_FILE_EXTENSION}`;
-    }
-    const processedFilePath = path.join(TEMP_UPLOAD_FOLDER, thumbName);
-
-    console.log(processedFilePath);
-
-    // Resize source image
-    if (size == 512) {
-      await sharp(file.path)
-        .jpeg()
-        .toFile(processedFilePath);
-    } else {
-      await sharp(file.path)
-        .jpeg()
-        .resize(size, size)
-        .toFile(processedFilePath);
-    }
-
-    var photoIdInBucket='';
-    if (size == 512) {
-      photoIdInBucket = `${file.filename}-screenshot`;
-    } else {
-      photoIdInBucket = `thumb_${size}_${file.filename}-screenshot`;
-    }
-
-    // Upload to GCS
-    return bucket.upload(processedFilePath, {
-      destination: photoIdInBucket,
-      metadata: {
-        // Enable long-lived HTTP caching headers
-        // Use only if the contents of the file will never change
-        // (If the contents will change, use cacheControl: 'no-cache')
-        cacheControl: 'public, max-age=4133869200',
-      },
-    }).then(responseUpload => {
-      bucket.file(photoIdInBucket)
-        .makePublic();
-
-      deleteFiles([
-        processedFilePath,
-      ]);
-    })
-    .catch(err => {
-      deleteFiles([
-        processedFilePath,
-      ]);
+      return resizeFile(file.path, processedFilePath, size)
+        .then(() => bucket.upload(processedFilePath, uploadOptions))
+        .then(() => bucket.file(photoIdInBucket).makePublic())
+        .then(() => deleteFiles([processedFilePath]))
+        .catch(err => {
+          console.error('something failed in resizeFile promise chain:', err.message);
+          deleteFiles([processedFilePath]);
+          throw err;
+        });
     });
-  });
   
-  // 4. Run the upload operations
-  Promise.all(uploadPromises).then(storageResponse => {
-    return createNewVideoInDatabase({
-      userId: req.userData.userId,
-      cdnId: file.filename,
-      cdnFilteredId: file.filename,
-      cdnId_128: 'thumb_128_' + file.filename,
-      cdnId_64: 'thumb_64_' + file.filename,
+  Promise.all(promises)
+    .then(storageResponse => {
+      createNewVideoInDatabase({
+        userId: req.userData.userId,
+        cdnId: file.filename,
+        cdnFilteredId: file.filename,
+        cdnId_128: 'thumb_128_' + file.filename,
+        cdnId_64: 'thumb_64_' + file.filename,
+      })
+        .then(videoRecord => {
+          res.send(videoRecord);
+        })
+        .catch(err => {
+          res.status(500).send(err);
+        });
+      
+      deleteFiles([originalFilePath])
+        .then(() => {
+          fs.readdir(TEMP_UPLOAD_FOLDER, (err, res) => {
+            console.log(`${TEMP_UPLOAD_FOLDER} contents: ${res}`);
+          });
+        });
     })
-    .then(videoRecord => {
-      res.send(videoRecord);
-    })
-    .catch(err => {
+    .catch(e => {
+      deleteFiles([originalFilePath])
+        .then(() => {
+          fs.readdir(TEMP_UPLOAD_FOLDER, (err, res) => {
+            console.log(`${TEMP_UPLOAD_FOLDER} contents: ${res}`);
+          });
+        });
+
+      res.status(500).send(e);
     });
-  })
-
-  // sharp(file.path)
-  //   .jpeg()
-  //   .toFile(processedFilePath)
-  //   .then(() => {
-  //     const photoIdInBucket = `${file.filename}-screenshot`;
-
-  //     return bucket.upload(processedFilePath, {
-  //       destination: photoIdInBucket,
-  //     })
-  //       .then(storageResponse => {
-  //         return createNewVideoInDatabase({
-  //           userId: req.userData.userId,
-  //           cdnId: file.filename,
-  //           cdnFilteredId: file.filename,
-  //         })
-  //           .then(videoRecord => {
-  //             res.send(videoRecord);
-
-  //             deleteFiles([
-  //               originalFilePath,
-  //               processedFilePath,
-  //             ]);
-  //           });
-  //       })
-  //   })
-  //   .catch(err => {
-  //     deleteFiles([
-  //       originalFilePath,
-  //       processedFilePath,
-  //     ]);
-
-  //     res.status(500).send(err);
-  //   });
 });
 
 module.exports = uploadApi;
