@@ -81,96 +81,109 @@ matchApi.post('/like', checkAuth, function (req, res) {
             if (coin_count > 0) {
                 coin_count = coin_count - 1;
 
-                dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status=1', [userId, otherId], function (getError, getResults, getFields) {
-                    if (getError) return res.status(400).send({ error: true, detail: getError.code, message: getError.sqlMessage });
-                    if (getResults.length)
-                        return res.status(400).send({ error: true, data: getResults, message: 'You already sent heart to this user.' });
+                // get coin_per_message for the other user
+                dbConn.query('select * from tbl_user where id = ?', otherId, function(error, otherUserResults, fields) {
+                    if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                    if (!otherUserResults || !otherUserResults.length)
+                        return res.send({error: false, message: 'There is no matched user.'});
+                    
+                    var coin_per_message = 1;
+                    if (otherUserResults[0]) {
+                        coin_per_message = otherUserResults[0].coin_per_message;
+                    }
 
-                    var newMatchSql = {
-                        main_user_id: userId,
-                        other_user_id: otherId,
-                        status: 1,
-                        status_description: 'heart_sent',
-                        publish: 1,
-                        created_date: new Date(),
-                        updated_date: new Date()
-                    };
+                    dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND status in (1, 2, 6, 7)', [userId, otherId], function (getError, getResults, getFields) {
+                        if (getError) return res.status(400).send({ error: true, detail: getError.code, message: getError.sqlMessage });
+                        if (getResults.length)
+                            return res.status(400).send({ error: true, data: getResults, message: 'You already sent heart to this user.' });
 
-                    dbConn.beginTransaction(function (err) {
-                        if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });
-                        dbConn.query("INSERT INTO tbl_match SET ? ", newMatchSql, function (error, results, fields) {
-                            if (error) {
-                                dbConn.rollback(function () {
-                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                });
-                            }
+                        var newMatchSql = {
+                            main_user_id: userId,
+                            other_user_id: otherId,
+                            status: 1,
+                            status_description: 'heart_sent',
+                            coin_per_message: coin_per_message,
+                            publish: 1,
+                            created_date: new Date(),
+                            updated_date: new Date()
+                        };
 
-                            var heartReceiveData = {
-                                main_user_id: otherId,
-                                other_user_id: userId,
-                                status: 2,
-                                status_description: 'heart_received',
-                                mutual_match_id: results.insertId,
-                                publish: 1,
-                                created_date: new Date(),
-                                updated_date: new Date()
-                            }
-
-                            dbConn.query('INSERT INTO tbl_match SET ? ', heartReceiveData, function (error1, receiveResult, fields) {
-                                if (error1) {
+                        dbConn.beginTransaction(function (err) {
+                            if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });
+                            dbConn.query("INSERT INTO tbl_match SET ? ", newMatchSql, function (error, results, fields) {
+                                if (error) {
                                     dbConn.rollback(function () {
-                                        return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+                                        return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                     });
                                 }
-                                dbConn.query("UPDATE tbl_match SET mutual_match_id=? WHERE id=?", [receiveResult.insertId, results.insertId], function (error, results, fields) {
-                                    if (error) {
+
+                                var heartReceiveData = {
+                                    main_user_id: otherId,
+                                    other_user_id: userId,
+                                    status: 2,
+                                    status_description: 'heart_received',
+                                    mutual_match_id: results.insertId,
+                                    publish: 1,
+                                    created_date: new Date(),
+                                    updated_date: new Date()
+                                }
+
+                                dbConn.query('INSERT INTO tbl_match SET ? ', heartReceiveData, function (error1, receiveResult, fields) {
+                                    if (error1) {
                                         dbConn.rollback(function () {
-                                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                            return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
                                         });
                                     }
-
-                                    dbConn.commit(function (error) {
+                                    dbConn.query("UPDATE tbl_match SET mutual_match_id=? WHERE id=?", [receiveResult.insertId, results.insertId], function (error, results, fields) {
                                         if (error) {
                                             dbConn.rollback(function () {
                                                 return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                             });
-                                        };
-                                        dbConn.query("SELECT * FROM tbl_user WHERE id=?", otherId, function(error1, receiverData, receiverFields) {
-                                            if (error1) return res.status(403).send({error: true, detail: error1.code, message: error1.sqlMessage});
-                                            if (!receiverData.length) return res.status(400).send({error: true, message: 'user not found'});
-                                            const receiver = receiverData[0];
-                                            const deviceId = receiver.fcm_id;
-                                            dbConn.query('SELECT * FROM tbl_user WHERE id=?', userId, function(error2, senderData, senderFeidls) {
-                                                if (error2) return res.status(403).send({error: true, detail: error2.code, message: error2.sqlMessage});
-                                                if (!senderData.length) return res.status(403).send({error: true, message: 'Sender User not found'});
-                                                const sender = senderData[0];
-                                                const senderName = sender.name;
-                                                dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=?', [new Date(), userId], function(actErr, actRows, actFields) {
-                                                    if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
+                                        }
 
-                                                    query = 'update tbl_user set coin_count = ? where id = ?';
-                                                    dbConn.query(query, [coin_count, userId], function(error, row, fields) {
-                                                        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                                        dbConn.commit(function (error) {
+                                            if (error) {
+                                                dbConn.rollback(function () {
+                                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                });
+                                            };
+                                            dbConn.query("SELECT * FROM tbl_user WHERE id=?", otherId, function(error1, receiverData, receiverFields) {
+                                                if (error1) return res.status(403).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                                                if (!receiverData.length) return res.status(400).send({error: true, message: 'user not found'});
+                                                const receiver = receiverData[0];
+                                                const deviceId = receiver.fcm_id;
+                                                dbConn.query('SELECT * FROM tbl_user WHERE id=?', userId, function(error2, senderData, senderFeidls) {
+                                                    if (error2) return res.status(403).send({error: true, detail: error2.code, message: error2.sqlMessage});
+                                                    if (!senderData.length) return res.status(403).send({error: true, message: 'Sender User not found'});
+                                                    const sender = senderData[0];
+                                                    const senderName = sender.name;
+                                                    dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=?', [new Date(), userId], function(actErr, actRows, actFields) {
+                                                        if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
 
-                                                        var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
-                                                            to: deviceId,
-                                                            notification: {
-                                                                title: 'Incoming Heart',
-                                                                body: senderName.toString() + ' sent you a heart.',
-                                                            },
-                                                            data: {  //you can send only notification or only data(or include both)
-                                                                type: 'Income'
-                                                            }
-                                                        };
-                                                        fcm.send(message, function(notiErr, notiRes){
-                                                            if (notiErr) {
-                                                                console.log("Something has gone wrong!");
-                                                                // return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: 'New match has been created.' });
-                                                            } else {
-                                                                console.log("Successfully sent with response: ", notiRes);
-                                                            }
+                                                        query = 'update tbl_user set coin_count = ? where id = ?';
+                                                        dbConn.query(query, [coin_count, userId], function(error, row, fields) {
+                                                            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+                                                            var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                                                                to: deviceId,
+                                                                notification: {
+                                                                    title: 'Incoming Heart',
+                                                                    body: senderName.toString() + ' sent you a heart.',
+                                                                },
+                                                                data: {  //you can send only notification or only data(or include both)
+                                                                    type: 'Income'
+                                                                }
+                                                            };
+                                                            fcm.send(message, function(notiErr, notiRes){
+                                                                if (notiErr) {
+                                                                    console.log("Something has gone wrong!");
+                                                                    // return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: 'New match has been created.' });
+                                                                } else {
+                                                                    console.log("Successfully sent with response: ", notiRes);
+                                                                }
+                                                            });
+                                                            return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: 'New match has been created.' });
                                                         });
-                                                        return res.send({ error: false, data: { sentDataId: results.insertId, receiveDataId: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: 'New match has been created.' });
                                                     });
                                                 });
                                             });
@@ -672,91 +685,101 @@ matchApi.post('/requestMatch', checkAuth, function (req, res) {
                     created_date: new Date(),
                     updated_date: new Date()
                 };
-        
-                dbConn.beginTransaction(function (err) {
-                    if (err) return res.status(400).send({ error: true, message: err });
-                    dbConn.query('INSERT INTO tbl_match set ? ', [heartSendData], function (error, sendResult) {
-                        if (error) {
-                            dbConn.rollback(function () {
-                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                            });
-                        };
-                        var heartAccpetData = {
-                            main_user_id: otherUserId,
-                            other_user_id: userId,
-                            status: 7,
-                            publish: 1,
-                            mutual_match_id: sendResult.insertId,
-                            status_description: 'sent_heart_accepted',
-                            created_date: new Date(),
-                            updated_date: new Date()
-                        }
-                        dbConn.query('INSERT INTO tbl_match set ? ', [heartAccpetData], function (error, receiveResult) {
+                dbConn.query('select * from tbl_match where main_user_id = ? and other_user_id = ? and status = 1', [otherUserId, userId], function(error, getCoinPerMessageResults, fields) {
+                    if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                    if (!getCoinPerMessageResults || !getCoinPerMessageResults.length) return res.send({error: false, message: 'There is no matched recode.'});
+
+                    var coin_per_message = 1;
+                    if (getCoinPerMessageResults[0]) {
+                        coin_per_message = getCoinPerMessageResults[0].coin_per_message;
+                    }
+
+                    dbConn.beginTransaction(function (err) {
+                        if (err) return res.status(400).send({ error: true, message: err });
+                        dbConn.query('INSERT INTO tbl_match set ? ', [heartSendData], function (error, sendResult) {
                             if (error) {
                                 dbConn.rollback(function () {
                                     return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                 });
                             };
-        
-                            dbConn.query("UPDATE tbl_match SET mutual_match_id=? WHERE id=?", [receiveResult.insertId, sendResult.insertId], function (error, results, fields) {
+                            var heartAccpetData = {
+                                main_user_id: otherUserId,
+                                other_user_id: userId,
+                                status: 7,
+                                publish: 1,
+                                mutual_match_id: sendResult.insertId,
+                                status_description: 'sent_heart_accepted',
+                                coin_per_message: coin_per_message,
+                                created_date: new Date(),
+                                updated_date: new Date()
+                            }
+                            dbConn.query('INSERT INTO tbl_match set ? ', [heartAccpetData], function (error, receiveResult) {
                                 if (error) {
                                     dbConn.rollback(function () {
                                         return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                     });
                                 };
-                                dbConn.query('UPDATE tbl_match SET publish=0 WHERE status=2 AND main_user_id=? AND other_user_id=?', [userId, otherUserId], function (error, results, fields) {
+            
+                                dbConn.query("UPDATE tbl_match SET mutual_match_id=? WHERE id=?", [receiveResult.insertId, sendResult.insertId], function (error, results, fields) {
                                     if (error) {
                                         dbConn.rollback(function () {
                                             return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                         });
-                                    }
-        
-                                    dbConn.query('SELECT cdn_id FROM tbl_video WHERE user_id=? AND is_primary=1 AND is_reply=0', otherUserId, function (error, cdnResults, fields) {
+                                    };
+                                    dbConn.query('UPDATE tbl_match SET publish=0 WHERE status=2 AND main_user_id=? AND other_user_id=?', [userId, otherUserId], function (error, results, fields) {
                                         if (error) {
                                             dbConn.rollback(function () {
                                                 return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                             });
                                         }
-                                        // if (!cdnResults.length) return res.send({ error: true, message: "user's private video does not exist." });
-                                        dbConn.commit(function (error) {
+            
+                                        dbConn.query('SELECT cdn_id FROM tbl_video WHERE user_id=? AND is_primary=1 AND is_reply=0', otherUserId, function (error, cdnResults, fields) {
                                             if (error) {
                                                 dbConn.rollback(function () {
                                                     return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                                 });
-                                            };
-                                            dbConn.query("SELECT * FROM tbl_user WHERE id=?", otherUserId, function(error1, receiverData, receiverFields) {
-                                                if (error1) return res.status(403).send({error: true, detail: error1.code, message: error1.sqlMessage});
-                                                if (!receiverData.length) return res.status(400).send({error: true, message: 'user not found'});
-                                                const receiver = receiverData[0];
-                                                const deviceId = receiver.fcm_id;
-                                                dbConn.query('SELECT * FROM tbl_user WHERE id=?', userId, function(error2, senderData, senderFeidls) {
-                                                    if (error2) return res.status(403).send({error: true, detail: error2.code, message: error2.sqlMessage});
-                                                    if (!senderData.length) return res.status(403).send({error: true, message: 'Sender User not found'});
-                                                    const sender = senderData[0];
-                                                    const senderName = sender.name;
-                                                    dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=?', [new Date(), userId], function(actErr, actRows, actFields) {
-                                                        if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
-                                                        var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
-                                                            to: deviceId,
-                                                            notification: {
-                                                                title: 'You have a new match!',
-                                                                body: senderName.toString() + ' is matched with you.',
-                                                            },
-                                                            data: {  //you can send only notification or only data(or include both)
-                                                                type: 'Match'
-                                                            }
-                                                        };
-                                                        fcm.send(message, function(notiErr, notiRes){
-                                                            if (notiErr) {
-                                                                console.log("Something has gone wrong!");
-                                                                return res.send({ error: false, data: { cdn_id: cdnResults, match_id: sendResult.insertId, account_status: account_status }, message: "New match is created." });
-                                                            } else {
-                                                                console.log("Successfully sent with response: ", notiRes);
-                                                                return res.send({ error: false, data: { cdn_id: cdnResults, match_id: sendResult.insertId, account_status: account_status }, message: "New match is created." });
-                                                            }
-                                                        });
-                                                    });                                                                                     
-                                                });                                        
+                                            }
+                                            // if (!cdnResults.length) return res.send({ error: true, message: "user's private video does not exist." });
+                                            dbConn.commit(function (error) {
+                                                if (error) {
+                                                    dbConn.rollback(function () {
+                                                        return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                    });
+                                                };
+                                                dbConn.query("SELECT * FROM tbl_user WHERE id=?", otherUserId, function(error1, receiverData, receiverFields) {
+                                                    if (error1) return res.status(403).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                                                    if (!receiverData.length) return res.status(400).send({error: true, message: 'user not found'});
+                                                    const receiver = receiverData[0];
+                                                    const deviceId = receiver.fcm_id;
+                                                    dbConn.query('SELECT * FROM tbl_user WHERE id=?', userId, function(error2, senderData, senderFeidls) {
+                                                        if (error2) return res.status(403).send({error: true, detail: error2.code, message: error2.sqlMessage});
+                                                        if (!senderData.length) return res.status(403).send({error: true, message: 'Sender User not found'});
+                                                        const sender = senderData[0];
+                                                        const senderName = sender.name;
+                                                        dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=?', [new Date(), userId], function(actErr, actRows, actFields) {
+                                                            if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
+                                                            var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                                                                to: deviceId,
+                                                                notification: {
+                                                                    title: 'You have a new match!',
+                                                                    body: senderName.toString() + ' is matched with you.',
+                                                                },
+                                                                data: {  //you can send only notification or only data(or include both)
+                                                                    type: 'Match'
+                                                                }
+                                                            };
+                                                            fcm.send(message, function(notiErr, notiRes){
+                                                                if (notiErr) {
+                                                                    console.log("Something has gone wrong!");
+                                                                    return res.send({ error: false, data: { cdn_id: cdnResults, match_id: sendResult.insertId, account_status: account_status }, message: "New match is created." });
+                                                                } else {
+                                                                    console.log("Successfully sent with response: ", notiRes);
+                                                                    return res.send({ error: false, data: { cdn_id: cdnResults, match_id: sendResult.insertId, account_status: account_status }, message: "New match is created." });
+                                                                }
+                                                            });
+                                                        });                                                                                     
+                                                    });                                        
+                                                });
                                             });
                                         });
                                     });
@@ -809,253 +832,32 @@ matchApi.post('/requestInstantMatch', checkAuth, function (req, res) {
                         coin_count = coin_count - 50;
             
                         // check out existance
-                        dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status=6', [userId, otherUserId], function (error, oldMatchResult, fields) {
+                        dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (6, 7)', [userId, otherUserId], function (error, oldMatchResult, fields) {
                             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                     
                             if (oldMatchResult.length)
-                                return res.status(400).send({ error: true, message: 'You are already connected to this user.' });
-            
-            
-                            // creat a new match for instant chatting
-                            var heartSendData = {
-                                main_user_id: userId,
-                                other_user_id: otherUserId,
-                                status: 6,
-                                publish: 1,
-                                status_description: 'instant_match_incoming_heart_accepted',
-                                created_date: new Date(),
-                                updated_date: new Date()
-                            };
-            
-                            dbConn.beginTransaction(function (err) {
-                                if (err) return res.status(400).send({ error: true, message: err });
-                                dbConn.query('INSERT INTO tbl_match set ? ', [heartSendData], function (error, sendResult) {
-                                    if (error) {
-                                        dbConn.rollback(function () {
-                                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                        });
-                                    };
-                                    var heartAccpetData = {
-                                        main_user_id: otherUserId,
-                                        other_user_id: userId,
-                                        status: 7,
-                                        publish: 1,
-                                        mutual_match_id: sendResult.insertId,
-                                        status_description: 'instant_match_sent_heart_accepted',
-                                        created_date: new Date(),
-                                        updated_date: new Date()
-                                    }
-                                    dbConn.query('INSERT INTO tbl_match set ? ', [heartAccpetData], function (error, receiveResult) {
-                                        if (error) {
-                                            dbConn.rollback(function () {
-                                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                            });
-                                        };
-                    
-                                        dbConn.query("UPDATE tbl_match SET mutual_match_id=? WHERE id=?", [receiveResult.insertId, sendResult.insertId], function (error, results, fields) {
-                                            if (error) {
-                                                dbConn.rollback(function () {
-                                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                                });
-                                            };
-            
-                                            dbConn.query('update tbl_user set coin_count = ? where id = ?', [coin_count, userId], function(error, updateCoinResult, fields) {
-                                                if (error) {
-                                                    dbConn.rollback(function () {
-                                                        return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                                    });
-                                                };
-            
-                                                // if (!cdnResults.length) return res.send({ error: true, message: "user's private video does not exist." });
-                                                dbConn.commit(function (error) {
-                                                    if (error) {
-                                                        dbConn.rollback(function () {
-                                                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                                        });
-                                                    };
-                                                    dbConn.query("SELECT * FROM tbl_user WHERE id=?", otherUserId, function(error1, receiverData, receiverFields) {
-                                                        if (error1) return res.status(403).send({error: true, detail: error1.code, message: error1.sqlMessage});
-                                                        if (!receiverData.length) return res.status(400).send({error: true, message: 'user not found'});
-                                                        const receiver = receiverData[0];
-                                                        const deviceId = receiver.fcm_id;
-                                                        dbConn.query('SELECT * FROM tbl_user WHERE id=?', userId, function(error2, senderData, senderFeidls) {
-                                                            if (error2) return res.status(403).send({error: true, detail: error2.code, message: error2.sqlMessage});
-                                                            if (!senderData.length) return res.status(403).send({error: true, message: 'Sender User not found'});
-                                                            const sender = senderData[0];
-                                                            const senderName = sender.name;
-                                                            dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=?', [new Date(), userId], function(actErr, actRows, actFields) {
-                                                                if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
-                                                                var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
-                                                                    to: deviceId,
-                                                                    notification: {
-                                                                        title: 'You have a new match!',
-                                                                        body: senderName.toString() + ' is matched with you.',
-                                                                    },
-                                                                    data: {  //you can send only notification or only data(or include both)
-                                                                        type: 'Match'
-                                                                    }
-                                                                };
-                                                                fcm.send(message, function(notiErr, notiRes){
-                                                                    if (notiErr) {
-                                                                        console.log("Something has gone wrong!");
-                                                                    } else {
-                                                                        console.log("Successfully sent with response: ");
-                                                                        // return res.send({ error: false, data: { ability: true, match_id: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: "New match is created." });
-                                                                    }
-                                                                });
-                                                                return res.send({ error: false, data: { ability: true, match_id: sendResult.insertId, coin_count: coin_count, account_status: account_status }, message: "New match is created." });
-                                                            });                                                                                     
-                                                        });                                        
-                                                    });
-                                                });
-                                            });
-                                        });
-                                    });
-                                });
-                            });
-                        });                        
-                    }
-                } else {
-                    let current_date = new Date();
-                    let cd_timestamp = current_date.getTime();
-                    cd_timestamp     = Math.round(cd_timestamp / 1000);
+                                return res.status(400).send({ error: true, message: 'You are already connected to this user.' });      
 
-                    let saved_date = transactionResults[0].created_at;
-                    let days       = transactionResults[0].days;
-
-                    let sd_timestamp = new Date(saved_date).getTime();
-                    sd_timestamp     = Math.round(sd_timestamp / 1000);
-
-                    let days_timestamp = days * 24 * 60 * 60;
-
-                    let _timestamp = cd_timestamp - sd_timestamp;
-
-                    if ((days_timestamp - _timestamp) >=0 ) {
-                        // check out existance
-                        dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status=6', [userId, otherUserId], function (error, oldMatchResult, fields) {
-                            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                    
-                            if (oldMatchResult.length)
-                                return res.status(400).send({ error: true, message: 'Match data already exist.' });
-            
-            
-                            // creat a new match for instant chatting
-                            var heartSendData = {
-                                main_user_id: userId,
-                                other_user_id: otherUserId,
-                                status: 6,
-                                publish: 1,
-                                status_description: 'instant_match_incoming_heart_accepted',
-                                created_date: new Date(),
-                                updated_date: new Date()
-                            };
-            
-                            dbConn.beginTransaction(function (err) {
-                                if (err) return res.status(400).send({ error: true, message: err });
-                                dbConn.query('INSERT INTO tbl_match set ? ', [heartSendData], function (error, sendResult) {
-                                    if (error) {
-                                        dbConn.rollback(function () {
-                                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                        });
-                                    };
-                                    var heartAccpetData = {
-                                        main_user_id: otherUserId,
-                                        other_user_id: userId,
-                                        status: 7,
-                                        publish: 1,
-                                        mutual_match_id: sendResult.insertId,
-                                        status_description: 'instant_match_sent_heart_accepted',
-                                        created_date: new Date(),
-                                        updated_date: new Date()
-                                    }
-                                    dbConn.query('INSERT INTO tbl_match set ? ', [heartAccpetData], function (error, receiveResult) {
-                                        if (error) {
-                                            dbConn.rollback(function () {
-                                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                            });
-                                        };
-                    
-                                        dbConn.query("UPDATE tbl_match SET mutual_match_id=? WHERE id=?", [receiveResult.insertId, sendResult.insertId], function (error, results, fields) {
-                                            if (error) {
-                                                dbConn.rollback(function () {
-                                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                                });
-                                            };
-            
-                                            // if (!cdnResults.length) return res.send({ error: true, message: "user's private video does not exist." });
-                                            dbConn.commit(function (error) {
-                                                if (error) {
-                                                    dbConn.rollback(function () {
-                                                        return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                                    });
-                                                };
-                                                dbConn.query("SELECT * FROM tbl_user WHERE id=?", otherUserId, function(error1, receiverData, receiverFields) {
-                                                    if (error1) return res.status(403).send({error: true, detail: error1.code, message: error1.sqlMessage});
-                                                    if (!receiverData.length) return res.status(400).send({error: true, message: 'user not found'});
-                                                    const receiver = receiverData[0];
-                                                    const deviceId = receiver.fcm_id;
-                                                    dbConn.query('SELECT * FROM tbl_user WHERE id=?', userId, function(error2, senderData, senderFeidls) {
-                                                        if (error2) return res.status(403).send({error: true, detail: error2.code, message: error2.sqlMessage});
-                                                        if (!senderData.length) return res.status(403).send({error: true, message: 'Sender User not found'});
-                                                        const sender = senderData[0];
-                                                        const senderName = sender.name;
-                                                        dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=?', [new Date(), userId], function(actErr, actRows, actFields) {
-                                                            if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
-                                                            var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
-                                                                to: deviceId,
-                                                                notification: {
-                                                                    title: 'You have a new match!',
-                                                                    body: senderName.toString() + ' is matched with you.',
-                                                                },
-                                                                data: {  //you can send only notification or only data(or include both)
-                                                                    type: 'Match'
-                                                                }
-                                                            };
-                                                            fcm.send(message, function(notiErr, notiRes){
-                                                                if (notiErr) {
-                                                                    console.log("Something has gone wrong!");
-                                                                } else {
-                                                                    console.log("Successfully sent with response: ");
-                                                                    // return res.send({ error: false, data: { ability: true, match_id: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: "New match is created." });
-                                                                }
-                                                            });
-                                                            return res.send({ error: false, data: { ability: true, match_id: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: "New match is created." });
-                                                        });                                                                                     
-                                                    });                                        
-                                                });
-                                            });
-                                        });
-                                    });
-                                });
-                            });
-                        });
-
-                    } else {
-                        if (coin_count < 50) {
-                            res.send({error: false, data: { ability: false, match_id: -1, coin_count: coin_count, account_status: account_status}, message: 'You have no enough diamonds to start instant chatting.'});
-                        } else {
-                
-                            // reduce the coin_count for instant chatting
-                            coin_count = coin_count - 50;
-                
-                            // check out existance
-                            dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status=6', [userId, otherUserId], function (error, oldMatchResult, fields) {
+                            dbConn.query('select * from tbl_user where id = ?', otherUserId, function(error, getCoinPerMessageResults, fields) {
                                 if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                        
-                                if (oldMatchResult.length)
-                                    return res.status(400).send({ error: true, message: 'Match data already exist.' });
-                
-                
-                                // creat a new match for instant chatting
+                                if (!getCoinPerMessageResults || !getCoinPerMessageResults.length) return res.send({error: false, message: 'There is no matched user.'})
+
+                                var coin_per_message = 1;
+                                if (getCoinPerMessageResults[0]) {
+                                    coin_per_message = getCoinPerMessageResults[0].coin_per_message;
+                                }
+
+                                // creat a new match for instant chatting                            
                                 var heartSendData = {
                                     main_user_id: userId,
                                     other_user_id: otherUserId,
-                                    status: 6,
+                                    status: 7,
                                     publish: 1,
-                                    status_description: 'instant_match_incoming_heart_accepted',
+                                    coin_per_message: coin_per_message,
+                                    status_description: 'instant_match_sent_heart_accepted',
                                     created_date: new Date(),
                                     updated_date: new Date()
-                                };
+                                }
                 
                                 dbConn.beginTransaction(function (err) {
                                     if (err) return res.status(400).send({ error: true, message: err });
@@ -1065,16 +867,18 @@ matchApi.post('/requestInstantMatch', checkAuth, function (req, res) {
                                                 return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                             });
                                         };
+
                                         var heartAccpetData = {
                                             main_user_id: otherUserId,
                                             other_user_id: userId,
-                                            status: 7,
+                                            status: 6,
                                             publish: 1,
                                             mutual_match_id: sendResult.insertId,
-                                            status_description: 'instant_match_sent_heart_accepted',
+                                            status_description: 'instant_match_incoming_heart_accepted',
                                             created_date: new Date(),
                                             updated_date: new Date()
-                                        }
+                                        };
+
                                         dbConn.query('INSERT INTO tbl_match set ? ', [heartAccpetData], function (error, receiveResult) {
                                             if (error) {
                                                 dbConn.rollback(function () {
@@ -1133,9 +937,259 @@ matchApi.post('/requestInstantMatch', checkAuth, function (req, res) {
                                                                             // return res.send({ error: false, data: { ability: true, match_id: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: "New match is created." });
                                                                         }
                                                                     });
-                                                                    return res.send({ error: false, data: { ability: true, match_id: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: "New match is created." });
+                                                                    return res.send({ error: false, data: { ability: true, match_id: sendResult.insertId, coin_count: coin_count, account_status: account_status }, message: "New match is created." });
                                                                 });                                                                                     
                                                             });                                        
+                                                        });
+                                                    });
+                                                });
+                                            });
+                                        });
+                                    });
+                                });
+                            }) 
+                        });                        
+                    }
+                } else {
+                    let current_date = new Date();
+                    let cd_timestamp = current_date.getTime();
+                    cd_timestamp     = Math.round(cd_timestamp / 1000);
+
+                    let saved_date = transactionResults[0].created_at;
+                    let days       = transactionResults[0].days;
+
+                    let sd_timestamp = new Date(saved_date).getTime();
+                    sd_timestamp     = Math.round(sd_timestamp / 1000);
+
+                    let days_timestamp = days * 24 * 60 * 60;
+
+                    let _timestamp = cd_timestamp - sd_timestamp;
+
+                    if ((days_timestamp - _timestamp) >=0 ) {
+                        // check out existance
+                        dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (6, 7)', [userId, otherUserId], function (error, oldMatchResult, fields) {
+                            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                    
+                            if (oldMatchResult.length)
+                                return res.status(400).send({ error: true, message: 'Match data already exist.' });
+
+                            dbConn.query('select * from tbl_user where id = ?', otherUserId, function(error, getCoinPerMessageResults, fields) {
+                                if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                if (!getCoinPerMessageResults || !getCoinPerMessageResults.length) return res.send({error: false, message: 'There is no matched user.'})
+
+                                var coin_per_message = 1;
+                                if (getCoinPerMessageResults[0]) {
+                                    coin_per_message = getCoinPerMessageResults[0].coin_per_message;
+                                }
+
+                                // creat a new match for instant chatting                            
+                                var heartSendData = {
+                                    main_user_id: userId,
+                                    other_user_id: otherUserId,
+                                    status: 7,
+                                    publish: 1,
+                                    coin_per_message: coin_per_message,
+                                    status_description: 'instant_match_sent_heart_accepted',
+                                    created_date: new Date(),
+                                    updated_date: new Date()
+                                }
+            
+                                dbConn.beginTransaction(function (err) {
+                                    if (err) return res.status(400).send({ error: true, message: err });
+                                    dbConn.query('INSERT INTO tbl_match set ? ', [heartSendData], function (error, sendResult) {
+                                        if (error) {
+                                            dbConn.rollback(function () {
+                                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                            });
+                                        };
+                                        var heartAccpetData = {
+                                            main_user_id: otherUserId,
+                                            other_user_id: userId,
+                                            status: 6,
+                                            publish: 1,
+                                            mutual_match_id: sendResult.insertId,
+                                            status_description: 'instant_match_incoming_heart_accepted',
+                                            created_date: new Date(),
+                                            updated_date: new Date()
+                                        }
+                                        dbConn.query('INSERT INTO tbl_match set ? ', [heartAccpetData], function (error, receiveResult) {
+                                            if (error) {
+                                                dbConn.rollback(function () {
+                                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                });
+                                            };
+                        
+                                            dbConn.query("UPDATE tbl_match SET mutual_match_id=? WHERE id=?", [receiveResult.insertId, sendResult.insertId], function (error, results, fields) {
+                                                if (error) {
+                                                    dbConn.rollback(function () {
+                                                        return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                    });
+                                                };
+                
+                                                // if (!cdnResults.length) return res.send({ error: true, message: "user's private video does not exist." });
+                                                dbConn.commit(function (error) {
+                                                    if (error) {
+                                                        dbConn.rollback(function () {
+                                                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                        });
+                                                    };
+                                                    dbConn.query("SELECT * FROM tbl_user WHERE id=?", otherUserId, function(error1, receiverData, receiverFields) {
+                                                        if (error1) return res.status(403).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                                                        if (!receiverData.length) return res.status(400).send({error: true, message: 'user not found'});
+                                                        const receiver = receiverData[0];
+                                                        const deviceId = receiver.fcm_id;
+                                                        dbConn.query('SELECT * FROM tbl_user WHERE id=?', userId, function(error2, senderData, senderFeidls) {
+                                                            if (error2) return res.status(403).send({error: true, detail: error2.code, message: error2.sqlMessage});
+                                                            if (!senderData.length) return res.status(403).send({error: true, message: 'Sender User not found'});
+                                                            const sender = senderData[0];
+                                                            const senderName = sender.name;
+                                                            dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=?', [new Date(), userId], function(actErr, actRows, actFields) {
+                                                                if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
+                                                                var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                                                                    to: deviceId,
+                                                                    notification: {
+                                                                        title: 'You have a new match!',
+                                                                        body: senderName.toString() + ' is matched with you.',
+                                                                    },
+                                                                    data: {  //you can send only notification or only data(or include both)
+                                                                        type: 'Match'
+                                                                    }
+                                                                };
+                                                                fcm.send(message, function(notiErr, notiRes){
+                                                                    if (notiErr) {
+                                                                        console.log("Something has gone wrong!");
+                                                                    } else {
+                                                                        console.log("Successfully sent with response: ");
+                                                                        // return res.send({ error: false, data: { ability: true, match_id: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: "New match is created." });
+                                                                    }
+                                                                });
+                                                                return res.send({ error: false, data: { ability: true, match_id: sendResult.insertId, coin_count: coin_count, account_status: account_status }, message: "New match is created." });
+                                                            });                                                                                     
+                                                        });                                        
+                                                    });
+                                                });
+                                            });
+                                        });
+                                    });
+                                });
+                            });
+                        });
+                    } else {
+                        if (coin_count < 50) {
+                            res.send({error: false, data: { ability: false, match_id: -1, coin_count: coin_count, account_status: account_status}, message: 'You have no enough diamonds to start instant chatting.'});
+                        } else {
+                
+                            // reduce the coin_count for instant chatting
+                            coin_count = coin_count - 50;
+                
+                            // check out existance
+                            dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (6, 7)', [userId, otherUserId], function (error, oldMatchResult, fields) {
+                                if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                        
+                                if (oldMatchResult.length)
+                                    return res.status(400).send({ error: true, message: 'Match data already exist.' });
+                
+                                dbConn.query('select * from tbl_user where id = ?', otherUserId, function(error, getCoinPerMessageResults, fields) {
+                                    if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                    if (!getCoinPerMessageResults || !getCoinPerMessageResults.length) return res.send({error: false, message: 'There is no matched user.'})
+    
+                                    var coin_per_message = 1;
+                                    if (getCoinPerMessageResults[0]) {
+                                        coin_per_message = getCoinPerMessageResults[0].coin_per_message;
+                                    }
+    
+                                    // creat a new match for instant chatting                            
+                                    var heartSendData = {
+                                        main_user_id: userId,
+                                        other_user_id: otherUserId,
+                                        status: 7,
+                                        publish: 1,
+                                        coin_per_message: coin_per_message,
+                                        status_description: 'instant_match_sent_heart_accepted',
+                                        created_date: new Date(),
+                                        updated_date: new Date()
+                                    }
+                
+                                    dbConn.beginTransaction(function (err) {
+                                        if (err) return res.status(400).send({ error: true, message: err });
+                                        dbConn.query('INSERT INTO tbl_match set ? ', [heartSendData], function (error, sendResult) {
+                                            if (error) {
+                                                dbConn.rollback(function () {
+                                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                });
+                                            };
+                                            var heartAccpetData = {
+                                                main_user_id: otherUserId,
+                                                other_user_id: userId,
+                                                status: 6,
+                                                publish: 1,
+                                                mutual_match_id: sendResult.insertId,
+                                                status_description: 'instant_match_incoming_heart_accepted',
+                                                created_date: new Date(),
+                                                updated_date: new Date()
+                                            }
+                                            dbConn.query('INSERT INTO tbl_match set ? ', [heartAccpetData], function (error, receiveResult) {
+                                                if (error) {
+                                                    dbConn.rollback(function () {
+                                                        return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                    });
+                                                };
+                            
+                                                dbConn.query("UPDATE tbl_match SET mutual_match_id=? WHERE id=?", [receiveResult.insertId, sendResult.insertId], function (error, results, fields) {
+                                                    if (error) {
+                                                        dbConn.rollback(function () {
+                                                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                        });
+                                                    };
+                    
+                                                    dbConn.query('update tbl_user set coin_count = ? where id = ?', [coin_count, userId], function(error, updateCoinResult, fields) {
+                                                        if (error) {
+                                                            dbConn.rollback(function () {
+                                                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                            });
+                                                        };
+                    
+                                                        // if (!cdnResults.length) return res.send({ error: true, message: "user's private video does not exist." });
+                                                        dbConn.commit(function (error) {
+                                                            if (error) {
+                                                                dbConn.rollback(function () {
+                                                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                                });
+                                                            };
+                                                            dbConn.query("SELECT * FROM tbl_user WHERE id=?", otherUserId, function(error1, receiverData, receiverFields) {
+                                                                if (error1) return res.status(403).send({error: true, detail: error1.code, message: error1.sqlMessage});
+                                                                if (!receiverData.length) return res.status(400).send({error: true, message: 'user not found'});
+                                                                const receiver = receiverData[0];
+                                                                const deviceId = receiver.fcm_id;
+                                                                dbConn.query('SELECT * FROM tbl_user WHERE id=?', userId, function(error2, senderData, senderFeidls) {
+                                                                    if (error2) return res.status(403).send({error: true, detail: error2.code, message: error2.sqlMessage});
+                                                                    if (!senderData.length) return res.status(403).send({error: true, message: 'Sender User not found'});
+                                                                    const sender = senderData[0];
+                                                                    const senderName = sender.name;
+                                                                    dbConn.query('UPDATE tbl_user SET last_loggedin_date=? WHERE id=?', [new Date(), userId], function(actErr, actRows, actFields) {
+                                                                        if (actErr) return res.status(400).send({error: true, detail: actErr.code, message: actErr.sqlMessage});
+                                                                        var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                                                                            to: deviceId,
+                                                                            notification: {
+                                                                                title: 'You have a new match!',
+                                                                                body: senderName.toString() + ' is matched with you.',
+                                                                            },
+                                                                            data: {  //you can send only notification or only data(or include both)
+                                                                                type: 'Match'
+                                                                            }
+                                                                        };
+                                                                        fcm.send(message, function(notiErr, notiRes){
+                                                                            if (notiErr) {
+                                                                                console.log("Something has gone wrong!");
+                                                                            } else {
+                                                                                console.log("Successfully sent with response: ");
+                                                                                // return res.send({ error: false, data: { ability: true, match_id: receiveResult.insertId, coin_count: coin_count, account_status: account_status }, message: "New match is created." });
+                                                                            }
+                                                                        });
+                                                                        return res.send({ error: false, data: { ability: true, match_id: sendResult.insertId, coin_count: coin_count, account_status: account_status }, message: "New match is created." });
+                                                                    });                                                                                     
+                                                                });                                        
+                                                            });
                                                         });
                                                     });
                                                 });
@@ -1232,7 +1286,7 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
         var myLong = loggedUser.long_geo;
         if (myLat != 0 && myLong != 0 && (!myLat || !myLong)) return res.status(403).send({error: true, message: 'user location information is invalid'});
 
-        var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
+        var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
         var getOtherMatchInfo = 'select other_user_id from tbl_match where main_user_id=? and status != 0';
 
         var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
@@ -1330,7 +1384,7 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
 
             if (primary_count > 0) {
 
-                var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
+                var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
 
                 var whereCondition = ' e.is_primary=1 AND a.account_status=1 AND a.id=?';
 
@@ -1362,7 +1416,7 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
                 });                
             } else {
 
-                var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, Null as cdn_filtered_id, Null as cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
+                var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, Null as cdn_filtered_id, Null as cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
 
                 var whereCondition = ' a.account_status=1 AND a.id=?';
         
@@ -1413,7 +1467,7 @@ matchApi.post('/discover', checkAuth, function (req, res) {
 
         //age, gender, ethnicity, country, distance, language
         var distance = 0;
-        var selectQuery = 'a.id, a.birth_date, a.name, a.gender, a.coin_count, a.fan_count, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, a.description, e.cdn_filtered_id, e.cdn_id, b.ethnicity_name, c.country_name, d.language_name, ';
+        var selectQuery = 'a.id, a.birth_date, a.name, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, a.description, e.cdn_filtered_id, e.cdn_id, b.ethnicity_name, c.country_name, d.language_name, ';
 
         var getOtherMatchInfo = 'select other_user_id from tbl_match where main_user_id=? and status != 0';
 
@@ -1516,6 +1570,42 @@ matchApi.post('/updateLastLoggedInDate', checkAuth, updateLastLoggedInDate, func
     console.log('Last logged-in date was updated successfully.');
     return res.send({ error: false, message: 'Last logged-in date was updated successfully.' });
 });
+
+matchApi.post('/getStatusByMatchId', checkAuth, function(req, res) {
+    var userId = req.userData.userId;
+    var matchId = req.body.matchId;
+
+    dbConn.query('select * from tbl_match where id = ? and main_user_id = ?', [matchId, userId], function(error, results, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if (!results || !results.length) return res.status(403).send({error: true, message: 'Match data not found.'});
+
+        var status = results[0].status;
+
+        if (status == 6) {
+            var mutual_match_id = results[0].mutual_match_id;
+            var other_user_id = results[0].other_user_id;
+
+            dbConn.query('select * from tbl_match where id = ? and main_user_id = ?', [mutual_match_id, other_user_id], function(error, mutualResults, fields) {
+                if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                if (!mutualResults || !mutualResults.length) return res.status(403).send({error: true, message: 'Mutual Match data not found.'});
+
+                var coin_per_message = results[0].coin_per_message;
+                var sendData = {
+                    status: status,
+                    coin_per_message: coin_per_message,
+                }
+                return res.send({ error: false, data: sendData, message: "A New Lovely User found." });
+            })
+        } else if (status == 7) {
+            var coin_per_message = results[0].coin_per_message;
+            var sendData = {
+                status: status,
+                coin_per_message: coin_per_message,
+            }
+            return res.send({ error: false, data: sendData, message: "A New Lovely User found." });
+        }
+    })
+})
 
 module.exports.matchApi = matchApi;
 module.exports.blockFunction = blockFunction;

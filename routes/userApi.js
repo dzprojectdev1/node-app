@@ -184,7 +184,7 @@ userApi.post('/signup', function (req, res) {
                 birth_date: userBirthData,
                 lat_geo: parseFloat(userlat),
                 long_geo: parseFloat(userlong),
-                coin_count: 250,
+                coin_count: 120,
                 confirmation_code: getRndInteger(100000, 999999),
                 created_date: new Date(),
                 fcm_id: fcmId,
@@ -195,6 +195,7 @@ userApi.post('/signup', function (req, res) {
                 auto_block: 1,
                 fan_count: 0,
                 is_admin: 0,
+                coin_per_message: 1,
             };
 
             dbConn.query("INSERT INTO tbl_user SET ? ", newUserData, function (error, results, fields) {
@@ -262,6 +263,7 @@ userApi.post('/signup', function (req, res) {
                         fan_count: results[0].fan_count,
                         auto_block: results[0].auto_block,
                         is_admin: results[0].is_admin,
+                        coin_per_message: results[0].coin_per_message,
                     };
                     return res.send({error: false, user: outputResult, message: 'User exist!'});
                 });
@@ -311,6 +313,7 @@ userApi.put('/checkDeviceUniqueId/:deviceId', function (req, res) {
                 fan_count: results[0].fan_count,
                 auto_block: results[0].auto_block,
                 is_admin: results[0].is_admin,
+                coin_per_message: results[0].coin_per_message,
             };
             return res.send({error: false, user: outputResult, message: 'User already exist!'});
         });      
@@ -459,6 +462,9 @@ userApi.put('/updateSetting', checkAuth, function (req, res) {
         }
         if (req.body.auto_blockId) {
             updateData.auto_block = req.body.auto_blockId;
+        }
+        if (req.body.coin_per_message) {
+            updateData.coin_per_message = req.body.coin_per_message;
         }
                         
         var booleanValue1 = illegalWords.every(function(words, index) {
