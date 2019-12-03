@@ -1589,7 +1589,7 @@ matchApi.post('/getStatusByMatchId', checkAuth, function(req, res) {
                 if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                 if (!mutualResults || !mutualResults.length) return res.status(403).send({error: true, message: 'Mutual Match data not found.'});
 
-                var coin_per_message = results[0].coin_per_message;
+                var coin_per_message = mutualResults[0].coin_per_message;
                 var sendData = {
                     status: status,
                     coin_per_message: coin_per_message,
