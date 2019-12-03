@@ -116,7 +116,7 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
         if (account_status !== 1)
             return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
 
-        dbConn.query('Select a.mutual_match_id, a.publish, b.name, b.id, b.coin_count, b.fan_count from tbl_match a join tbl_user b where a.id=? and a.other_user_id = b.id', [matchId], function (err, matchResults, fields) {
+        dbConn.query('Select a.mutual_match_id, a.publish, b.name, b.id, b.coin_count, b.fan_count, b.fcm_id from tbl_match a join tbl_user b where a.id=? and a.other_user_id = b.id', [matchId], function (err, matchResults, fields) {
             if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });
             if (!matchResults.length)
                 return res.status(400).send({ error: true, message: 'No Match Found' });
@@ -133,6 +133,7 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
                 return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
 
             query = 'select * from tbl_match where main_user_id = ? and other_user_id = ? and status = 7';
+            console.log('chat_query', query);
             dbConn.query(query, [userId, otheruserId], function(error, getCoinPerMessageResults, fields) {
                 if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
 
