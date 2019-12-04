@@ -457,6 +457,8 @@ var getFunUsers1 = (req, res, next) => {
         var userId = req.userData.userId;
         var otherId = req.body.otherId;
 
+        counter = 0;
+
         var fanUsers = [];
         var mutualUsers = [];
         var starUsers = [];
@@ -599,11 +601,13 @@ var getFunUsers1 = (req, res, next) => {
                                                                                             }
                                                                                         }
                         
-                                                                                        console.log('checkBlockedResults 1-2 ' + checkBlockedResults);
+                                                                                        console.log('checkBlockedResults 1-2-1 ' + checkBlockedResults);
                                                 
                                                                                         counter ++;
                                             
-                                                                                        console.log('counter_fan_user' + counter);
+                                    
+                                                                                        console.log('result_count ' + result_count);
+                                                                                        console.log('counter_fan_user ' + counter);
                                             
                                                                                         if ( result_count == counter) {
                                                                                             req.userData.userId = userId;
@@ -622,6 +626,8 @@ var getFunUsers1 = (req, res, next) => {
                                                                 });
                                                             }
                                                         });
+                                                    } else {
+                                                        result_count --;
                                                     }
                                                 }
                                             });
@@ -715,10 +721,12 @@ var getFunUsers1 = (req, res, next) => {
                                                                                     }
                                                                                 }
                 
-                                                                                console.log('checkBlockedResults 1-2 ' + checkBlockedResults);
+                                                                                console.log('checkBlockedResults 1-2-2 ' + checkBlockedResults);
                                         
                                                                                 counter ++;
                                     
+                                    
+                                                                                console.log('result_count ' + result_count);
                                                                                 console.log('counter_fan_user' + counter);
                                     
                                                                                 if ( result_count == counter) {
@@ -738,6 +746,8 @@ var getFunUsers1 = (req, res, next) => {
                                                         });
                                                     }
                                                 });
+                                            } else {
+                                                result_count --;
                                             }
                                         }
                                     });
@@ -761,6 +771,8 @@ var getFunUsers2 = (req, res, next) => {
     try {
         var userId = req.userData.userId;
         var otherId = req.body.otherId;
+
+        counter = 0;
 
         var fanUsers = req.body.fanUsers;
         var mutualUsers = req.body.mutualUsers;
@@ -953,7 +965,9 @@ var getFunUsers2 = (req, res, next) => {
                                     
                                                                                         counter ++;
                                             
-                                                                                        console.log('counter_fan_user' + counter);
+                                    
+                                                                                        console.log('result_count ' + result_count);
+                                                                                        console.log('counter_fan_user ' + counter);
                                             
                                                                                         if ( result_count == counter) {
                                                                                             req.userData.userId = userId;
@@ -972,6 +986,8 @@ var getFunUsers2 = (req, res, next) => {
                                                                 });
                                                             }
                                                         });
+                                                    } else {
+                                                        result_count --;
                                                     }
                                                 }
                                             });
@@ -1113,7 +1129,9 @@ var getFunUsers2 = (req, res, next) => {
                             
                                                                                 counter ++;
                                     
-                                                                                console.log('counter_fan_user' + counter);
+                                                                                console.log('result_count ' + result_count);
+                                    
+                                                                                console.log('counter_fan_user ' + counter);
                                     
                                                                                 if ( result_count == counter) {
                                                                                     req.userData.userId = userId;
@@ -1132,6 +1150,8 @@ var getFunUsers2 = (req, res, next) => {
                                                         });
                                                     }
                                                 });
+                                            } else {
+                                                result_count --;
                                             }
                                         }
                                     });
@@ -1317,6 +1337,8 @@ var getStarUsers = (req, res, next) => {
                                                                 });
                                                             }
                                                         });
+                                                    } else {
+                                                        result_count --;
                                                     }
                                                 }
                                             });
@@ -1402,6 +1424,8 @@ var getStarUsers = (req, res, next) => {
                                                         });
                                                     }
                                                 });
+                                            } else {
+                                                result_count --;
                                             }
                                         }
                                     });
