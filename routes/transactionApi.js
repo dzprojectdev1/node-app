@@ -666,7 +666,7 @@ transactionApi.post('/exchangeDiamonds', checkAuth, function(req, res) {
             dbConnect.query('update tbl_user set coin_count = ? where id = ? ', [user_new_coin_count, userId], function (error, updateResult) {
                 if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
-                dbConnect.query('select * from tbl_exchange where user_id = ?', userId, function(error, historyResults, fields) {
+                dbConnect.query('select * from tbl_exchange where user_id = ? order by created_date desc', userId, function(error, historyResults, fields) {
                     if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                     if(!historyResults || !historyResults.length) return res.send({error: false, message: 'There is no transaction results.'});
 
@@ -680,7 +680,7 @@ transactionApi.post('/exchangeDiamonds', checkAuth, function(req, res) {
 transactionApi.post('/getExchangeHistory', checkAuth, function(req, res) {
     var userId = req.userData.userId;
 
-    dbConnect.query('select * from tbl_exchange where user_id = ?', userId, function(error, historyResults, fields) {
+    dbConnect.query('select * from tbl_exchange where user_id = ? order by created_date desc', userId, function(error, historyResults, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         if(!historyResults || !historyResults.length) return res.send({error: false, message: 'There is no transaction results.'});
 
