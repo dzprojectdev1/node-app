@@ -632,4 +632,72 @@ transactionApi.post('/getDiamondCount', checkAuth, function(req, res) {
     })
 })
 
+transactionApi.post('/exchangeDiamonds', checkAuth, function(req, res) {
+    var userId = req.userData.userId;
+    var amount = req.body.amount;
+    var email = req.body.email;
+    var type = req.body.type;
+
+    var query = 'select * from tbl_user where id = ?';
+    dbConnect.query(query, [userId], function(error, results, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if(!results || !results.length) return res.send({error: false, message: 'There is no matched user.'});
+
+        var userName = results[0].name;
+        var coin_count = results[0].coin_count;
+
+        if (coin_count < amount * 1000)
+            return res.send({error: false, data: { exchangeAvailable: false }, message: 'You dont have enough diamonds to exchange.'});
+
+        var insertData = {
+            user_id: userId,
+            user_name: userName,
+            status: 'Pending',
+            status_message: '',
+            amount: amount,
+            email_address: email,
+            giftcard_type: type,
+            created_date: new Date()
+        }
+
+        dbConnect.beginTransaction(function (error) {
+            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+            dbConnect.query('insert into tbl_payout set ?', insertData, function(error, insertResult, fields) {
+                if (error) {
+                    dbConnect.rollback(function () {
+                        return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                    });
+                }
+
+                var user_new_coin_count = coin_count - (amount * 1000);
+                dbConnect.query('update tbl_user set coin_count = ? where id = ? ', [user_new_coin_count, userId], function (error, updateResult) {
+                    if (error) {
+                        dbConnect.rollback(function () {
+                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                        });
+                    }
+
+                    dbConnect.query('select * from tbl_payout where user_id = ?', userId, function(error, historyResults, fields) {
+                        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                        if(!historyResults || !historyResults.length) return res.send({error: false, message: 'There is no transaction results.'});
+
+                        return res.send({ error: false, data: {exchangeAvailable: true, coin_count: user_new_coin_count, exchangeHistory: historyResults}, message: "Got transactions." });
+                    });
+                });
+            });
+        });
+    });
+})
+
+transactionApi.post('/getExchangeHistory', checkAuth, function(req, res) {
+    var userId = req.userData.userId;
+
+    dbConnect.query('select * from tbl_payout where user_id = ?', userId, function(error, historyResults, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if(!historyResults || !historyResults.length) return res.send({error: false, message: 'There is no transaction results.'});
+
+        return res.send({ error: false, data: historyResults, message: "Got transactions." });
+    })
+})
+
 module.exports = transactionApi;
