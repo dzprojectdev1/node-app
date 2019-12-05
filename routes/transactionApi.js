@@ -677,11 +677,19 @@ transactionApi.post('/exchangeDiamonds', checkAuth, function(req, res) {
                         });
                     }
 
-                    dbConnect.query('select * from tbl_payout where user_id = ?', userId, function(error, historyResults, fields) {
-                        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-                        if(!historyResults || !historyResults.length) return res.send({error: false, message: 'There is no transaction results.'});
+                    dbConn.commit(function (error) {
+                        if (error) {
+                            dbConn.rollback(function () {
+                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                            });
+                        }
 
-                        return res.send({ error: false, data: {exchangeAvailable: true, coin_count: user_new_coin_count, exchangeHistory: historyResults}, message: "Got transactions." });
+                        dbConnect.query('select * from tbl_payout where user_id = ?', userId, function(error, historyResults, fields) {
+                            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                            if(!historyResults || !historyResults.length) return res.send({error: false, message: 'There is no transaction results.'});
+
+                            return res.send({ error: false, data: {exchangeAvailable: true, coin_count: user_new_coin_count, exchangeHistory: historyResults}, message: "Got transactions." });
+                        });
                     });
                 });
             });
