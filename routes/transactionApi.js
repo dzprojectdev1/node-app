@@ -677,9 +677,9 @@ transactionApi.post('/exchangeDiamonds', checkAuth, function(req, res) {
                         });
                     }
 
-                    dbConn.commit(function (error) {
+                    dbConnect.commit(function (error) {
                         if (error) {
-                            dbConn.rollback(function () {
+                            dbConnect.rollback(function () {
                                 return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                             });
                         }
