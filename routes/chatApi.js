@@ -106,58 +106,52 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
         if (!results.length)
             return res.status(400).send({ error: true, message: 'No Match Found' });
 
-        var account_status = results[0].account_status;
-        const username = results[0].name;
-        const userphotoId = results[0].cdn_id;
+        const username      = results[0].name;
+        const userphotoId   = results[0].cdn_id;
+        var account_status  = results[0].account_status;
+        var user_coin_count = results[0].coin_count;
+        var user_fan_count  = results[0].fan_count;
+        var user_fcm_id     = results[0].fcm_id;
 
         if (account_status !== 1)
             return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
 
-        dbConn.query('Select a.mutual_match_id, a.publish, b.name, b.id from tbl_match a join tbl_user b where a.id=? and a.other_user_id = b.id', [matchId], function (err, matchResults, fields) {
-            if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });;
+        dbConn.query('Select a.mutual_match_id, a.publish, b.name, b.id, b.coin_count, b.fan_count, b.fcm_id from tbl_match a join tbl_user b where a.id=? and a.other_user_id = b.id', [matchId], function (err, matchResults, fields) {
+            if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });
             if (!matchResults.length)
                 return res.status(400).send({ error: true, message: 'No Match Found' });
 
-            var mutualMatchId = matchResults[0].mutual_match_id;
-            var publish = matchResults[0].publish;
-            var otherusername = matchResults[0].name;
-            var otheruserId = matchResults[0].id;
+            var mutualMatchId    = matchResults[0].mutual_match_id;
+            var publish          = matchResults[0].publish;
+            var otherusername    = matchResults[0].name;
+            var otheruserId      = matchResults[0].id;
+            var other_coin_count = matchResults[0].coin_count;
+            var other_fan_count  = matchResults[0].fan_count;
+            var other_fcm_id     = matchResults[0].fcm_id;
 
             if (publish !== 1)
                 return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
 
-            dbConn.query('select publish from tbl_match where id=?', mutualMatchId, function (err, otherMatchResults, fields) {
+            query = 'select * from tbl_match where main_user_id = ? and other_user_id = ? and status = 7';
+            console.log('chat_query', query);
+            dbConn.query(query, [userId, otheruserId], function(error, getCoinPerMessageResults, fields) {
+                if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
 
-                if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });;
-                if (!otherMatchResults.length)
-                    return res.status(400).send({ error: true, message: 'No Match Found' });
-
-                var otherPublish = otherMatchResults[0].publish;
-
-                if (otherPublish !== 1)
-                    return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
-
-                var sendMsg = {
-                    match_id: matchId,
-                    message_type: 1,
-                    message_text: messageText,
-                    user_sent: userId,
-                    name_sent: username,
-                    user_received: otheruserId,
-                    name_received: otherusername,
-                    created_date: new Date()
-                };
-                dbConn.beginTransaction(function (error) {
-                    if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                    dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function (error, sendResult) {
-                        if (error) {
-                            dbConn.rollback(function () {
-                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                            });
-                        }
-                        var receiveMsg = {
-                            match_id: mutualMatchId,
-                            message_type: 2,
+                var coin_per_message = 0;
+                if (!getCoinPerMessageResults || !getCoinPerMessageResults.length) {
+                    dbConn.query('select publish from tbl_match where id=?', mutualMatchId, function (err, otherMatchResults, fields) {
+                        if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });
+                        if (!otherMatchResults.length)
+                            return res.status(400).send({ error: true, message: 'No Match Found' });
+        
+                        var otherPublish = otherMatchResults[0].publish;
+        
+                        if (otherPublish !== 1)
+                            return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
+        
+                        var sendMsg = {
+                            match_id: matchId,
+                            message_type: 1,
                             message_text: messageText,
                             user_sent: userId,
                             name_sent: username,
@@ -165,78 +159,473 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
                             name_received: otherusername,
                             created_date: new Date()
                         };
-                        dbConn.query('INSERT INTO tbl_chat set ? ', [receiveMsg], function (error, receiveResult) {
-                            if (error) {
-                                dbConn.rollback(function () {
-                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                });
-                            }
-                            dbConn.commit(function (error) {
+                        dbConn.beginTransaction(function (error) {
+                            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                            dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function (error, sendResult) {
                                 if (error) {
                                     dbConn.rollback(function () {
                                         return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                     });
                                 }
-
-                                dbConn.query('SELECT * FROM tbl_user a INNER JOIN tbl_match b ON a.id=b.main_user_id WHERE b.id=?', mutualMatchId, function (error1, receiver, receiverFields) {
-                                    if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
-                                    if (!receiver.length) res.status(400).send({ error: true, message: 'Receiver data not found.' });
-                                    const receiverData = receiver[0];
-                                    if (!receiverData.fcm_id) return res.status(400).send({ error: true, message: 'firebase token not found' });
-                                    const deviceId = receiverData.fcm_id;
-                                    let userPhotoUrl;
-                                    if (userphotoId) {
-                                        // userPhotoUrl = bucket.getFiles(function (err, files) {
-                                        //     if (err)
-                                        //         return null;
-
-                                        //     const match = files.find(file => file.id === userphotoId);
-
-                                        //     if (!match)
-                                        //         return null;
-                                        //     match.getSignedUrl({
-                                        //         action: 'read',
-                                        //         expires: '03-17-2025'
-                                        //     }, (err, url) => {
-                                        //         if (err) {
-                                        //         } else {
-                                        //             return url;
-                                        //         }
-                                        //     });
-
-                                        // });
-                                        userPhotoUrl = 'https://storage.googleapis.com/' + process.env.BUCKET_NAME + '/' + userphotoId + '-screenshot';
-                                    } else {
-                                        userPhotoUrl = '';
+                                var receiveMsg = {
+                                    match_id: mutualMatchId,
+                                    message_type: 2,
+                                    message_text: messageText,
+                                    user_sent: userId,
+                                    name_sent: username,
+                                    user_received: otheruserId,
+                                    name_received: otherusername,
+                                    created_date: new Date()
+                                };
+                                dbConn.query('INSERT INTO tbl_chat set ? ', [receiveMsg], function (error, receiveResult) {
+                                    if (error) {
+                                        dbConn.rollback(function () {
+                                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                        });
                                     }
-
-                                    var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
-                                        to: deviceId,
-                                        notification: {
-                                            title: 'New Message',
-                                            body: messageText,
-                                        },
-                                        data: {  //you can send only notification or only data(or include both)
-                                            type: 'ChatDetail',
-                                            senderId: userId,
-                                            senderImg: userPhotoUrl,
-                                            senderName: username
+                                    dbConn.commit(function (error) {
+                                        if (error) {
+                                            dbConn.rollback(function () {
+                                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                            });
                                         }
-                                    };
-                                    fcm.send(message, function (notiErr, notiRes) {
-                                        if (notiErr) {
-                                            console.log("Notification Sending is failed: ", notiErr);
-                                        } else {
-                                            console.log("Successfully sent with response: ", notiRes);
-                                        }
+        
+                                        dbConn.query('SELECT * FROM tbl_user a INNER JOIN tbl_match b ON a.id=b.main_user_id WHERE b.id=?', mutualMatchId, function (error1, receiver, receiverFields) {
+                                            if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+                                            if (!receiver.length) res.status(400).send({ error: true, message: 'Receiver data not found.' });
+                                            const receiverData = receiver[0];
+                                            if (!receiverData.fcm_id) return res.status(400).send({ error: true, message: 'firebase token not found' });
+                                            const deviceId = receiverData.fcm_id;
+                                            let userPhotoUrl;
+                                            if (userphotoId) {
+                                                // userPhotoUrl = bucket.getFiles(function (err, files) {
+                                                //     if (err)
+                                                //         return null;
+        
+                                                //     const match = files.find(file => file.id === userphotoId);
+        
+                                                //     if (!match)
+                                                //         return null;
+                                                //     match.getSignedUrl({
+                                                //         action: 'read',
+                                                //         expires: '03-17-2025'
+                                                //     }, (err, url) => {
+                                                //         if (err) {
+                                                //         } else {
+                                                //             return url;
+                                                //         }
+                                                //     });
+        
+                                                // });
+                                                userPhotoUrl = 'https://storage.googleapis.com/' + process.env.BUCKET_NAME + '/' + userphotoId + '-screenshot';
+                                            } else {
+                                                userPhotoUrl = '';
+                                            }
+        
+                                            var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                                                to: deviceId,
+                                                notification: {
+                                                    title: 'New Message',
+                                                    body: messageText,
+                                                },
+                                                data: {  //you can send only notification or only data(or include both)
+                                                    type: 'ChatDetail',
+                                                    senderId: userId,
+                                                    senderImg: userPhotoUrl,
+                                                    senderName: username
+                                                }
+                                            };
+                                            fcm.send(message, function (notiErr, notiRes) {
+                                                if (notiErr) {
+                                                    console.log("Notification Sending is failed: ", notiErr);
+                                                } else {
+                                                    console.log("Successfully sent with response: ", notiRes);
+                                                }
+                                            });
+                                            return res.send({ error: false, data: { sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created." });
+                                        });
                                     });
-                                    return res.send({ error: false, data: { sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created." });
                                 });
                             });
                         });
-                    });
-                });
-            })
+                    })
+                } else {
+                    coin_per_message = getCoinPerMessageResults[0].coin_per_message;
+
+                    if (coin_per_message > 0) {
+                        if (user_coin_count < coin_per_message)
+                            return res.send({ error: false, data: { account_status: account_status, sending_available: false, diamonds_enough: false, }, message: "You don’t have diamonds." });
+    
+                        dbConn.query('select publish from tbl_match where id=?', mutualMatchId, function (err, otherMatchResults, fields) {
+                            if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });
+                            if (!otherMatchResults.length)
+                                return res.status(400).send({ error: true, message: 'No Match Found' });
+            
+                            var otherPublish = otherMatchResults[0].publish;
+            
+                            if (otherPublish !== 1)
+                                return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
+                                    
+                            /**
+                             * transaction for sending diamonds
+                             */
+                            var user_new_coin_count = parseInt(user_coin_count) - parseInt(coin_per_message); // updated diamonds count of user
+                            var other_new_coin_count = parseInt(other_coin_count) + parseInt(coin_per_message); // updated diamonds count of other user
+    
+                            // Get old fan user id
+                            var old_fan_user_id = 0;
+                            var new_fan_user_id = 0;
+                            query = 'select * from tbl_send where (from_user = ? and to_user = ?) or (from_user = ? and to_user = ?) order by date desc';
+                            dbConn.query(query, [userId, otheruserId, otheruserId, userId], function(error, fanResults, fields) {
+                                if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                                if (fanResults && fanResults.length > 0) {
+                                    old_fan_user_id = fanResults[0].fan_user_id;
+                                    new_fan_user_id = old_fan_user_id;
+                                }
+    
+                                // Insert new record to tbl_send
+                                var sendDiamondsData = {
+                                    from_user: userId,
+                                    from_user_name: username,
+                                    from_user_orig_count: user_coin_count,
+                                    from_user_new_count: user_new_coin_count,
+                                    to_user: otheruserId,
+                                    to_user_name: otherusername,
+                                    to_user_orig_count: other_coin_count,
+                                    to_user_new_count: other_new_coin_count,
+                                    amount: coin_per_message,
+                                    fan_message: '',
+                                    fan_user_id: 0,
+                                    date: new Date()
+                                };
+    
+                                dbConn.beginTransaction(function (error) {
+                                    if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+    
+                                    dbConn.query('INSERT INTO tbl_send set ? ', [sendDiamondsData], function (error, insertResult) {
+                                        if (error) {
+                                            dbConn.rollback(function () {
+                                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                            });
+                                        }
+    
+                                        var insertId = insertResult.insertId;
+    
+                                        // Update fan_user_id after inserting.
+                                        var userIdDiamonds = 0;
+                                        var otherIdDiamonds = 0;
+    
+                                        var query = 'select sum(amount) as amount from tbl_send where from_user = ? and to_user = ?';
+                                        dbConn.query(query, [userId, otheruserId], function(error, sumUserResults, fields) {
+                                            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                                            if(sumUserResults && (sumUserResults.length > 0) && (sumUserResults[0].amount != null)) {
+                                                userIdDiamonds = sumUserResults[0].amount; // sum of sent diamonds from user to other user
+                                            }
+                                            
+                                            dbConn.query(query, [otheruserId, userId], function(error, sumOtherResults, fields) {
+                                                if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+                                                if(sumOtherResults && (sumOtherResults.length > 0) && (sumOtherResults[0].amount != null)) {
+                                                    otherIdDiamonds = sumOtherResults[0].amount; // sum of sent diamonds from other user to user
+                                                }
+    
+                                                var differencDiamonds = userIdDiamonds - otherIdDiamonds;
+    
+                                                var sentPushTitle = 'You sent diamonds to '+otherusername+'!';
+                                                var sentPushBody = 'You sent '+coin_per_message+' diamonds to '+otherusername;
+                                                var receivePushTitle = username+' sent you new diamonds!!';
+                                                var receivePushBody = username+' sent you '+coin_per_message+' diamonds';
+    
+                                                // Update fan_user_id, fan_count
+                                                if (differencDiamonds > 0) {
+                                                    new_fan_user_id = userId;
+    
+                                                    if (old_fan_user_id == 0) {
+                                                        other_fan_count = other_fan_count + 1;
+    
+                                                        sentPushTitle = 'You are now a fan of '+otherusername+'!';
+                                                        receivePushTitle = username+' became your fan!';
+                                                    } else if (old_fan_user_id == otheruserId) {
+                                                        user_fan_count = user_fan_count - 1;
+                                                        other_fan_count = other_fan_count + 1;
+    
+                                                        sentPushTitle = 'You are now a fan of '+otherusername+'!';
+                                                        receivePushTitle = username+' became your fan!';
+                                                    }
+                                                } else if (differencDiamonds == 0) {
+                                                    new_fan_user_id = 0;
+    
+                                                    if (old_fan_user_id == 0) {
+                                                        other_fan_count = other_fan_count + 1;
+                                                    } else if (old_fan_user_id == otheruserId) {
+                                                        user_fan_count = user_fan_count - 1;
+                                                    }
+                                                }
+    
+                                                // Update fan_user_id at tbl_send, users's coin_count and fan_count at tbl_user
+                                                query = 'update tbl_send set fan_user_id = ? where id = ?';
+                                                dbConn.query(query, [new_fan_user_id, insertId], function(error, updateResult, fields) {
+                                                    if (error) {
+                                                        dbConn.rollback(function () {
+                                                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                        });
+                                                    }
+    
+                                                    dbConn.query('update tbl_user set coin_count = ?, fan_count = ? where id = ? ', [user_new_coin_count, user_fan_count, userId], function (error, sendResult) {
+                                                        if (error) {
+                                                            dbConn.rollback(function () {
+                                                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                            });
+                                                        }
+                            
+                                                        dbConn.query('update tbl_user set coin_count = ?, fan_count = ? where id = ? ', [other_new_coin_count, other_fan_count, otheruserId], function (error, receiveResult) {
+                                                            if (error) {
+                                                                dbConn.rollback(function () {
+                                                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                                });
+                                                            }
+                            
+                                                            /**
+                                                             * Sending message
+                                                             */
+                                                            var sendMsg = {
+                                                                match_id: matchId,
+                                                                message_type: 1,
+                                                                message_text: messageText,
+                                                                user_sent: userId,
+                                                                name_sent: username,
+                                                                user_received: otheruserId,
+                                                                name_received: otherusername,
+                                                                created_date: new Date()
+                                                            };
+    
+                                                            dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function (error, sendResult) {
+                                                                if (error) {
+                                                                    dbConn.rollback(function () {
+                                                                        return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                                    });
+                                                                }
+                                                                var receiveMsg = {
+                                                                    match_id: mutualMatchId,
+                                                                    message_type: 2,
+                                                                    message_text: messageText,
+                                                                    user_sent: userId,
+                                                                    name_sent: username,
+                                                                    user_received: otheruserId,
+                                                                    name_received: otherusername,
+                                                                    created_date: new Date()
+                                                                };
+                                                                dbConn.query('INSERT INTO tbl_chat set ? ', [receiveMsg], function (error, receiveResult) {
+                                                                    if (error) {
+                                                                        dbConn.rollback(function () {
+                                                                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                                        });
+                                                                    }
+                                                                    dbConn.commit(function (error) {
+                                                                        if (error) {
+                                                                            dbConn.rollback(function () {
+                                                                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                                            });
+                                                                        }
+                                        
+                                                                        dbConn.query('SELECT * FROM tbl_user a INNER JOIN tbl_match b ON a.id=b.main_user_id WHERE b.id=?', mutualMatchId, function (error1, receiver, receiverFields) {
+                                                                            if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+                                                                            if (!receiver.length) res.status(400).send({ error: true, message: 'Receiver data not found.' });
+                                                                            const receiverData = receiver[0];
+                                                                            if (!receiverData.fcm_id) return res.status(400).send({ error: true, message: 'firebase token not found' });
+                                                                            const deviceId = receiverData.fcm_id;
+                                                                            let userPhotoUrl;
+                                                                            if (userphotoId) {
+                                                                                userPhotoUrl = 'https://storage.googleapis.com/' + process.env.BUCKET_NAME + '/' + userphotoId + '-screenshot';
+                                                                            } else {
+                                                                                userPhotoUrl = '';
+                                                                            }
+                                        
+                                                                            // var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                                                                            //     to: deviceId,
+                                                                            //     notification: {
+                                                                            //         title: 'New Message',
+                                                                            //         body: messageText,
+                                                                            //     },
+                                                                            //     data: {  //you can send only notification or only data(or include both)
+                                                                            //         type: 'ChatDetail',
+                                                                            //         senderId: userId,
+                                                                            //         senderImg: userPhotoUrl,
+                                                                            //         senderName: username
+                                                                            //     }
+                                                                            // };
+                                                                            // fcm.send(message, function (notiErr, notiRes) {
+                                                                            //     if (notiErr) {
+                                                                            //         console.log("Notification Sending is failed: ", notiErr);
+                                                                            //     } else {
+                                                                            //         console.log("Successfully sent with response: ", notiRes);
+                                                                            //     }
+                                                                            // });
+                                                                            var message1 = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                                                                                to: user_fcm_id,
+                                                                                notification: {
+                                                                                    title: sentPushTitle,
+                                                                                    body: sentPushBody,
+                                                                                },
+                                                                                data: {  //you can send only notification or only data(or include both)
+                                                                                    type: 'SendDiamonds',
+                                                                                    senderImg: '',
+                                                                                }
+                                                                            };
+                                                                            fcm.send(message1, function (notiErr, notiRes) {
+                                                                                if (notiErr) {
+                                                                                    console.log("Notification Sending is failed: ", notiErr);
+                                                                                } else {
+                                                                                    console.log("Successfully sent with response: ", notiRes);
+                                                                                }
+                                                                            });
+                                        
+                                                                            var message2 = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                                                                                to: other_fcm_id,
+                                                                                notification: {
+                                                                                    title: receivePushTitle,
+                                                                                    body: receivePushBody,
+                                                                                },
+                                                                                data: {  //you can send only notification or only data(or include both)
+                                                                                    type: 'SendDiamonds',
+                                                                                    senderImg: userPhotoUrl,
+                                                                                }
+                                                                            };
+                                                                            fcm.send(message2, function (notiErr, notiRes) {
+                                                                                if (notiErr) {
+                                                                                    console.log("Notification Sending is failed: ", notiErr);
+                                                                                } else {
+                                                                                    console.log("Successfully sent with response: ", notiRes);
+                                                                                }
+                                                                            });
+                                                                            return res.send({ error: false, data: { sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created." });
+                                                                        });
+                                                                    });
+                                                                });
+                                                            });
+                                                        });
+                                                    });
+                                                });
+                                            });
+                                        });
+                                    });
+                                });
+                            })
+                            // end
+                        })
+                    } else { 
+                        dbConn.query('select publish from tbl_match where id=?', mutualMatchId, function (err, otherMatchResults, fields) {
+                            if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });
+                            if (!otherMatchResults.length)
+                                return res.status(400).send({ error: true, message: 'No Match Found' });
+            
+                            var otherPublish = otherMatchResults[0].publish;
+            
+                            if (otherPublish !== 1)
+                                return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
+            
+                            var sendMsg = {
+                                match_id: matchId,
+                                message_type: 1,
+                                message_text: messageText,
+                                user_sent: userId,
+                                name_sent: username,
+                                user_received: otheruserId,
+                                name_received: otherusername,
+                                created_date: new Date()
+                            };
+                            dbConn.beginTransaction(function (error) {
+                                if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function (error, sendResult) {
+                                    if (error) {
+                                        dbConn.rollback(function () {
+                                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                        });
+                                    }
+                                    var receiveMsg = {
+                                        match_id: mutualMatchId,
+                                        message_type: 2,
+                                        message_text: messageText,
+                                        user_sent: userId,
+                                        name_sent: username,
+                                        user_received: otheruserId,
+                                        name_received: otherusername,
+                                        created_date: new Date()
+                                    };
+                                    dbConn.query('INSERT INTO tbl_chat set ? ', [receiveMsg], function (error, receiveResult) {
+                                        if (error) {
+                                            dbConn.rollback(function () {
+                                                return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                            });
+                                        }
+                                        dbConn.commit(function (error) {
+                                            if (error) {
+                                                dbConn.rollback(function () {
+                                                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                                                });
+                                            }
+            
+                                            dbConn.query('SELECT * FROM tbl_user a INNER JOIN tbl_match b ON a.id=b.main_user_id WHERE b.id=?', mutualMatchId, function (error1, receiver, receiverFields) {
+                                                if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+                                                if (!receiver.length) res.status(400).send({ error: true, message: 'Receiver data not found.' });
+                                                const receiverData = receiver[0];
+                                                if (!receiverData.fcm_id) return res.status(400).send({ error: true, message: 'firebase token not found' });
+                                                const deviceId = receiverData.fcm_id;
+                                                let userPhotoUrl;
+                                                if (userphotoId) {
+                                                    // userPhotoUrl = bucket.getFiles(function (err, files) {
+                                                    //     if (err)
+                                                    //         return null;
+            
+                                                    //     const match = files.find(file => file.id === userphotoId);
+            
+                                                    //     if (!match)
+                                                    //         return null;
+                                                    //     match.getSignedUrl({
+                                                    //         action: 'read',
+                                                    //         expires: '03-17-2025'
+                                                    //     }, (err, url) => {
+                                                    //         if (err) {
+                                                    //         } else {
+                                                    //             return url;
+                                                    //         }
+                                                    //     });
+            
+                                                    // });
+                                                    userPhotoUrl = 'https://storage.googleapis.com/' + process.env.BUCKET_NAME + '/' + userphotoId + '-screenshot';
+                                                } else {
+                                                    userPhotoUrl = '';
+                                                }
+            
+                                                var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                                                    to: deviceId,
+                                                    notification: {
+                                                        title: 'New Message',
+                                                        body: messageText,
+                                                    },
+                                                    data: {  //you can send only notification or only data(or include both)
+                                                        type: 'ChatDetail',
+                                                        senderId: userId,
+                                                        senderImg: userPhotoUrl,
+                                                        senderName: username
+                                                    }
+                                                };
+                                                fcm.send(message, function (notiErr, notiRes) {
+                                                    if (notiErr) {
+                                                        console.log("Notification Sending is failed: ", notiErr);
+                                                    } else {
+                                                        console.log("Successfully sent with response: ", notiRes);
+                                                    }
+                                                });
+                                                return res.send({ error: false, data: { sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created." });
+                                            });
+                                        });
+                                    });
+                                });
+                            });
+                        });
+                    }
+                }
+            });
         });
     });
 });
