@@ -35,7 +35,7 @@ storageApi.get('/videoLink', checkAuth, (req, res) => {
   });
 });
 
-Deprecated
+// Deprecated
 storageApi.get('/uploadCredentials', checkAuth, (req, res) => {
   const isPrimary = Number(req.query.isPrimary || 0);
   const userId = req.userData.userId;
