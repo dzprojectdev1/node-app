@@ -159,4 +159,47 @@ uploadApi.post('/userPhoto', checkAuth, upload.single('fileData'), (req, res) =>
     });
 });
 
+uploadApi.post('/userVideo', checkAuth, upload.single('fileData'), (req, res) => {
+  const file = req.file;
+  const originalFilePath = path.join(TEMP_UPLOAD_FOLDER, file.filename);
+  const processedFilePath = path.join(TEMP_UPLOAD_FOLDER, `${file.filename}.${DESIRED_FILE_EXTENSION}`);
+
+  sharp(file.path)
+    .mp4()
+    .toFile(processedFilePath)
+    .makePublic()
+    .then(() => {
+      const photoIdInBucket = `${file.filename}-screenshot`;
+
+      return bucket.upload(processedFilePath, {
+        destination: photoIdInBucket,
+      })
+        .then(storageResponse => {
+          return createNewVideoInDatabase({
+            userId: req.userData.userId,
+            cdnId: file.filename,
+            cdnFilteredId: file.filename,
+            cdnId_128: '',
+            cdnId_64: '',
+          })
+            .then(videoRecord => {
+              res.send(videoRecord);
+
+              deleteFiles([
+                originalFilePath,
+                processedFilePath,
+              ]);
+            });
+        })
+    })
+    .catch(err => {
+      deleteFiles([
+        originalFilePath,
+        processedFilePath,
+      ]);
+
+      res.status(500).send(err);
+    });
+});
+
 module.exports = uploadApi;
