@@ -36,33 +36,33 @@ storageApi.get('/videoLink', checkAuth, (req, res) => {
 });
 
 // Deprecated
-// storageApi.get('/uploadCredentials', checkAuth, (req, res) => {
-//   const isPrimary = Number(req.query.isPrimary || 0);
-//   const userId = req.userData.userId;
-//   const fileId = `${userId}_${isPrimary ? 1 : 0}_${uuidv1()}`;
-//   const file = bucket.file(fileId);
-//   const options = {
-//     equals: ['$Content-Type', 'video/mp4'],
-//     expires: moment().add(1, 'weeks').format('MM-DD-YYYY'),
-//     contentLengthRange: {
-//       min: 0,
-//       // 100MB
-//       max: 1024 * 1000 * 100,
-//     },
-//     // successStatus: 'succ',
-//   };
+storageApi.get('/uploadCredentials', checkAuth, (req, res) => {
+  const isPrimary = Number(req.query.isPrimary || 0);
+  const userId = req.userData.userId;
+  const fileId = `${userId}_${isPrimary ? 1 : 0}_${uuidv1()}`;
+  const file = bucket.file(fileId);
+  const options = {
+    equals: ['$Content-Type', 'video/mp4'],
+    expires: moment().add(1, 'weeks').format('MM-DD-YYYY'),
+    contentLengthRange: {
+      min: 0,
+      // 100MB
+      max: 1024 * 1000 * 100,
+    },
+    // successStatus: 'succ',
+  };
 
-//   file.getSignedPolicy(options, function(err, policy) {
-//     if (err) {
-//       res.status(500).send('Storage API could not get signed policy.');
-//     } else {
-//       console.log('Sending policy:', policy);
-//       res.send({
-//         policy,
-//         fileId,
-//       });
-//     }
-//   });
-// });
+  file.getSignedPolicy(options, function(err, policy) {
+    if (err) {
+      res.status(500).send('Storage API could not get signed policy.');
+    } else {
+      console.log('Sending policy:', policy);
+      res.send({
+        policy,
+        fileId,
+      });
+    }
+  });
+});
 
 module.exports = storageApi;
