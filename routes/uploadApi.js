@@ -173,7 +173,7 @@ uploadApi.post('/insertVideo', checkAuth, (req, res) => {
 
       dbConn.query('select * from tbl_video where user_id = ? and is_primary = 1', userId, function(error, primaryResults, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
-        if(!results || !results.length) {
+        if(!primaryResults || !primaryResults.length) {
           var insertData = {
             user_id: userId,
             cdn_id: cdn_id,
