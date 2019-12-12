@@ -204,6 +204,14 @@ uploadApi.post('/insertVideo', checkAuth, (req, res) => {
                 created_date: new Date(),
                 updated_date: new Date()
               }
+
+              console.log('insertData ', insertData);
+      
+              dbConn.query('insert into tbl_video set ?', insertData, function(error, insertResult, fields) {
+                  if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+      
+                  return res.send({ error: false, message: "Inserted Successfully." });
+              });
             });
           } else {
             var insertData = {
