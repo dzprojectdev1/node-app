@@ -158,6 +158,48 @@ uploadApi.post('/userPhoto', checkAuth, upload.single('fileData'), (req, res) =>
       res.status(500).send(e);
     });
 });
-  
+
+uploadApi.post('/insertVideo', checkAuth, (req, res) => {  
+  var userId = req.userData.userId;
+  var cdn_id = req.body.cdn_id;
+
+  var query = 'select * from tbl_user where id = ?';
+  dbConn.query(query, [userId], function(error, results, fields) {
+      if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+      if(!results || !results.length) return res.send({error: false, message: 'There is no matched user.'});
+
+      dbConn.query('select * from tbl_video where user_id = ? is_primary = 1', userId, function(error, primaryResults, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if(!results || !results.length) {
+          var insertData = {
+            user_id: userId,
+            cdn_id: cdn_id,
+            cdn_filtered_id: cdn_id,
+            is_primary: 1,
+            content_type: 2,
+            publish: 1,
+            created_date: new Date(),
+            updated_date: new Date()
+          }          
+        } else {
+          var insertData = {
+            user_id: userId,
+            cdn_id: cdn_id,
+            cdn_filtered_id: cdn_id,
+            is_primary: 0,
+            content_type: 2,
+            publish: 1,
+            created_date: new Date(),
+            updated_date: new Date()
+          }
+        }
+        dbConn.query('insert into tbl_video set ?', insertData, function(error, insertResult, fields) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+            return res.send({ error: false, message: "Inserted Successfully." });
+        });
+      })
+  });
+});
 
 module.exports = uploadApi;
