@@ -171,7 +171,7 @@ uploadApi.post('/insertVideo', checkAuth, (req, res) => {
       if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
       if(!results || !results.length) return res.send({error: false, message: 'There is no matched user.'});
 
-      dbConn.query('select * from tbl_video where user_id = ? is_primary = 1', userId, function(error, primaryResults, fields) {
+      dbConn.query('select * from tbl_video where user_id = ? and is_primary = 1', userId, function(error, primaryResults, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         if(!results || !results.length) {
           var insertData = {
@@ -196,7 +196,7 @@ uploadApi.post('/insertVideo', checkAuth, (req, res) => {
             updated_date: new Date()
           }
         }
-        
+
         console.log('insertData ', insertData);
 
         dbConn.query('insert into tbl_video set ?', insertData, function(error, insertResult, fields) {
