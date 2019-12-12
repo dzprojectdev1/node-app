@@ -1286,7 +1286,7 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
         var myLong = loggedUser.long_geo;
         if (myLat != 0 && myLong != 0 && (!myLat || !myLong)) return res.status(403).send({error: true, message: 'user location information is invalid'});
 
-        var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
+        var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, e.content_type, b.ethnicity_name, c.country_name, d.language_name, ';
         var getOtherMatchInfo = 'select other_user_id from tbl_match where main_user_id=? and status != 0';
 
         var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
