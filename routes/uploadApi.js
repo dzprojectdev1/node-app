@@ -163,6 +163,9 @@ uploadApi.post('/insertVideo', checkAuth, (req, res) => {
   var userId = req.userData.userId;
   var cdn_id = req.body.cdn_id;
 
+  console.log('userId ', userId);
+  console.log('cdn_id ', cdn_id);
+
   var query = 'select * from tbl_user where id = ?';
   dbConn.query(query, [userId], function(error, results, fields) {
       if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
@@ -193,6 +196,9 @@ uploadApi.post('/insertVideo', checkAuth, (req, res) => {
             updated_date: new Date()
           }
         }
+        
+        console.log('insertData ', insertData);
+
         dbConn.query('insert into tbl_video set ?', insertData, function(error, insertResult, fields) {
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
 
