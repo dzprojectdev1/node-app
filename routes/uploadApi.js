@@ -186,16 +186,37 @@ uploadApi.post('/insertVideo', checkAuth, (req, res) => {
             updated_date: new Date()
           }          
         } else {
-          var insertData = {
-            user_id: userId,
-            cdn_id: cdn_id,
-            cdn_filtered_id: cdn_id,
-            is_primary: 0,
-            is_reply: 0,
-            content_type: 2,
-            publish: 1,
-            created_date: new Date(),
-            updated_date: new Date()
+
+          var content_type = primaryResults[0].content_type;
+          if (content_type == 1) {
+            
+            dbConn.query('update tbl_video set is_primary = 0 where user_id = ? and is_primary = 1 and content_type = 1', userId, function(error, updateResults, fields) {
+              if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+              var insertData = {
+                user_id: userId,
+                cdn_id: cdn_id,
+                cdn_filtered_id: cdn_id,
+                is_primary: 1,
+                is_reply: 0,
+                content_type: 2,
+                publish: 1,
+                created_date: new Date(),
+                updated_date: new Date()
+              }
+            });
+          } else {
+            var insertData = {
+              user_id: userId,
+              cdn_id: cdn_id,
+              cdn_filtered_id: cdn_id,
+              is_primary: 0,
+              is_reply: 0,
+              content_type: 2,
+              publish: 1,
+              created_date: new Date(),
+              updated_date: new Date()
+            }
           }
         }
 
