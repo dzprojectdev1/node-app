@@ -1384,7 +1384,7 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
 
             if (primary_count > 0) {
 
-                var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
+                var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, e.content_type, b.ethnicity_name, c.country_name, d.language_name, ';
 
                 var whereCondition = ' e.is_primary=1 AND a.account_status=1 AND a.id=?';
 
@@ -1416,7 +1416,7 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
                 });                
             } else {
 
-                var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, Null as cdn_filtered_id, Null as cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
+                var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, Null as cdn_filtered_id, Null as cdn_id, e.is_primary, e.is_reply, e.publish, e.content_type, b.ethnicity_name, c.country_name, d.language_name, ';
 
                 var whereCondition = ' a.account_status=1 AND a.id=?';
         

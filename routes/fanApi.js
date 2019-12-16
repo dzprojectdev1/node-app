@@ -505,14 +505,16 @@ var getFunUsers1 = (req, res, next) => {
                                 }
 
                                 if (primary_count > 0) {
-                                    dbConnect.query('select cdn_id from tbl_video where user_id = ? and is_primary = 1', val, function(error, cdnResults, fields) {
+                                    dbConnect.query('select * from tbl_video where user_id = ? and is_primary = 1', val, function(error, cdnResults, fields) {
                                         if (error) {
                                             console.log(error);
                                         } else {
 
                                             var imgUrl = '';
+                                            var contentType = 0;
                                             if (cdnResults && cdnResults.length > 0) {
                                                 imgUrl = cdnResults[0].cdn_id;
+                                                contentType = cdnResults[0].content_type;
                                             }
 
                                             dbConnect.query('select name from tbl_user where id = ?', val, function(error, nameResults, fields) {
@@ -580,6 +582,7 @@ var getFunUsers1 = (req, res, next) => {
                                                                                     name: name,
                                                                                     diamonds: differenceDiamonds,
                                                                                     imgUrl: imgUrl,
+                                                                                    contentType: contentType,
                                                                                     fanMessage: recentMessage,
                                                                                 }
                                     
@@ -635,6 +638,7 @@ var getFunUsers1 = (req, res, next) => {
                                     });
                                 } else {
                                     var imgUrl = '';
+                                    var contentType = 0;
                                     dbConnect.query('select name from tbl_user where id = ?', val, function(error, nameResults, fields) {
                                         if (error) {
                                             console.log(error);
@@ -700,6 +704,7 @@ var getFunUsers1 = (req, res, next) => {
                                                                             name: name,
                                                                             diamonds: differenceDiamonds,
                                                                             imgUrl: imgUrl,
+                                                                            contentType: contentType,
                                                                             fanMessage: recentMessage,
                                                                         }
                             
@@ -821,14 +826,16 @@ var getFunUsers2 = (req, res, next) => {
                                 }
 
                                 if (primary_count > 0) {
-                                    dbConnect.query('select cdn_id from tbl_video where user_id = ? and is_primary = 1', val, function(error, cdnResults, fields) {
+                                    dbConnect.query('select * from tbl_video where user_id = ? and is_primary = 1', val, function(error, cdnResults, fields) {
                                         if (error) {
                                             console.log(error);
                                         } else {
 
                                             var imgUrl = '';
+                                            var contentType = 0;
                                             if (cdnResults && cdnResults.length > 0) {
                                                 imgUrl = cdnResults[0].cdn_id;
+                                                contentType = cdnResults[0].content_type;
                                             }
 
                                             dbConnect.query('select name from tbl_user where id = ?', val, function(error, nameResults, fields) {
@@ -896,6 +903,7 @@ var getFunUsers2 = (req, res, next) => {
                                                                                     name: name,
                                                                                     diamonds: differenceDiamonds,
                                                                                     imgUrl: imgUrl,
+                                                                                    contentType: contentType,
                                                                                     fanMessage: recentMessage,
                                                                                 }
                                     
@@ -996,6 +1004,7 @@ var getFunUsers2 = (req, res, next) => {
                                 } else {
 
                                     var imgUrl = '';
+                                    var contentType = 0;
                                     dbConnect.query('select name from tbl_user where id = ?', val, function(error, nameResults, fields) {
                                         if (error) {
                                             console.log(error);
@@ -1060,6 +1069,7 @@ var getFunUsers2 = (req, res, next) => {
                                                                             name: name,
                                                                             diamonds: differenceDiamonds,
                                                                             imgUrl: imgUrl,
+                                                                            contentType: contentType,
                                                                             fanMessage: recentMessage,
                                                                         }
                             
@@ -1249,14 +1259,16 @@ var getStarUsers = (req, res, next) => {
                                 }
 
                                 if (primary_count > 0) {
-                                    dbConnect.query('select cdn_id from tbl_video where user_id = ? and is_primary = 1', val, function(error, cdnResults, fields) {
+                                    dbConnect.query('select * from tbl_video where user_id = ? and is_primary = 1', val, function(error, cdnResults, fields) {
                                         if (error) {
                                             console.log(error);
                                         } else {
 
                                             var imgUrl = '';
+                                            var contentType = 0;
                                             if (cdnResults && cdnResults.length > 0) {
                                                 imgUrl = cdnResults[0].cdn_id;
+                                                contentType = cdnResults[0].content_type;
                                             }
 
                                             dbConnect.query('select name from tbl_user where id = ?', val, function(error, nameResults, fields) {
@@ -1303,6 +1315,7 @@ var getStarUsers = (req, res, next) => {
                                                                             name: name,
                                                                             diamonds: sentDiamonds,
                                                                             imgUrl: imgUrl,
+                                                                            contentType: contentType,
                                                                             fanMessage: recentMessage,
                                                                         }
                             
@@ -1346,6 +1359,7 @@ var getStarUsers = (req, res, next) => {
                                     });
                                 } else {
                                     var imgUrl = '';
+                                    var contentType = 0;
                                     dbConnect.query('select name from tbl_user where id = ?', val, function(error, nameResults, fields) {
                                         if (error) {
                                             console.log(error);
@@ -1391,6 +1405,7 @@ var getStarUsers = (req, res, next) => {
                                                                     name: name,
                                                                     diamonds: sentDiamonds,
                                                                     imgUrl: imgUrl,
+                                                                    contentType: contentType,
                                                                     fanMessage: recentMessage,
                                                                 }
                     
