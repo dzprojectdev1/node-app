@@ -529,7 +529,7 @@ matchApi.get('/getReceivedHearts', checkAuth, function (req, res) {
 
     var leftJoinQuery = ' Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id left join tbl_video b on a.other_user_id=b.user_id ';
     var whereCondition = ' (b.cdn_id IS NULL or b.is_primary=1) and a.publish=1 and a.status=2 and a.main_user_id=? and c.account_status=1 order by a.id desc ';
-    var leftSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_id, b.cdn_filtered_id, b.is_primary, c.name, c.gender, c.description, c.coin_count, c.fan_count, ' + distanceQuery + ageQuery + 'FROM tbl_match a ' + leftJoinQuery + 'WHERE' + whereCondition + ')';
+    var leftSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_id, b.cdn_filtered_id, b.is_primary, b.content_type, c.name, c.gender, c.description, c.coin_count, c.fan_count, ' + distanceQuery + ageQuery + 'FROM tbl_match a ' + leftJoinQuery + 'WHERE' + whereCondition + ')';
     
     // var rightJoinQuery = ' right join tbl_video b on a.other_user_id=b.user_id Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id '
     // var rightSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_filtered_id, c.name, c.gender, ' + distanceQuery + ageQuery + 'FROM `tbl_match` a ' + rightJoinQuery + 'WHERE' + whereCondition + ')';
