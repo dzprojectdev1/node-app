@@ -1467,7 +1467,7 @@ matchApi.post('/discover', checkAuth, function (req, res) {
 
         //age, gender, ethnicity, country, distance, language
         var distance = 0;
-        var selectQuery = 'a.id, a.birth_date, a.name, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, a.description, e.cdn_filtered_id, e.cdn_id, b.ethnicity_name, c.country_name, d.language_name, ';
+        var selectQuery = 'a.id, a.birth_date, a.name, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, a.description, e.cdn_filtered_id, e.cdn_id, e.content_type, b.ethnicity_name, c.country_name, d.language_name, ';
 
         var getOtherMatchInfo = 'select other_user_id from tbl_match where main_user_id=? and status != 0';
 
