@@ -529,7 +529,7 @@ matchApi.get('/getReceivedHearts', checkAuth, function (req, res) {
 
     var leftJoinQuery = ' Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id left join tbl_video b on a.other_user_id=b.user_id ';
     var whereCondition = ' (b.cdn_id IS NULL or b.is_primary=1) and a.publish=1 and a.status=2 and a.main_user_id=? and c.account_status=1 order by a.id desc ';
-    var leftSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_id, b.cdn_filtered_id, b.is_primary, c.name, c.gender, c.description, c.coin_count, c.fan_count, ' + distanceQuery + ageQuery + 'FROM tbl_match a ' + leftJoinQuery + 'WHERE' + whereCondition + ')';
+    var leftSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_id, b.cdn_filtered_id, b.is_primary, b.content_type, c.name, c.gender, c.description, c.coin_count, c.fan_count, ' + distanceQuery + ageQuery + 'FROM tbl_match a ' + leftJoinQuery + 'WHERE' + whereCondition + ')';
     
     // var rightJoinQuery = ' right join tbl_video b on a.other_user_id=b.user_id Inner join tbl_user c on a.other_user_id=c.id inner join tbl_user d on a.main_user_id=d.id '
     // var rightSqlQuery = '(SELECT a.id, a.other_user_id, b.cdn_filtered_id, c.name, c.gender, ' + distanceQuery + ageQuery + 'FROM `tbl_match` a ' + rightJoinQuery + 'WHERE' + whereCondition + ')';
@@ -1222,7 +1222,7 @@ matchApi.get('/matches', checkAuth, function (req, res) {
     
     var whereCondition = ' where (c.cdn_id IS NULL or c.is_primary=1) and a.main_user_id=? and a.status in (6,7) and a.publish=1 and b.account_status=1';
     
-    var leftQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, b.description, b.coin_count, b.fan_count, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + leftjoinQuery + whereCondition + ' order by a.id desc)'
+    var leftQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, b.description, b.coin_count, b.fan_count, c.cdn_id, c.is_primary, c.content_type, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + leftjoinQuery + whereCondition + ' order by a.id desc)'
     // var rightjoinQuery = ' inner join tbl_user b on a.other_user_id=b.id inner join tbl_user d on a.main_user_id=d.id right join tbl_video c on a.other_user_id=c.user_id'
     // var rightQuery = '(SELECT a.id, a.main_user_id, a.other_user_id, b.name, b.gender, b.language_id, b.country_id, b.ethnicity_id, c.cdn_id, c.is_primary, ' + distanceQuery + ageQuery + ' FROM tbl_match a ' + rightjoinQuery + whereCondition + ' order by a.id desc)'
     dbConn.query(leftQuery, [userId], function (error, results, fields) {
@@ -1286,7 +1286,7 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
         var myLong = loggedUser.long_geo;
         if (myLat != 0 && myLong != 0 && (!myLat || !myLong)) return res.status(403).send({error: true, message: 'user location information is invalid'});
 
-        var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
+        var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, e.content_type, b.ethnicity_name, c.country_name, d.language_name, ';
         var getOtherMatchInfo = 'select other_user_id from tbl_match where main_user_id=? and status != 0';
 
         var joinQuery = ' INNER JOIN tbl_ethnicity AS b ON a.ethnicity_id=b.id INNER JOIN tbl_country AS c ON a.country_id=c.id INNER JOIN tbl_language AS d ON a.language_id=d.id';
@@ -1384,7 +1384,7 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
 
             if (primary_count > 0) {
 
-                var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
+                var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, e.cdn_filtered_id, e.cdn_id, e.is_primary, e.is_reply, e.publish, e.content_type, b.ethnicity_name, c.country_name, d.language_name, ';
 
                 var whereCondition = ' e.is_primary=1 AND a.account_status=1 AND a.id=?';
 
@@ -1416,7 +1416,7 @@ matchApi.post('/getOtherUserData/:other_user_id', checkAuth, function (req, res)
                 });                
             } else {
 
-                var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, Null as cdn_filtered_id, Null as cdn_id, e.is_primary, e.is_reply, e.publish, b.ethnicity_name, c.country_name, d.language_name, ';
+                var selectQuery = 'a.id, a.birth_date, a.name, a.description, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, Null as cdn_filtered_id, Null as cdn_id, e.is_primary, e.is_reply, e.publish, e.content_type, b.ethnicity_name, c.country_name, d.language_name, ';
 
                 var whereCondition = ' a.account_status=1 AND a.id=?';
         
@@ -1467,7 +1467,7 @@ matchApi.post('/discover', checkAuth, function (req, res) {
 
         //age, gender, ethnicity, country, distance, language
         var distance = 0;
-        var selectQuery = 'a.id, a.birth_date, a.name, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, a.description, e.cdn_filtered_id, e.cdn_id, b.ethnicity_name, c.country_name, d.language_name, ';
+        var selectQuery = 'a.id, a.birth_date, a.name, a.gender, a.coin_count, a.fan_count, a.coin_per_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age, a.last_loggedin_date, a.description, e.cdn_filtered_id, e.cdn_id, e.content_type, b.ethnicity_name, c.country_name, d.language_name, ';
 
         var getOtherMatchInfo = 'select other_user_id from tbl_match where main_user_id=? and status != 0';
 

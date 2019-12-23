@@ -38,8 +38,9 @@ storageApi.get('/videoLink', checkAuth, (req, res) => {
 // Deprecated
 storageApi.get('/uploadCredentials', checkAuth, (req, res) => {
   const isPrimary = Number(req.query.isPrimary || 0);
+  const contentType = Number(req.query.contentType || 1);
   const userId = req.userData.userId;
-  const fileId = `${userId}_${isPrimary ? 1 : 0}_${uuidv1()}`;
+  const fileId = `${userId}_${isPrimary ? 1 : 0}_${contentType}_${uuidv1()}`;
   const file = bucket.file(fileId);
   const options = {
     equals: ['$Content-Type', 'video/mp4'],

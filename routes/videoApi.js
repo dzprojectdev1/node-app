@@ -125,7 +125,7 @@ videoApi.get('/othervideo/:otherId', checkAuth, function(req, res) {
         } else {
             searchFields = 'cdn_filtered_id';
         }
-        dbConn.query('SELECT cdn_id, cdn_filtered_id from tbl_video where user_id= ? and is_reply=0 and publish=1 order by created_date desc', [otherId], function (error, results, fields){
+        dbConn.query('SELECT cdn_id, cdn_filtered_id, content_type, cdn_id_128, cdn_id_64 from tbl_video where user_id= ? and is_reply=0 and publish=1 order by created_date desc', [otherId], function (error, results, fields){
             if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
             return res.send({ error: false, data: results, message: "list other videos for the user"});
         });
@@ -141,7 +141,7 @@ videoApi.get('/getVideosByMatchId/:matchId', checkAuth, function(req, res) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         if (!getResults.length) return res.status(403).send({error: true, message: 'Match Data Not Found.'});
         
-        dbConn.query('SELECT a.cdn_id, a.created_date, b.name, b.email_address, b.birth_date, b.gender FROM tbl_video a INNER JOIN tbl_user b ON a.user_id=b.id WHERE a.match_id=? AND a.is_reply=1 AND a.is_primary=1 AND a.publish=1', matchId, function(error1, videoResults, videoFields) {
+        dbConn.query('SELECT a.cdn_id, a.content_type, a.cdn_id_128, a.cdn_id_64, a.created_date, b.name, b.email_address, b.birth_date, b.gender FROM tbl_video a INNER JOIN tbl_user b ON a.user_id=b.id WHERE a.match_id=? AND a.is_reply=1 AND a.is_primary=1 AND a.publish=1', matchId, function(error1, videoResults, videoFields) {
             if (error1) return res.status(400).send({error: true, detail: error1.code, message: error1.sqlMessage});
             if (!videoResults.length) return res.send({error: true, message: 'Video Data Not Found'});
 
@@ -155,7 +155,7 @@ videoApi.get('/getMatchedMyVideo', checkAuth, function(req, res) {
     var userId = req.userData.userId;
 
     var whereCondition = 'user_id=? and is_primary=1 and is_reply=0 and publish=1 limit 1';
-    dbConn.query('Select cdn_id from tbl_video where ' + whereCondition, [userId], function(error, results, fields) {
+    dbConn.query('Select cdn_id, content_type, cdn_id_128, cdn_id_64 from tbl_video where ' + whereCondition, [userId], function(error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         return res.send({ error: false, data: results, message: "Matched my video Id"});
     });
@@ -168,7 +168,7 @@ videoApi.post('/getVideoForOther', checkAuth, function(req, res) {
     
     var getMatchQuery = 'select id from tbl_match where main_user_id=? and other_user_id=? and status=1 and publish=1 limit 1';
     var whereCondition = ' a.user_id=? And a.is_reply=1 and a.is_primary=0 and a.publish=1 And a.match_id=('+getMatchQuery+')';
-    dbConn.query('Select a.cdn_id from tbl_video a inner join tbl_match b On a.match_id=b.id Where ' + whereCondition, [userId, userId, otherId], function(error, results, fields) {
+    dbConn.query('Select a.cdn_id, a.content_type, a.cdn_id_128, a.cdn_id_64 from tbl_video a inner join tbl_match b On a.match_id=b.id Where ' + whereCondition, [userId, userId, otherId], function(error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         return res.send({ error: false, data: results, message: "Get video for Other"});
     });
@@ -180,7 +180,7 @@ videoApi.post('/getVideoForMe', checkAuth, function(req, res) {
     var otherId = req.body.otherId;
     
     var whereCondition = 'user_id=? and is_primary=1 and is_reply=0 and publish=1 limit 1';
-    dbConn.query('Select cdn_id from tbl_video where ' + whereCondition, [otherId], function(error, results, fields) {
+    dbConn.query('Select cdn_id, content_type, cdn_id_128, cdn_id_64 from tbl_video where ' + whereCondition, [otherId], function(error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         return res.send({ error: false, data: results, message: "Get video for Me"});
     })

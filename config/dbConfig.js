@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 var mysql = require('mysql');
 
 var mysqlConfig = {
@@ -11,8 +13,15 @@ var mysqlConfig = {
 if (process.env.CLOUD_SQL_CONNECTION_NAME) {
   console.log(`This is App Engine. Proceeding to configure mysql with socketPath "/cloudsql/${process.env.CLOUD_SQL_CONNECTION_NAME}".`)
   mysqlConfig.socketPath = `/cloudsql/${process.env.CLOUD_SQL_CONNECTION_NAME}`;
+} else {
+  console.log('hello')
+  mysqlConfig.ssl = {
+    ca: fs.readFileSync(__dirname + '/server-ca.pem'),
+    cert: fs.readFileSync(__dirname + '/client-cert.pem'),
+    key: fs.readFileSync(__dirname + '/client-key.pem')
+  };
 }
-
+console.log(mysqlConfig)
 var dbConn = mysql.createConnection(mysqlConfig);
 
 dbConn.connect(); 

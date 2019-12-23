@@ -159,4 +159,84 @@ uploadApi.post('/userPhoto', checkAuth, upload.single('fileData'), (req, res) =>
     });
 });
 
+uploadApi.post('/insertVideo', checkAuth, (req, res) => {  
+  var userId = req.userData.userId;
+  var cdn_id = req.body.cdn_id;
+
+  console.log('userId ', userId);
+  console.log('cdn_id ', cdn_id);
+
+  var query = 'select * from tbl_user where id = ?';
+  dbConn.query(query, [userId], function(error, results, fields) {
+      if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+      if(!results || !results.length) return res.send({error: false, message: 'There is no matched user.'});
+
+      dbConn.query('select * from tbl_video where user_id = ? and is_primary = 1', userId, function(error, primaryResults, fields) {
+        if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+        if(!primaryResults || !primaryResults.length) {
+          var insertData = {
+            user_id: userId,
+            cdn_id: cdn_id,
+            cdn_filtered_id: cdn_id,
+            is_primary: 1,
+            is_reply: 0,
+            content_type: 2,
+            publish: 1,
+            created_date: new Date(),
+            updated_date: new Date()
+          }          
+        } else {
+
+          var content_type = primaryResults[0].content_type;
+          if (content_type == 1) {
+            
+            dbConn.query('update tbl_video set is_primary = 0 where user_id = ? and is_primary = 1 and content_type = 1', userId, function(error, updateResults, fields) {
+              if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+              var insertData = {
+                user_id: userId,
+                cdn_id: cdn_id,
+                cdn_filtered_id: cdn_id,
+                is_primary: 1,
+                is_reply: 0,
+                content_type: 2,
+                publish: 1,
+                created_date: new Date(),
+                updated_date: new Date()
+              }
+
+              console.log('insertData ', insertData);
+      
+              dbConn.query('insert into tbl_video set ?', insertData, function(error, insertResult, fields) {
+                  if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+      
+                  return res.send({ error: false, message: "Inserted Successfully." });
+              });
+            });
+          } else {
+            var insertData = {
+              user_id: userId,
+              cdn_id: cdn_id,
+              cdn_filtered_id: cdn_id,
+              is_primary: 0,
+              is_reply: 0,
+              content_type: 2,
+              publish: 1,
+              created_date: new Date(),
+              updated_date: new Date()
+            }
+          }
+        }
+
+        console.log('insertData ', insertData);
+
+        dbConn.query('insert into tbl_video set ?', insertData, function(error, insertResult, fields) {
+            if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
+
+            return res.send({ error: false, message: "Inserted Successfully." });
+        });
+      })
+  });
+});
+
 module.exports = uploadApi;
