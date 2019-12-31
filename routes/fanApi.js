@@ -517,7 +517,7 @@ var getFunUsers1 = (req, res, next) => {
                                                 contentType = cdnResults[0].content_type;
                                             }
 
-                                            dbConnect.query('select name from tbl_user where id = ?', val, function(error, nameResults, fields) {
+                                            dbConnect.query('select name from tbl_user where id = ? and account_status = 1', val, function(error, nameResults, fields) {
                                                 if (error) {
                                                     console.log(error);
                                                 } else {
@@ -639,7 +639,7 @@ var getFunUsers1 = (req, res, next) => {
                                 } else {
                                     var imgUrl = '';
                                     var contentType = 0;
-                                    dbConnect.query('select name from tbl_user where id = ?', val, function(error, nameResults, fields) {
+                                    dbConnect.query('select name from tbl_user where id = ? and account_status = 1', val, function(error, nameResults, fields) {
                                         if (error) {
                                             console.log(error);
                                         } else {
@@ -838,7 +838,7 @@ var getFunUsers2 = (req, res, next) => {
                                                 contentType = cdnResults[0].content_type;
                                             }
 
-                                            dbConnect.query('select name from tbl_user where id = ?', val, function(error, nameResults, fields) {
+                                            dbConnect.query('select name from tbl_user where id = ? and account_status = 1', val, function(error, nameResults, fields) {
                                                 if (error) {
                                                     console.log(error);
                                                 } else {
@@ -1005,7 +1005,7 @@ var getFunUsers2 = (req, res, next) => {
 
                                     var imgUrl = '';
                                     var contentType = 0;
-                                    dbConnect.query('select name from tbl_user where id = ?', val, function(error, nameResults, fields) {
+                                    dbConnect.query('select name from tbl_user where id = ? and account_status = 1', val, function(error, nameResults, fields) {
                                         if (error) {
                                             console.log(error);
                                         } else {
@@ -1271,7 +1271,7 @@ var getStarUsers = (req, res, next) => {
                                                 contentType = cdnResults[0].content_type;
                                             }
 
-                                            dbConnect.query('select name from tbl_user where id = ?', val, function(error, nameResults, fields) {
+                                            dbConnect.query('select name from tbl_user where id = ? and account_status = 1', val, function(error, nameResults, fields) {
                                                 if (error) {
                                                     console.log(error);
                                                 } else {
@@ -1360,7 +1360,7 @@ var getStarUsers = (req, res, next) => {
                                 } else {
                                     var imgUrl = '';
                                     var contentType = 0;
-                                    dbConnect.query('select name from tbl_user where id = ?', val, function(error, nameResults, fields) {
+                                    dbConnect.query('select name from tbl_user where id = ? and account_status = 1', val, function(error, nameResults, fields) {
                                         if (error) {
                                             console.log(error);
                                         } else {
