@@ -17,7 +17,7 @@ chatApi.get('/all', checkAuth, function (req, res) {
     var matchWhereCondition = ' a.main_user_id=? and a.status in (6,7) and a.publish in (1, 2) group by a.id ';
     var leftMatchJoinQuery = ' inner join tbl_chat b on a.id=b.match_id';
     var matchQuery = 'SELECT a.id as match_id, max(b.id) as chat_id, a.publish as publish, a.other_user_id as other_user_id FROM `tbl_match` a ' + leftMatchJoinQuery + ' where ' + matchWhereCondition;
-    var leftQueryString = '(select c.*, d.message_text, d.created_date as created_date, e.id, e.name, e.gender, e.description, e.birth_date, e.coin_count, e.fan_count, TIMESTAMPDIFF(YEAR, e.birth_date, CURDATE()) AS age, g.cdn_id, g.cdn_filtered_id, g.is_primary from (' + matchQuery + ') c ' + leftJoinQuery + ')';
+    var leftQueryString = '(select c.*, d.message_text, d.created_date as created_date, e.id, e.name, e.gender, e.description, e.birth_date, e.coin_count, e.fan_count, TIMESTAMPDIFF(YEAR, e.birth_date, CURDATE()) AS age, g.cdn_id, g.cdn_filtered_id, g.is_primary, e.ai_friend, e.ai_personality, e.img_message from (' + matchQuery + ') c ' + leftJoinQuery + ')';
     // return res.send({query: leftQueryString});
 
     dbConn.query(leftQueryString, [userId], function (error, results, fields) {
@@ -77,7 +77,7 @@ chatApi.get('/getChatWithMatchId/:matchId', checkAuth, function (req, res) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
 
         //get other user detail information from match id
-        dbConn.query('SELECT a.name, a.gender, a.birth_date, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age from tbl_user as a inner join tbl_match as b on a.id=b.other_user_id where b.id=? and (b.main_user_id=? or b.other_user_id=?) and a.account_status=1', [matchId, userId, userId], function (error1, userResults, fields) {
+        dbConn.query('SELECT a.name, a.gender, a.birth_date, a.ai_friend, a.ai_personality, a.img_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age from tbl_user as a inner join tbl_match as b on a.id=b.other_user_id where b.id=? and (b.main_user_id=? or b.other_user_id=?) and a.account_status=1', [matchId, userId, userId], function (error1, userResults, fields) {
             if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
             if (!userResults.length) return res.status(403).send({ error: false, message: 'Match Data not found' });
             var matchedOtherUser = userResults[0];
@@ -92,6 +92,8 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
     var userId = req.userData.userId;
     var matchId = req.body.matchId;
     var messageText = req.body.messageText;
+    var user_image_url = req.body?.user_image_url;
+    var user_current_action = req.body?.user_current_action;
     const serverKey = process.env.FIREBASE_SERVER_KEY;
     const fcm = new FCM(serverKey);
 
@@ -133,7 +135,7 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
                 return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
 
             query = 'select * from tbl_match where main_user_id = ? and other_user_id = ? and status = 7';
-            console.log('chat_query', query);
+            //console.log('chat_query', query);
             dbConn.query(query, [userId, otheruserId], function(error, getCoinPerMessageResults, fields) {
                 if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
 
@@ -159,6 +161,15 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
                             name_received: otherusername,
                             created_date: new Date()
                         };
+
+                        if(user_current_action){
+                            sendMsg.user_current_action = user_current_action;
+                        }
+
+                        if(user_image_url){
+                            sendMsg.user_image_url = user_image_url;
+                        }
+
                         dbConn.beginTransaction(function (error) {
                             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                             dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function (error, sendResult) {
@@ -171,12 +182,21 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
                                     match_id: mutualMatchId,
                                     message_type: 2,
                                     message_text: messageText,
-                                    user_sent: userId,
-                                    name_sent: username,
-                                    user_received: otheruserId,
-                                    name_received: otherusername,
+                                    user_sent: otheruserId,
+                                    name_sent: otherusername,
+                                    user_received: userId,
+                                    name_received: username,
                                     created_date: new Date()
                                 };
+
+                                if(user_current_action){
+                                    receiveMsg.user_current_action = user_current_action;
+                                }
+
+                                if(user_image_url){
+                                    receiveMsg.user_image_url = user_image_url;
+                                }
+
                                 dbConn.query('INSERT INTO tbl_chat set ? ', [receiveMsg], function (error, receiveResult) {
                                     if (error) {
                                         dbConn.rollback(function () {
@@ -397,6 +417,13 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
                                                                 name_received: otherusername,
                                                                 created_date: new Date()
                                                             };
+
+                                                            if(user_image_url){
+                                                                sendMsg.user_image_url = user_image_url;
+                                                            }
+                                                            if(user_current_action){
+                                                                sendMsg.user_current_action = user_current_action;
+                                                            }
     
                                                             dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function (error, sendResult) {
                                                                 if (error) {
@@ -408,12 +435,20 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
                                                                     match_id: mutualMatchId,
                                                                     message_type: 2,
                                                                     message_text: messageText,
-                                                                    user_sent: userId,
-                                                                    name_sent: username,
-                                                                    user_received: otheruserId,
-                                                                    name_received: otherusername,
+                                                                    user_sent: otheruserId,
+                                                                    name_sent: otherusername,
+                                                                    user_received: userId,
+                                                                    name_received: username,
                                                                     created_date: new Date()
                                                                 };
+
+                                                                if(user_image_url){
+                                                                    receiveMsg.user_image_url = user_image_url;
+                                                                }
+                                                                if(user_current_action){
+                                                                    receiveMsg.user_current_action = user_current_action;
+                                                                }
+
                                                                 dbConn.query('INSERT INTO tbl_chat set ? ', [receiveMsg], function (error, receiveResult) {
                                                                     if (error) {
                                                                         dbConn.rollback(function () {
@@ -532,7 +567,15 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
                                 user_received: otheruserId,
                                 name_received: otherusername,
                                 created_date: new Date()
-                            };
+                            }
+
+                            if(user_image_url){
+                                sendMsg.user_image_url = user_image_url;
+                            }
+                            if(user_current_action){
+                                sendMsg.user_current_action = user_current_action;
+                            }
+
                             dbConn.beginTransaction(function (error) {
                                 if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                 dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function (error, sendResult) {
@@ -545,12 +588,20 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
                                         match_id: mutualMatchId,
                                         message_type: 2,
                                         message_text: messageText,
-                                        user_sent: userId,
-                                        name_sent: username,
-                                        user_received: otheruserId,
-                                        name_received: otherusername,
+                                        user_sent: otheruserId,
+                                        name_sent: otherusername,
+                                        user_received: userId,
+                                        name_received: username,
                                         created_date: new Date()
                                     };
+
+                                    if(user_image_url){
+                                        receiveMsg.user_image_url = user_image_url;
+                                    }
+                                    if(user_current_action){
+                                        receiveMsg.user_current_action = user_current_action;
+                                    }
+
                                     dbConn.query('INSERT INTO tbl_chat set ? ', [receiveMsg], function (error, receiveResult) {
                                         if (error) {
                                             dbConn.rollback(function () {
@@ -791,6 +842,74 @@ chatApi.post('/blockChat', checkAuth, function (req, res) {
         });
     });
 });
+
+//Milestone 2 APIs
+chatApi.get('/getChatAIImageUrl/:userId', checkAuth, function (req, res) {
+    var userId = req.params.userId;
+
+    if (!userId)
+        return res.send({ error: true, message: 'Invalid User Param.' });
+
+    var whereCondition = 'user_id=?';
+
+    dbConn.query('Select * from tbl_image_url where ' + whereCondition + ' order by id asc', [userId], function (error, results, fields) {
+        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+        if (!results.length) return res.status(403).send({ error: false, message: 'Image Data not found' });
+        return res.send({ error: false, data: results, message: "Get All Image Data" });
+    });
+});
+
+chatApi.post('/getChatAIImageUrlId/:userId', checkAuth, function (req, res) {
+    var userId = req.userData.userId;
+    var ai_user_id = req.body.user_sent;
+    var real_user_id = req.body.user_received;
+
+    if (!ai_user_id || !real_user_id)
+        return res.send({ error: true, message: 'Invalid User Param.' });
+
+    var whereCondition = 'ai_user_id=? and real_user_id=?';
+
+    dbConn.query('Select image_id, chat_id from tbl_image_history where ' + whereCondition + ' order by id DESC LIMIT 1', [ai_user_id, real_user_id], function (error, results, fields) {
+        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+        if (!results.length) return res.status(403).send({ error: false, message: 'Image Data not found', content: '' });
+        return res.send({ error: false, data: results, message: "Get All Image Data" });
+    });
+});
+
+chatApi.post('/chatHistoryUpdate', checkAuth, function (req, res) {
+    var ai_user_id = req.body.ai_user_id;
+    var ai_user_name = req.body.ai_user_name;
+    var real_user_id = req.body.real_user_id;
+    var real_user_name = req.body.real_user_name;
+    var chat_id = req.body.chat_id;
+    var image_id = req.body.image_id;
+
+    if (!ai_user_id || !ai_user_name || !real_user_id || !real_user_name || !chat_id || !image_id) {
+        return res.status(400).send({ error: true, message: 'Required params missing' });
+    }
+
+    var chatHistoryData = {
+        ai_user_id: ai_user_id,
+        ai_user_name: ai_user_name,
+        real_user_id: real_user_id,
+        real_user_name: real_user_name,
+        chat_id: chat_id,
+        image_id: image_id,
+    };
+
+    dbConn.beginTransaction(function (error) {
+        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+        dbConn.query('INSERT INTO tbl_image_history set ? ', [chatHistoryData], function (error, sendResult) {
+            if (error) {
+                dbConn.rollback(function () {
+                    return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                });
+            }
+            return res.send({ error: false, data: sendResult[0], message: "Chat history recorded" });
+        });
+    });
+});
+
 
 module.exports = chatApi;
 

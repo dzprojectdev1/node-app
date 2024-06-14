@@ -192,7 +192,7 @@ userApi.post('/signup', function (req, res) {
                 description: description,
                 account_status: account_status,
                 last_loggedin_date: new Date(),
-                auto_block: 1,
+                auto_block: 0,
                 fan_count: 0,
                 is_admin: 0,
                 coin_per_message: 1,
