@@ -38,4 +38,4 @@ jobs:
 
       - name: Deploy to Google App Engine
         run: |
-          gcloud app deploy cloudbuild.dev.yaml --quiet
+          gcloud app deploy app.dev.yaml --quiet
