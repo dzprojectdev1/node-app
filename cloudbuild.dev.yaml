@@ -1,13 +1,14 @@
 steps:
   # stage1 install the app dependencies
   - name: 'gcr.io/cloud-builders/gcloud'
-    args: ['app']
+    args: ['app', 'deploy']
   # stage2 install the app dependencies
-  - name: 'gcr.io/cloud-builders/deploy'
-    args: [ 'deploy' ]
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: ['deploy']
   # stage3 install the app dependencies
-  - name: 'gcr.io/cloud-builders/deploy'
-    args: [ 'app.dev.yaml' ]
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: ['deploy', 'app.dev.yaml']
+
 #steps:
 #- name: "gcr.io/cloud-builders/gcloud"
 #  args: ["app", "deploy", "app.dev.yaml"]
