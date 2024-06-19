@@ -824,12 +824,12 @@ matchApi.post('/requestInstantMatch', checkAuth, function (req, res) {
                 if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
                 if(!transactionResults || !transactionResults.length) {                    
 
-                    if (coin_count < 50) {
-                        res.send({error: false, data: { ability: false, match_id: -1, coin_count: coin_count, account_status: account_status}, message: 'You have no enough diamonds to start instant chatting.'});
-                    } else {
+                    //if (coin_count < 50) {
+                    //    res.send({error: false, data: { ability: false, match_id: -1, coin_count: coin_count, account_status: account_status}, message: 'You have no enough diamonds to start instant chatting.'});
+                    //} else {
             
                         // reduce the coin_count for instant chatting
-                        coin_count = coin_count - 50;
+                        //coin_count = coin_count - 50;
             
                         // check out existance
                         dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (6, 7)', [userId, otherUserId], function (error, oldMatchResult, fields) {
@@ -949,7 +949,7 @@ matchApi.post('/requestInstantMatch', checkAuth, function (req, res) {
                                 });
                             }) 
                         });                        
-                    }
+                   // }
                 } else {
                     let current_date = new Date();
                     let cd_timestamp = current_date.getTime();
@@ -1075,12 +1075,12 @@ matchApi.post('/requestInstantMatch', checkAuth, function (req, res) {
                             });
                         });
                     } else {
-                        if (coin_count < 50) {
-                            res.send({error: false, data: { ability: false, match_id: -1, coin_count: coin_count, account_status: account_status}, message: 'You have no enough diamonds to start instant chatting.'});
-                        } else {
+                        //if (coin_count < 50) {
+                        //    res.send({error: false, data: { ability: false, match_id: -1, coin_count: coin_count, account_status: account_status}, message: 'You have no enough diamonds to start instant chatting.'});
+                        //} else {
                 
                             // reduce the coin_count for instant chatting
-                            coin_count = coin_count - 50;
+                           // coin_count = coin_count - 50;
                 
                             // check out existance
                             dbConn.query('SELECT * FROM tbl_match WHERE main_user_id=? AND other_user_id=? AND publish=1 AND status in (6, 7)', [userId, otherUserId], function (error, oldMatchResult, fields) {
@@ -1200,7 +1200,7 @@ matchApi.post('/requestInstantMatch', checkAuth, function (req, res) {
                             });
                         }
                     }
-                }
+                // }
             })
         } else {
             return res.send({ error: false, data: { ability: false, match_id: -1, coin_count: coin_count, account_status: account_status }, message: "Your Account Is Not Active." });

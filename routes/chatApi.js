@@ -911,7 +911,7 @@ chatApi.post('/chatHistoryUpdates', checkAuth, function (req, res) {
 });
 
 chatApi.post('/chatHistoryUpdate', checkAuth, (req, res) => {
-    const { ai_user_id, ai_user_name, real_user_id, real_user_name, chat_id, image_id } = req.body;
+    const { ai_user_id, ai_user_name, real_user_id, real_user_name, chat_id, image_id, user_current_action } = req.body;
 
     if (!ai_user_id || !ai_user_name || !real_user_id || !real_user_name || !chat_id || !image_id) {
         return res.status(400).send({ error: true, message: 'Required params missing' });
@@ -924,6 +924,7 @@ chatApi.post('/chatHistoryUpdate', checkAuth, (req, res) => {
         real_user_name,
         chat_id,
         image_id,
+        user_current_action,
     };
 
     dbConn.beginTransaction(error => {
