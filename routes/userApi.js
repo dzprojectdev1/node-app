@@ -184,7 +184,7 @@ userApi.post('/signup', function (req, res) {
                 birth_date: userBirthData,
                 lat_geo: parseFloat(userlat),
                 long_geo: parseFloat(userlong),
-                coin_count: 120,
+                coin_count: 500,
                 confirmation_code: getRndInteger(100000, 999999),
                 created_date: new Date(),
                 fcm_id: fcmId,

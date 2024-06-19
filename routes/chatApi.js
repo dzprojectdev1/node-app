@@ -876,7 +876,7 @@ chatApi.post('/getChatAIImageUrlId/:userId', checkAuth, function (req, res) {
     });
 });
 
-chatApi.post('/chatHistoryUpdate', checkAuth, function (req, res) {
+chatApi.post('/chatHistoryUpdates', checkAuth, function (req, res) {
     var ai_user_id = req.body.ai_user_id;
     var ai_user_name = req.body.ai_user_name;
     var real_user_id = req.body.real_user_id;
@@ -910,6 +910,46 @@ chatApi.post('/chatHistoryUpdate', checkAuth, function (req, res) {
     });
 });
 
+chatApi.post('/chatHistoryUpdate', checkAuth, (req, res) => {
+    const { ai_user_id, ai_user_name, real_user_id, real_user_name, chat_id, image_id, user_current_action } = req.body;
+
+    if (!ai_user_id || !ai_user_name || !real_user_id || !real_user_name || !chat_id || !image_id) {
+        return res.status(400).send({ error: true, message: 'Required params missing' });
+    }
+
+    const chatHistoryData = {
+        ai_user_id,
+        ai_user_name,
+        real_user_id,
+        real_user_name,
+        chat_id,
+        image_id,
+        user_current_action,
+    };
+
+    dbConn.beginTransaction(error => {
+        if (error) {
+            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+        }
+
+        dbConn.query('INSERT INTO tbl_image_history SET ?', chatHistoryData, (error, sendResult) => {
+            if (error) {
+                return dbConn.rollback(() => {
+                    res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                });
+            }
+
+            dbConn.commit(err => {
+                if (err) {
+                    return dbConn.rollback(() => {
+                        res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });
+                    });
+                }
+                res.send({ error: false, data: sendResult[0], message: "Chat history recorded" });
+            });
+        });
+    });
+});
 
 module.exports = chatApi;
 
