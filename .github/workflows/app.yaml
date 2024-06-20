@@ -20,7 +20,7 @@ on:
     - 'development'
 
 env:
-  PROJECT_ID: ${{ secrets.GCE_PROJECT }}
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   GCE_INSTANCE: instance-20240524-181354  # TODO: update to instance name
   GCE_INSTANCE_ZONE: us-central1-f   # TODO: update to instance zone
 
