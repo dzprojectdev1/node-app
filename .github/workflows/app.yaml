@@ -48,13 +48,13 @@ jobs:
 
     # Alternative option - authentication via credentials json
     - id: 'auth'
-      uses: 'google-github-actions/auth@v0'
+      uses: 'google-github-actions/auth@v2'
       with:
         credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
     # Setup gcloud CLI
     - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v0
+      uses: google-github-actions/setup-gcloud@v2
 
     # Configure Docker to use the gcloud command-line tool as a credential
     # helper for authentication
