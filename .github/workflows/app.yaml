@@ -13,139 +13,39 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Verify Secrets
+        run: |
+          if [ -z "${{ secrets.PRODUCTION_SSH_USER }}" ]; then
+            echo "PRODUCTION_SSH_USER ${{ secrets.PRODUCTION_SSH_USER }} is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.PRODUCTION_SSH_HOST }}" ]; then
+            echo "PRODUCTION_SSH_HOST ${{ secrets.PRODUCTION_SSH_HOST }} is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.PRODUCTION_PRIVATE_KEY }}" ]; then
+            echo "PRODUCTION_PRIVATE_KEY ${{ secrets.PRODUCTION_PRIVATE_KEY }} is not set"
+            exit 1
+          fi
+          echo "All required secrets are set."
+        shell: bash
       - name: Set environment variables
         if: github.ref == 'refs/heads/main'
         run: |
-          echo "USERNAME=commencement_technology" >> $GITHUB_ENV
-          echo "HOST=34.172.47.245" >> $GITHUB_ENV
+          echo "USERNAME=${{ secrets.PRODUCTION_SSH_USER }}" >> $GITHUB_ENV
+          echo "HOST=${{ secrets.PRODUCTION_SSH_HOST }}" >> $GITHUB_ENV
           echo "WORK_DIR=/var/www/html" >> $GITHUB_ENV
-          echo "-----BEGIN RSA PRIVATE KEY-----
-  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
-  -----END RSA PRIVATE KEY-----
-  " > private_key
+          echo "${{ secrets.PRODUCTION_PRIVATE_KEY }}" > private_key
         shell: bash
-#      - name: Set environment variables
-#        if: github.ref == 'refs/heads/main'
-#        run: |
-#          echo "USERNAME=${{ secrets.PRODUCTION_SSH_USER }}" >> $GITHUB_ENV
-#          echo "HOST=${{ secrets.PRODUCTION_SSH_HOST }}" >> $GITHUB_ENV
-#          echo "WORK_DIR=/var/www/html" >> $GITHUB_ENV
-#          echo "${{ secrets.PRODUCTION_PRIVATE_KEY }}" > private_key
-#        shell: bash
-        - name: Set environment variables for staging
-          if: github.ref == 'refs/heads/staging'
-          run: |
-            echo "USERNAME=commencement_technology" >> $GITHUB_ENV
-            echo "HOST=34.66.27.152" >> $GITHUB_ENV
-            echo "WORK_DIR=/var/www/html" >> $GITHUB_ENV
-            echo "-----BEGIN OPENSSH PRIVATE KEY-----
-  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
-  1MEaK9g+uSt0BWHnhtfeMxo0HVmX1zdd0QN8bf8ChNnAzTU+r2dJLwfQQmpqf8AVUXNWw2
-  LiAcA0qORjwc1dosulnGh7Z/uwe4i//nwX4bVaPzL33XVJuBoL2WlZp+aWIMVyS2X2M0a+
-  1G+4P7R/jYO+V3QAAAEBAOJtd0XG7bBydAgVT3b2n4S1t8kd8RYVP9qZb0xmcplgNMxO/U
-  LgGI2HhE68R0LA9UjLV+/jOST+LMcDRGBqDBYgnjek2LMoxDOwGfzHevtzgHM2cX7eMQAr
-  k5cdVlV9k22Pbj4BXMmH34K2N5LDGnDQsj9FZMAOrac/yGqKQy3ZDTgWM6QzPDIGheHihk
-  WBoK55bvq7tVc7Kts6wtWL7pCsln7/GcT340YC/qUxBUaHPqUvTrzdZNFXfVT02raNYiOj
-  SuNX/UIOHxx+q6Rb314XVv1sfRL2zMIDhBsemLR3/QwRxEysJiGq9MDqf4a4R6WCDGCwip
-  wvyn9aahUbrB8AAAEBANsbDpRrAwrUHwT/m4TL792TpFgkV+eWpAxXscWFQPd4vz/U+G68
-  GayIL2MW+Yak/t7q1o6SK7oxicF53IACto8NRJUVaMRd7HU1vd8+ptI9ho8lsFUoaE+mBG
-  T5Yh/uaqE/ci32K+JfENe15Jd7RUvyRCB2CgdvRWhbeHY/bvakzcIl5UXjB9lJ8lpleV9H
-  Ot0mQHwg9J0FVMcBdM/abMuY1AceZs4T5o+stBernQk8A6FbPRioKYrD7iGTQXFThxnIOS
-  Gjwyb0OojWSKibJ47n0iyPHb9ZkcM6t3A83n49Kit6Jg1Q/6noq1P9CQH7LX5DfBjevmVu
-  HJp++MsV480AAAAwY29tbWVuY2VtZW50X3RlY2hub2xvZ3lAaW5zdGFuY2UtMjAyNDA1Mj
-  QtMTgxMzU0AQID
-  -----END OPENSSH PRIVATE KEY-----
-  " > private_key
-          shell: bash
-#      - name: Set environment variables for staging
-#        if: github.ref == 'refs/heads/staging'
-#        run: |
-#          echo "USERNAME=${{ secrets.STAGING_SSH_USER }}" >> $GITHUB_ENV
-#          echo "HOST=${{ secrets.STAGING_SSH_HOST }}" >> $GITHUB_ENV
-#          echo "WORK_DIR=/var/www/html" >> $GITHUB_ENV
-#          echo "${{ secrets.STAGING_PRIVATE_KEY }}" > private_key
-#        shell: bash
+
+      - name: Set environment variables for staging
+        if: github.ref == 'refs/heads/staging'
+        run: |
+          echo "USERNAME=${{ secrets.STAGING_SSH_USER }}" >> $GITHUB_ENV
+          echo "HOST=${{ secrets.STAGING_SSH_HOST }}" >> $GITHUB_ENV
+          echo "WORK_DIR=/var/www/html" >> $GITHUB_ENV
+          echo "${{ secrets.STAGING_PRIVATE_KEY }}" > private_key
+        shell: bash
 
       - name: install ssh keys
         run: |
