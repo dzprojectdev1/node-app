@@ -17,7 +17,7 @@ chatApi.get('/all', checkAuth, function (req, res) {
     var matchWhereCondition = ' a.main_user_id=? and a.status in (6,7) and a.publish in (1, 2) group by a.id ';
     var leftMatchJoinQuery = ' inner join tbl_chat b on a.id=b.match_id';
     var matchQuery = 'SELECT a.id as match_id, max(b.id) as chat_id, a.publish as publish, a.other_user_id as other_user_id FROM `tbl_match` a ' + leftMatchJoinQuery + ' where ' + matchWhereCondition;
-    var leftQueryString = '(select c.*, d.message_text, d.created_date as created_date, e.id, e.name, e.gender, e.description, e.birth_date, e.coin_count, e.fan_count, TIMESTAMPDIFF(YEAR, e.birth_date, CURDATE()) AS age, g.cdn_id, g.cdn_filtered_id, g.is_primary, e.ai_friend, e.ai_personality, e.img_message from (' + matchQuery + ') c ' + leftJoinQuery + ')';
+    var leftQueryString = '(select c.*, d.message_text, d.created_date as created_date, e.id, e.name, e.gender, e.description, e.birth_date, e.coin_count, e.fan_count, TIMESTAMPDIFF(YEAR, e.birth_date, CURDATE()) AS age, g.cdn_id, g.cdn_filtered_id, g.is_primary, e.ai_friend, e.ai_personality, e.img_message, e.chat_type from (' + matchQuery + ') c ' + leftJoinQuery + ')';
     // return res.send({query: leftQueryString});
 
     dbConn.query(leftQueryString, [userId], function (error, results, fields) {
@@ -77,7 +77,7 @@ chatApi.get('/getChatWithMatchId/:matchId', checkAuth, function (req, res) {
         if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
 
         //get other user detail information from match id
-        dbConn.query('SELECT a.name, a.gender, a.birth_date, a.ai_friend, a.ai_personality, a.img_message, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age from tbl_user as a inner join tbl_match as b on a.id=b.other_user_id where b.id=? and (b.main_user_id=? or b.other_user_id=?) and a.account_status=1', [matchId, userId, userId], function (error1, userResults, fields) {
+        dbConn.query('SELECT a.name, a.gender, a.birth_date, a.ai_friend, a.ai_personality, a.img_message, a.chat_type, TIMESTAMPDIFF(YEAR, a.birth_date, CURDATE()) AS age from tbl_user as a inner join tbl_match as b on a.id=b.other_user_id where b.id=? and (b.main_user_id=? or b.other_user_id=?) and a.account_status=1', [matchId, userId, userId], function (error1, userResults, fields) {
             if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
             if (!userResults.length) return res.status(403).send({ error: false, message: 'Match Data not found' });
             var matchedOtherUser = userResults[0];
@@ -92,8 +92,8 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
     var userId = req.userData.userId;
     var matchId = req.body.matchId;
     var messageText = req.body.messageText;
-    var user_image_url = req.body?.user_image_url;
-    var user_current_action = req.body?.user_current_action;
+    var user_image_url = req.body.user_image_url;
+    var user_current_action = req.body.user_current_action;
     const serverKey = process.env.FIREBASE_SERVER_KEY;
     const fcm = new FCM(serverKey);
 
