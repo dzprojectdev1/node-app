@@ -1,0 +1,59 @@
+name: Dorry.ai CD
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+  workflow_dispatch:
+
+jobs:
+  run_pull:
+    name: run pull
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set environment variables
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "USERNAME=${{ secrets.PRODUCTION_SSH_USER }}" >> $GITHUB_ENV
+          echo "HOST=${{ secrets.PRODUCTION_SSH_HOST }}" >> $GITHUB_ENV
+          echo "WORK_DIR=/var/www/html" >> $GITHUB_ENV
+          echo "${{ secrets.PRODUCTION_PRIVATE_KEY }}" > private_key
+        shell: bash
+
+      - name: Set environment variables for staging
+        if: github.ref == 'refs/heads/staging'
+        run: |
+          echo "USERNAME=${{ secrets.STAGING_SSH_USER }}" >> $GITHUB_ENV
+          echo "HOST=${{ secrets.STAGING_SSH_HOST }}" >> $GITHUB_ENV
+          echo "WORK_DIR=/var/www/html" >> $GITHUB_ENV
+          echo "${{ secrets.STAGING_PRIVATE_KEY }}" > private_key
+        shell: bash
+
+      - name: install ssh keys
+        run: |
+          install -m 600 -D /dev/null ~/.ssh/id_rsa
+          cat private_key > ~/.ssh/id_rsa
+          ssh-keyscan -H $HOST > ~/.ssh/known_hosts
+        shell: bash
+
+      - name: Connect and pull for production
+        if: github.ref == 'refs/heads/main'
+        run: ssh -o StrictHostKeyChecking=no $USERNAME@$HOST "cd $WORK_DIR && git pull origin main && git status && sudo pm2 restart ecosystem.config.js && exit"
+        shell: bash
+
+      - name: Connect and pull for staging
+        if: github.ref == 'refs/heads/staging'
+        run: ssh -o StrictHostKeyChecking=no $USERNAME@$HOST "cd $WORK_DIR && git pull origin staging && git status && sudo pm2 restart ecosystem.config.js && exit"
+        shell: bash
+
+      - name: cleanup for production
+        if: github.ref == 'refs/heads/main'
+        run: rm -rf ~/.ssh private_key
+        shell: bash
+
+      - name: cleanup for staging
+        if: github.ref == 'refs/heads/staging'
+        run: rm -rf ~/.ssh private_key
+        shell: bash
