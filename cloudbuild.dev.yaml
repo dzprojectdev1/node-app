@@ -1,4 +1,12 @@
 steps:
-- name: "gcr.io/cloud-builders/gcloud"
-  args: ["app", "deploy", "app.dev.yaml"]
-timeout: "1600s"
+  - name: gcr.io/cloud-builders/gcloud
+    args: ['app', 'deploy']
+  - name: gcr.io/cloud-builders/gcloud
+    args: ['deploy']
+  - name: gcr.io/cloud-builders/gcloud
+    args: ['deploy', 'app.dev.yaml']
+
+#steps:
+#- name: "gcr.io/cloud-builders/gcloud"
+#  args: ["app", "deploy", "app.dev.yaml"]
+#timeout: "1600s"
