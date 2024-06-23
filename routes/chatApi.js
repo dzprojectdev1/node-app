@@ -115,12 +115,12 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
         var user_coin_count = results[0].coin_count;
         var user_fan_count  = results[0].fan_count;
         var user_fcm_id     = results[0].fcm_id;
-        var coin_per_message = results[0].coin_per_message;
+        var coin_per_message = 0;
 
         if (account_status !== 1)
             return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
 
-        dbConn.query('Select a.mutual_match_id, a.publish, b.name, b.id, b.coin_count, b.fan_count, b.fcm_id from tbl_match a join tbl_user b where a.id=? and a.other_user_id = b.id', [matchId], function (err, matchResults, fields) {
+        dbConn.query('Select a.mutual_match_id, a.publish, b.name, b.coin_per_message, b.id, b.coin_count, b.fan_count, b.fcm_id from tbl_match a join tbl_user b where a.id=? and a.other_user_id = b.id', [matchId], function (err, matchResults, fields) {
             if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });
             if (!matchResults.length)
                 return res.status(400).send({ error: true, message: 'No Match Found' });
@@ -132,6 +132,7 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
             var other_coin_count = matchResults[0].coin_count;
             var other_fan_count  = matchResults[0].fan_count;
             var other_fcm_id     = matchResults[0].fcm_id;
+            coin_per_message = matchResults[0].coin_per_message
 
             if (publish !== 1)
                 return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
@@ -142,186 +143,189 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
                 if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
 
                 //var coin_per_message = 0;
-                    if (!getCoinPerMessageResults || !getCoinPerMessageResults.length) {
-                    dbConn.query('select publish from tbl_match where id=?', mutualMatchId, function (err, otherMatchResults, fields) {
-                        if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });
-                        if (!otherMatchResults.length)
-                            return res.status(400).send({ error: true, message: 'No Match Found' });
-        
-                        var otherPublish = otherMatchResults[0].publish;
-        
-                        if (otherPublish !== 1)
-                            return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
-        
-                        var sendMsg = {
-                            match_id: matchId,
-                            message_type: 1,
-                            message_text: messageText,
-                            user_sent: isAutoChat == 'false' ? userId : otheruserId,
-                            name_sent: isAutoChat == 'false' ? username : otherusername,
-                            user_received: isAutoChat == 'false' ? otheruserId : userId,
-                            name_received: isAutoChat == 'false' ? otherusername : username,
-                            created_date: new Date()
-                        };
-
-                        if(user_current_action){
-                            sendMsg.user_current_action = user_current_action;
-                        }
-
-                        if(user_image_url){
-                            sendMsg.user_image_url = user_image_url;
-                        }
-
-                        dbConn.beginTransaction(function (error) {
-                            if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                            dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function (error, sendResult) {
-                                if (error) {
-                                    dbConn.rollback(function () {
-                                        return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                    });
-                                }
-                                dbConn.commit(function (error) {
-                                    if (error) {
-                                        dbConn.rollback(function () {
-                                            return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                        });
-                                    }
-
-                                    dbConn.query('SELECT * FROM tbl_user a INNER JOIN tbl_match b ON a.id=b.main_user_id WHERE b.id=?', mutualMatchId, function (error1, receiver, receiverFields) {
-                                        if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
-                                        if (!receiver.length) res.status(400).send({ error: true, message: 'Receiver data not found.' });
-                                        const receiverData = receiver[0];
-                                        if (!receiverData.fcm_id) return res.status(400).send({ error: true, message: 'firebase token not found' });
-                                        const deviceId = receiverData.fcm_id;
-                                        let userPhotoUrl;
-                                        if (userphotoId) {
-                                            userPhotoUrl = 'https://storage.googleapis.com/' + process.env.BUCKET_NAME + '/' + userphotoId + '-screenshot';
-                                        } else {
-                                            userPhotoUrl = '';
-                                        }
-
-                                        var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
-                                            to: deviceId,
-                                            notification: {
-                                                title: 'New Message',
-                                                body: messageText,
-                                            },
-                                            data: {  //you can send only notification or only data(or include both)
-                                                type: 'ChatDetail',
-                                                senderId: userId,
-                                                senderImg: userPhotoUrl,
-                                                senderName: username
-                                            }
-                                        };
-                                        fcm.send(message, function (notiErr, notiRes) {
-                                            if (notiErr) {
-                                                console.log("Notification Sending is failed: ", notiErr);
-                                            } else {
-                                                console.log("Successfully sent with response: ", notiRes);
-                                            }
-                                        });
-                                        const receiveResult = sendResult;
-                                        return res.send({ error: false, data: { sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created." });
-                                    });
-                                });
-                                // var receiveMsg = {
-                                //     match_id: mutualMatchId,
-                                //     message_type: 2,
-                                //     message_text: messageText,
-                                //     user_sent: otheruserId,
-                                //     name_sent: otherusername,
-                                //     user_received: userId,
-                                //     name_received: username,
-                                //     created_date: new Date()
-                                // };
-
-                                // if(user_current_action){
-                                //     receiveMsg.user_current_action = user_current_action;
-                                // }
-                                //
-                                // if(user_image_url){
-                                //     receiveMsg.user_image_url = user_image_url;
-                                // }
-
-                                // dbConn.query('INSERT INTO tbl_chat set ? ', [receiveMsg], function (error, receiveResult) {
-                                //     if (error) {
-                                //         dbConn.rollback(function () {
-                                //             return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                //         });
-                                //     }
-                                //     dbConn.commit(function (error) {
-                                //         if (error) {
-                                //             dbConn.rollback(function () {
-                                //                 return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
-                                //             });
-                                //         }
-                                //
-                                //         dbConn.query('SELECT * FROM tbl_user a INNER JOIN tbl_match b ON a.id=b.main_user_id WHERE b.id=?', mutualMatchId, function (error1, receiver, receiverFields) {
-                                //             if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
-                                //             if (!receiver.length) res.status(400).send({ error: true, message: 'Receiver data not found.' });
-                                //             const receiverData = receiver[0];
-                                //             if (!receiverData.fcm_id) return res.status(400).send({ error: true, message: 'firebase token not found' });
-                                //             const deviceId = receiverData.fcm_id;
-                                //             let userPhotoUrl;
-                                //             if (userphotoId) {
-                                //                 // userPhotoUrl = bucket.getFiles(function (err, files) {
-                                //                 //     if (err)
-                                //                 //         return null;
-                                //
-                                //                 //     const match = files.find(file => file.id === userphotoId);
-                                //
-                                //                 //     if (!match)
-                                //                 //         return null;
-                                //                 //     match.getSignedUrl({
-                                //                 //         action: 'read',
-                                //                 //         expires: '03-17-2025'
-                                //                 //     }, (err, url) => {
-                                //                 //         if (err) {
-                                //                 //         } else {
-                                //                 //             return url;
-                                //                 //         }
-                                //                 //     });
-                                //
-                                //                 // });
-                                //                 userPhotoUrl = 'https://storage.googleapis.com/' + process.env.BUCKET_NAME + '/' + userphotoId + '-screenshot';
-                                //             } else {
-                                //                 userPhotoUrl = '';
-                                //             }
-                                //
-                                //             var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
-                                //                 to: deviceId,
-                                //                 notification: {
-                                //                     title: 'New Message',
-                                //                     body: messageText,
-                                //                 },
-                                //                 data: {  //you can send only notification or only data(or include both)
-                                //                     type: 'ChatDetail',
-                                //                     senderId: userId,
-                                //                     senderImg: userPhotoUrl,
-                                //                     senderName: username
-                                //                 }
-                                //             };
-                                //             fcm.send(message, function (notiErr, notiRes) {
-                                //                 if (notiErr) {
-                                //                     console.log("Notification Sending is failed: ", notiErr);
-                                //                 } else {
-                                //                     console.log("Successfully sent with response: ", notiRes);
-                                //                 }
-                                //             });
-                                //             return res.send({ error: false, data: { sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created." });
-                                //         });
-                                //     });
-                                // });
-                            });
-                        });
-                    })
-                } else {
+                //     if (getCoinPerMessageResults && getCoinPerMessageResults.length) {
+                //         console.log("getCoinPerMessageResults => ", getCoinPerMessageResults)
+                //     dbConn.query('select publish from tbl_match where id=?', mutualMatchId, function (err, otherMatchResults, fields) {
+                //         if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });
+                //         if (!otherMatchResults.length)
+                //             return res.status(400).send({ error: true, message: 'No Match Found' });
+                //
+                //         var otherPublish = otherMatchResults[0].publish;
+                //
+                //         if (otherPublish !== 1)
+                //             return res.send({ error: false, data: { account_status: account_status, sending_available: false }, message: "Your Account Is Not Active." });
+                //
+                //         var sendMsg = {
+                //             match_id: matchId,
+                //             message_type: 1,
+                //             message_text: messageText,
+                //             user_sent: isAutoChat == 'false' ? userId : otheruserId,
+                //             name_sent: isAutoChat == 'false' ? username : otherusername,
+                //             user_received: isAutoChat == 'false' ? otheruserId : userId,
+                //             name_received: isAutoChat == 'false' ? otherusername : username,
+                //             created_date: new Date()
+                //         };
+                //
+                //         if(user_current_action){
+                //             sendMsg.user_current_action = user_current_action;
+                //         }
+                //
+                //         if(user_image_url){
+                //             sendMsg.user_image_url = user_image_url;
+                //         }
+                //
+                //         dbConn.beginTransaction(function (error) {
+                //             if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                //             dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function (error, sendResult) {
+                //                 if (error) {
+                //                     dbConn.rollback(function () {
+                //                         return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                //                     });
+                //                 }
+                //                 dbConn.commit(function (error) {
+                //                     if (error) {
+                //                         dbConn.rollback(function () {
+                //                             return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                //                         });
+                //                     }
+                //
+                //                     dbConn.query('SELECT * FROM tbl_user a INNER JOIN tbl_match b ON a.id=b.main_user_id WHERE b.id=?', mutualMatchId, function (error1, receiver, receiverFields) {
+                //                         if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+                //                         if (!receiver.length) res.status(400).send({ error: true, message: 'Receiver data not found.' });
+                //                         const receiverData = receiver[0];
+                //                         if (!receiverData.fcm_id) return res.status(400).send({ error: true, message: 'firebase token not found' });
+                //                         const deviceId = receiverData.fcm_id;
+                //                         let userPhotoUrl;
+                //                         if (userphotoId) {
+                //                             userPhotoUrl = 'https://storage.googleapis.com/' + process.env.BUCKET_NAME + '/' + userphotoId + '-screenshot';
+                //                         } else {
+                //                             userPhotoUrl = '';
+                //                         }
+                //
+                //                         var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                //                             to: deviceId,
+                //                             notification: {
+                //                                 title: 'New Message',
+                //                                 body: messageText,
+                //                             },
+                //                             data: {  //you can send only notification or only data(or include both)
+                //                                 type: 'ChatDetail',
+                //                                 senderId: userId,
+                //                                 senderImg: userPhotoUrl,
+                //                                 senderName: username
+                //                             }
+                //                         };
+                //                         fcm.send(message, function (notiErr, notiRes) {
+                //                             if (notiErr) {
+                //                                 console.log("Notification Sending is failed: ", notiErr);
+                //                             } else {
+                //                                 console.log("Successfully sent with response: ", notiRes);
+                //                             }
+                //                         });
+                //                         const receiveResult = sendResult;
+                //                         return res.send({ error: false, data: { sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created." });
+                //                     });
+                //                 });
+                //                 // var receiveMsg = {
+                //                 //     match_id: mutualMatchId,
+                //                 //     message_type: 2,
+                //                 //     message_text: messageText,
+                //                 //     user_sent: otheruserId,
+                //                 //     name_sent: otherusername,
+                //                 //     user_received: userId,
+                //                 //     name_received: username,
+                //                 //     created_date: new Date()
+                //                 // };
+                //
+                //                 // if(user_current_action){
+                //                 //     receiveMsg.user_current_action = user_current_action;
+                //                 // }
+                //                 //
+                //                 // if(user_image_url){
+                //                 //     receiveMsg.user_image_url = user_image_url;
+                //                 // }
+                //
+                //                 // dbConn.query('INSERT INTO tbl_chat set ? ', [receiveMsg], function (error, receiveResult) {
+                //                 //     if (error) {
+                //                 //         dbConn.rollback(function () {
+                //                 //             return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                //                 //         });
+                //                 //     }
+                //                 //     dbConn.commit(function (error) {
+                //                 //         if (error) {
+                //                 //             dbConn.rollback(function () {
+                //                 //                 return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
+                //                 //             });
+                //                 //         }
+                //                 //
+                //                 //         dbConn.query('SELECT * FROM tbl_user a INNER JOIN tbl_match b ON a.id=b.main_user_id WHERE b.id=?', mutualMatchId, function (error1, receiver, receiverFields) {
+                //                 //             if (error1) return res.status(400).send({ error: true, detail: error1.code, message: error1.sqlMessage });
+                //                 //             if (!receiver.length) res.status(400).send({ error: true, message: 'Receiver data not found.' });
+                //                 //             const receiverData = receiver[0];
+                //                 //             if (!receiverData.fcm_id) return res.status(400).send({ error: true, message: 'firebase token not found' });
+                //                 //             const deviceId = receiverData.fcm_id;
+                //                 //             let userPhotoUrl;
+                //                 //             if (userphotoId) {
+                //                 //                 // userPhotoUrl = bucket.getFiles(function (err, files) {
+                //                 //                 //     if (err)
+                //                 //                 //         return null;
+                //                 //
+                //                 //                 //     const match = files.find(file => file.id === userphotoId);
+                //                 //
+                //                 //                 //     if (!match)
+                //                 //                 //         return null;
+                //                 //                 //     match.getSignedUrl({
+                //                 //                 //         action: 'read',
+                //                 //                 //         expires: '03-17-2025'
+                //                 //                 //     }, (err, url) => {
+                //                 //                 //         if (err) {
+                //                 //                 //         } else {
+                //                 //                 //             return url;
+                //                 //                 //         }
+                //                 //                 //     });
+                //                 //
+                //                 //                 // });
+                //                 //                 userPhotoUrl = 'https://storage.googleapis.com/' + process.env.BUCKET_NAME + '/' + userphotoId + '-screenshot';
+                //                 //             } else {
+                //                 //                 userPhotoUrl = '';
+                //                 //             }
+                //                 //
+                //                 //             var message = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
+                //                 //                 to: deviceId,
+                //                 //                 notification: {
+                //                 //                     title: 'New Message',
+                //                 //                     body: messageText,
+                //                 //                 },
+                //                 //                 data: {  //you can send only notification or only data(or include both)
+                //                 //                     type: 'ChatDetail',
+                //                 //                     senderId: userId,
+                //                 //                     senderImg: userPhotoUrl,
+                //                 //                     senderName: username
+                //                 //                 }
+                //                 //             };
+                //                 //             fcm.send(message, function (notiErr, notiRes) {
+                //                 //                 if (notiErr) {
+                //                 //                     console.log("Notification Sending is failed: ", notiErr);
+                //                 //                 } else {
+                //                 //                     console.log("Successfully sent with response: ", notiRes);
+                //                 //                 }
+                //                 //             });
+                //                 //             return res.send({ error: false, data: { sendResult, receiveResult, account_status: account_status, sending_available: true }, message: "New Message is Created." });
+                //                 //         });
+                //                 //     });
+                //                 // });
+                //             });
+                //         });
+                //     })
+                // }
+                //     else {
                     //coin_per_message = getCoinPerMessageResults[0].coin_per_message;
 
                     if (coin_per_message > 0) {
                         if (user_coin_count < coin_per_message)
                             return res.send({ error: false, data: { account_status: account_status, sending_available: false, diamonds_enough: false, }, message: "You don’t have diamonds." });
-    
+
+                        console.log("coin_per_message => ", coin_per_message)
                         dbConn.query('select publish from tbl_match where id=?', mutualMatchId, function (err, otherMatchResults, fields) {
                             if (err) return res.status(400).send({ error: true, detail: err.code, message: err.sqlMessage });
                             if (!otherMatchResults.length)
@@ -337,6 +341,9 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
                              */
                             var user_new_coin_count = parseInt(user_coin_count) - parseInt(isAutoChat == 'true' ? 0 : coin_per_message); // updated diamonds count of user
                             var other_new_coin_count = parseInt(other_coin_count) + parseInt(coin_per_message); // updated diamonds count of other user
+
+                            console.log("user_new_coin_count => ", user_new_coin_count)
+                            console.log("other_new_coin_count => ", other_new_coin_count)
 
                             // Get old fan user id
                             var old_fan_user_id = 0;
@@ -807,7 +814,7 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
                             });
                         });
                     }
-                }
+                // }
             });
         });
     });
