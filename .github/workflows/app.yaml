@@ -56,12 +56,12 @@ jobs:
 
       - name: Connect and pull for production
         if: github.ref == 'refs/heads/main'
-        run: ssh -o StrictHostKeyChecking=no $USERNAME@$HOST "cd $WORK_DIR && git pull origin main && git status && sudo pm2 restart ecosystem.config.js && exit"
+        run: ssh -o StrictHostKeyChecking=no $USERNAME@$HOST "cd $WORK_DIR && git pull origin main && git status && sudo pm2 restart startup.config.js && exit"
         shell: bash
 
       - name: Connect and pull for staging
         if: github.ref == 'refs/heads/staging'
-        run: ssh -o StrictHostKeyChecking=no $USERNAME@$HOST "cd $WORK_DIR && git pull origin staging && git status && sudo pm2 restart ecosystem.config.js && exit"
+        run: ssh -o StrictHostKeyChecking=no $USERNAME@$HOST "cd $WORK_DIR && git pull origin staging && git status && sudo pm2 restart startup.config.js && exit"
         shell: bash
 
       - name: cleanup for production
