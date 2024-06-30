@@ -97,6 +97,7 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
     var user_current_action = req.body.user_current_action;
     const serverKey = process.env.FIREBASE_SERVER_KEY;
     const fcm = new FCM(serverKey);
+    console.log(`userId: ${userId} \n matchId: ${matchId} \n isAutoChat: ${isAutoChat} \n messageText: ${messageText} \n user_image_url: ${user_image_url} \n user_current_action: ${user_current_action}`);
 
     if (!matchId || !messageText) {
         return res.status(400).send({ error: true, message: 'Invalid Params.' });
@@ -105,7 +106,7 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
     // let query = 'select * from tbl_user as a left join tbl_video as b on a.id = b.user_id where (b.cdn_id IS NULL OR b.is_primary = 1) and a.id = ?';
     let query = 'select * from tbl_user where id = ?';
     dbConn.query(query, userId, function (error, results, fields) {
-        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });;
+        if (error) return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
         if (!results.length)
             return res.status(400).send({ error: true, message: 'No Match Found' });
 
@@ -481,6 +482,7 @@ chatApi.post('/create', checkAuth, autoBlockFunction, function (req, res) {
                                                             dbConn.query('INSERT INTO tbl_chat set ? ', [sendMsg], function (error, sendResult) {
                                                                 if (error) {
                                                                     dbConn.rollback(function () {
+                                                                        console.log(`error: ${error.code}, message: ${error.sqlMessage} || ${error.error}`);
                                                                         return res.status(400).send({ error: true, detail: error.code, message: error.sqlMessage });
                                                                     });
                                                                 }
