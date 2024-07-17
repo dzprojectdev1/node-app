@@ -416,12 +416,12 @@ transactionApi.post('/pushNotification', function(req, res) {
                     senderName: senderName
                 }
             };
-            fcm.send(message, function (notiErr, notiRes) {
-                if (notiErr) {
-                } else {
-                    num_user = parseInt(num_user) + 1;
-                }
-            });
+            // fcm.send(message, function (notiErr, notiRes) {
+            //     if (notiErr) {
+            //     } else {
+            //         num_user = parseInt(num_user) + 1;
+            //     }
+            // });
 
             counter ++;
 
@@ -577,13 +577,13 @@ transactionApi.post('/sendDiamonds', checkAuth, function(req, res) {
                                         senderImg: diamondImageUrl,
                                     }
                                 };
-                                fcm.send(message1, function (notiErr, notiRes) {
-                                    if (notiErr) {
-                                        console.log("Notification Sending is failed: ", notiErr);
-                                    } else {
-                                        console.log("Successfully sent with response: ", notiRes);
-                                    }
-                                });
+                                // fcm.send(message1, function (notiErr, notiRes) {
+                                //     if (notiErr) {
+                                //         console.log("Notification Sending is failed: ", notiErr);
+                                //     } else {
+                                //         console.log("Successfully sent with response: ", notiRes);
+                                //     }
+                                // });
 
                                 var message2 = { //this may vary according to the message type (single recipient, multicast, topic, et cetera)
                                     to: other_fcm_id,
@@ -596,13 +596,13 @@ transactionApi.post('/sendDiamonds', checkAuth, function(req, res) {
                                         senderImg: diamondImageUrl,
                                     }
                                 };
-                                fcm.send(message2, function (notiErr, notiRes) {
-                                    if (notiErr) {
-                                        console.log("Notification Sending is failed: ", notiErr);
-                                    } else {
-                                        console.log("Successfully sent with response: ", notiRes);
-                                    }
-                                });
+                                // fcm.send(message2, function (notiErr, notiRes) {
+                                //     if (notiErr) {
+                                //         console.log("Notification Sending is failed: ", notiErr);
+                                //     } else {
+                                //         console.log("Successfully sent with response: ", notiRes);
+                                //     }
+                                // });
                                 return res.send({ error: false, coin_count: user_new_coin_count, message: "Diamonds sent." });
                             });
                         });

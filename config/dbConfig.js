@@ -10,7 +10,8 @@ var mysqlConfig = {
   charset: process.env.CHARSET,
 };
 // connectionLimit : 10,
-
+// charset   : 'utf8mb4',
+// collation : 'utf8mb4_unicode_ci'
 if (process.env.CLOUD_SQL_CONNECTION_NAME) {
   console.log(`This is App Engine. Proceeding to configure mysql with socketPath "/cloudsql/${process.env.CLOUD_SQL_CONNECTION_NAME}".`)
   mysqlConfig.socketPath = `/cloudsql/${process.env.CLOUD_SQL_CONNECTION_NAME}`;
