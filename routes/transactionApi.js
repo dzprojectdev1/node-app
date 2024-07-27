@@ -424,8 +424,6 @@ transactionApi.post('/pushNotification', function(req, res) {
             // });
 
             counter ++;
-
-            console.log('counter_push_notification' + counter);
         });
 
         if (total_user > 0) {
