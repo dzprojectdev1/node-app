@@ -187,8 +187,9 @@ videoApi.post('/getVideoForMe', checkAuth, function(req, res) {
 });
 
 //#34 UC12.1 - My Video Page - display my videos
-videoApi.get('/getMyAllVideo', checkAuth, function(req, res) {
-    var userId = req.userData.userId;
+videoApi.get('/getMyAllVideo/:userId', checkAuth, function(req, res) {
+    // var userId = req.userData.userId;
+    const userId = req.params.userId;
     dbConn.query('SELECT * FROM tbl_video WHERE publish=? AND is_reply=? AND user_id=?', [1, 0, userId], function(error, results, fields) {
         if (error) return res.status(400).send({error: true, detail: error.code, message: error.sqlMessage});
         return res.send({error: false, data: results, message: 'user non-reply video list'});
@@ -196,9 +197,10 @@ videoApi.get('/getMyAllVideo', checkAuth, function(req, res) {
 });
 
 //#35 UC 12.2 - My Video Page - set as primary video
-videoApi.put('/setAsPrimary/:videoId', checkAuth, function(req, res) {
+videoApi.put('/setAsPrimary/:videoId/:userId', checkAuth, function(req, res) {
     var videoId = req.params.videoId;
-    var userId = req.userData.userId;
+    var userId = req.params.userId;
+    // var userId = req.userData.userId;
     
     if (!videoId) 
         return res.status(400).send({error: true, message: 'Wrong video id'});
@@ -280,9 +282,10 @@ videoApi.post('/uploadMyVideo', checkAuthCloudFunction, function(req, res) {
 });
 
 // #37 UC12.3 - My Page - delete my videos
-videoApi.put('/removeMyVideo/:videoId', checkAuth, function(req, res) {
+videoApi.put('/removeMyVideo/:videoId/:userId', checkAuth, function(req, res) {
     var videoId = req.params.videoId;
-    var userId = req.userData.userId;
+    var userId = req.params.userId;
+    // var userId = req.userData.userId;
     
     if (!videoId) {
         return res.status(400).send({error: true, message: 'Please provide video Id'});

@@ -91,10 +91,11 @@ function resizeFile(fromPath, toPath, size) {
   }
 }
 
-uploadApi.post('/userPhoto', checkAuth, upload.single('fileData'), (req, res) => {
+uploadApi.post('/userPhoto/:userId', checkAuth, upload.single('fileData'), (req, res) => {
   const file = req.file;
+  const userId = req.params.userId;
   const originalFilePath = path.join(TEMP_UPLOAD_FOLDER, file.filename);
-
+  console.log("/userPhoto/:userId", userId);
   const promises = THUMBNAIL_SIZES
     .map(size => {
       const thumbnailName = size === 512 ? `${file.filename}.${DESIRED_FILE_EXTENSION}` : `thumb_${size}_${file.filename}.${DESIRED_FILE_EXTENSION}`;
@@ -123,11 +124,12 @@ uploadApi.post('/userPhoto', checkAuth, upload.single('fileData'), (req, res) =>
           throw err;
         });
     });
-  
+  //req.userData.userId
   Promise.all(promises)
     .then(storageResponse => {
+      console.log("/userPhoto/:userId => ", userId, file.filename);
       createNewVideoInDatabase({
-        userId: req.userData.userId,
+        userId: userId,
         cdnId: file.filename,
         cdnFilteredId: file.filename,
         cdnId_128: 'thumb_128_' + file.filename,
