@@ -3,7 +3,7 @@ const storageApi = express.Router();
 const dbConn = require("../config/dbConfig");
 const checkAuth = require('../middleware/check_auth');
 const { bucket } = require('../config/storageConfig');
-const uuidv1 = require('uuid/v1');
+const { v1: uuidv1 } = require('uuid');
 const moment = require('moment');
 
 storageApi.get('/videoLink', checkAuth, (req, res) => {
