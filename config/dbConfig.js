@@ -38,7 +38,13 @@ async function getConnection() {
   return pool.promise().getConnection();
 }
 
-// Export the pool for existing `.query(...)` call sites.
-module.exports = pool;
-module.exports.pool = pool;
-module.exports.getConnection = getConnection;
+// Export a wrapper so `dbConn.getConnection()` does not overwrite mysql2's
+// native `pool.getConnection`, which `pool.promise()` depends on internally.
+const dbConn = Object.create(pool);
+dbConn.query = pool.query.bind(pool);
+dbConn.execute = pool.execute.bind(pool);
+dbConn.end = pool.end.bind(pool);
+dbConn.pool = pool;
+dbConn.getConnection = getConnection;
+
+module.exports = dbConn;

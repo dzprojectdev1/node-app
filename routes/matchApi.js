@@ -1392,7 +1392,7 @@ matchApi.post('/getAllDiscovers', checkAuth, function (req, res) {
     var perPageCount = req.body.count;
     var offSet = req.body.offset;
     
-    if (!perPageCount || !offSet) 
+    if (!perPageCount || offSet === undefined || offSet === null) 
         return res.status(403).send({error: true, message: 'invalid params'});
 
     perPageCount = parseInt(perPageCount);
