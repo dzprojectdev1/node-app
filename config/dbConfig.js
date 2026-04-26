@@ -25,6 +25,20 @@ if (process.env.CLOUD_SQL_CONNECTION_NAME) {
   console.log('Using direct connection (no SSL).');
 }
 
-var dbConn = mysql.createPool(mysqlConfig);
+// Pool for all regular (non-transaction) queries.
+const pool = mysql.createPool(mysqlConfig);
 
-module.exports = dbConn;
+/**
+ * Helper for transactions.
+ * mysql2's pool does not implement `beginTransaction` directly; you must
+ * acquire a dedicated connection first.
+ */
+async function getConnection() {
+  // `pool.promise()` returns a promise-enabled wrapper for mysql2.
+  return pool.promise().getConnection();
+}
+
+// Export the pool for existing `.query(...)` call sites.
+module.exports = pool;
+module.exports.pool = pool;
+module.exports.getConnection = getConnection;
